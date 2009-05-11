@@ -40,8 +40,9 @@
 \newstyle{TT A}{font-family:monospace;}
 \newstyle{B} {font-weight: bold }
 
-%% Links
+%% Links & sups
 \newstyle{A}{color: blue; text-decoration : none }
+\newstyle{.titlerest SUP}{ font-size: 70\%; padding-right:0.5ex }
 
 %% Title 
 \newstyle{.titlemain}{font-size: 180\%; text-align: left}
@@ -104,7 +105,7 @@
 %% Examples
 \setenvclass{example}{example}
 \newenvironment{example}%
-{\@open{DIV}{class="example"}\par\textbf{Exemple}\quad}%
+{\@open{DIV}{class="example"}\par\textbf{Example}\quad}%
 {\@close{DIV}}
 \newstyle{DIV.example}{ margin-top: 1em; 
 			margin-bottom: 1em;
@@ -144,9 +145,9 @@
 {\stepcounter{exercise}%
  \renewcommand{\exerciseanswer}{#1}%
  \@open{DIV}{class="exercise"}%
- \par\textbf{Exercice~\theexercise}\label{ex\theexercise}\quad}
+ \par\textbf{Exercise~\theexercise}\label{ex\theexercise}\quad}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
- {\hfill\ahrefloc{exans\theexercise}{Corrigé}.}%
+ {\hfill\ahrefloc{exans\theexercise}{Answer}.}%
  \@close{DIV}}
 
 \setenvclass{exercise}{exercise}
@@ -159,10 +160,10 @@
 
 
 \newenvironment{answer}{%
- \begin{cutflow}{Corrigé exercice~\theexercise}%
+ \begin{cutflow}{Answer of exercise~\theexercise}%
  \cutname{exercise\theexercise .html}%
  \@open{DIV}{class="answer"}%
- \par\textbf{Corrigé \ahrefloc{ex\theexercise}{exercice~\theexercise}}\quad%
+ \par\textbf{Answer of \ahrefloc{ex\theexercise}{exercise~\theexercise}}\quad%
  \label{exans\theexercise}}
 {\@close{DIV}\end{cutflow}}
 
@@ -200,7 +201,7 @@
 \newenvironment{mytable}[1][]%
 {\caption{}\refstepcounter{mytable}%
  \@open{DIV}{class="table"}}
-{\@open{DIV}{class="caption"}Tableau \themytable~---~\usebox{\@caption}%
+{\@open{DIV}{class="caption"}Table \themytable~---~\usebox{\@caption}%
  \@close{DIV}\@close{DIV}}
 \newstyle{DIV.table} { margin-top:1em; margin-bottom:1em;
                        padding-bottom:1em;

@@ -29,10 +29,10 @@
 \hypersetup{%
   pdftitle={\mytitle},
   pdfauthor={\myauthors},
-  pdfsubject={Cours de programmation système Unix en Objective Caml},
+  pdfsubject={Course on Unix system programming in Objective Caml},
   pdfkeywords={\mykeywords},
   pdfborder={0 0 0.5},
-  pdflang={fr-FR},
+  pdflang={en-GB},
   urlbordercolor={0 0 1},
   citebordercolor={1 0 0},
   linkbordercolor={1 0 0}}
@@ -75,7 +75,6 @@
 \abstractrunin
 
 %% Sections & paragraphs
-\frenchbsetup{IndentFirst=false}
 \setsecnumdepth{section}
 \openright 
 \makechapterstyle{mychap}{%
@@ -144,7 +143,7 @@
 
 \newenvironment{example}
 {\vskip\onelineskip\hrule\vskip 0.5\onelineskip%
- \begingroup\noindent\textbf{Exemple}\quad}
+ \begingroup\noindent\textbf{Example}\quad}
 {\vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
 
 %% Code listings
@@ -201,9 +200,9 @@
 {\stepcounter{exercise}%
  \renewcommand{\exerciseanswer}{#1}%
  \vskip\onelineskip\hrule\vskip 0.5\onelineskip%
- \begingroup\noindent\textbf{Exercice~\theexercise}\label{ex\theexercise}\quad}
+ \begingroup\noindent\textbf{Exercise~\theexercise}\label{ex\theexercise}\quad}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
- {\hfill Corrigé page~\pageref{exans\theexercise}.}%
+ {\hfill Answer page~\pageref{exans\theexercise}.}%
  \vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
 
 \newenvironment{answer}{%
@@ -211,7 +210,7 @@
                {\addtostream{ans}{\the\verbatim@line}}
  \addtostream{ans}{%
    \protect%
-   \paragraph{Exercice~\theexercise~(page~\pageref{ex\theexercise})}%
+   \paragraph{Exercise~\theexercise~(page~\pageref{ex\theexercise})}%
    \protect\label{exans\theexercise}}%
  \verbatim}
 {\endverbatim}
@@ -229,10 +228,9 @@
 \newenvironment{mytable}
 {\table\centering\hrule\vspace{\onelineskip}}%
 {\vspace{0.5\onelineskip}\hrule\endtable}
-\renewcommand{\tablename}{Tableau}
+\renewcommand{\tablename}{Table}
 \renewcommand{\arraystretch}{1.4} 
 
-\renewcommand{\captionsfrench}{} % take precedence over babel french.
 \captiondelim{~---~}
 \captionnamefont{\normalfont\normalsize}
 \captiontitlefont{\normalfont\normalsize}

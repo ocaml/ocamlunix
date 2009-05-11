@@ -4,13 +4,11 @@
 % All rights reserved. Distributed under a creative commons
 % attribution-non-commercial-share alike 2.0 France license.
 % http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
-%
-% Translation by
 %------------------------------------------------------------------------------
 
 \documentclass[twoside,openright,a4paper,11pt]{memoir}
 \usepackage[latin1]{inputenc}
-\usepackage[english,french]{babel}
+\usepackage[english]{babel}
 
 \usepackage{ifthen}
 \usepackage{listings}
@@ -25,9 +23,9 @@
 \lstdefinestyle{numbers}{numbers=left}
 \let \ml \lstinline
 
-\newcommand{\mytitle}{Programmation du système Unix en Objective Caml}
-\newcommand{\myauthors}{Xavier Leroy et Didier Rémy}
-\newcommand{\mykeywords}{OCaml,Unix,Programmation,Système}
+\newcommand{\mytitle}{Unix system programming in Objective Caml}
+\newcommand{\myauthors}{Xavier Leroy and Didier Rémy}
+\newcommand{\mykeywords}{Software,OCaml,Unix,Programming,System}
 \newcommand{\licenseURL}{http://creativecommons.org/licenses/by-nc-sa/2.0/fr/}
 
 \usepackage{hyperref}
@@ -122,7 +120,7 @@
 \input{more.tex}
 
 \backmatter
-\ifnothtml{\chapter{Corrigé des exercices}\inputexerciseanswers}
+\ifnothtml{\chapter{Exercise answers}\inputexerciseanswers}
 \pagestyle{mynoheaders}
 \input{references.tex}
 
@@ -131,9 +129,9 @@
 
 \renewcommand{\preindexhook} {
   \ifhtml{\aname{htocindex}{}} %% how can I put that in the title ?
-  Les \ifhtmlelse{liens}{pages} en gras
-  comme renvoient à des occurrences correspondants à la description
-  d'un appel système \textsc{posix}.\ifnothtml{\medskip}}
+  \ifhtmlelse{Links}{Pages} in bold refer to the description of 
+  a \textsc{posix} system call.
+  \ifnothtml{\medskip}}
 
 \printindex
 \ifhtml{\addcontentsline{toc}{chapter}{\ahrefloc{htocindex}{Index}}}
