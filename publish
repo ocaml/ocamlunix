@@ -13,6 +13,4 @@ TMP=${TMP:="/tmp/ocamlcore"}
 $RM -rf $TMP
 $MKDIR -p $TMP
 INSTALLDIR=$TMP ./build install-distrib
-for f in `ls $TMP`; do 
-    scp $TMP/$f $HOST:$ROOTDIR/$f
-done
+$SCP $TMP/* $HOST:$ROOTDIR/
