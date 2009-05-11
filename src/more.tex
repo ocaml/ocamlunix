@@ -8,32 +8,29 @@
 % Translation by
 %------------------------------------------------------------------------------
 
-\chapter*{\ifhtml{\aname{htocmore}}Pour aller plus loin}
-\addcontentsline{toc}{chapter}{\ifhtml{\ahrefloc{htocmore}}{Pour aller
-plus loin}}
+\chapter*{\ifhtml{\aname{htocmore}}Going further}
+\addcontentsline{toc}{chapter}{\ifhtml{\ahrefloc{htocmore}}{Going further}}
 \label{sec/more}
 \cutname{more.html}
 
-Nous avons montré comment utiliser les modules \libmodule{Sys},
-\libmodule{Unix}, et \libmodule{Threads} d'{\ocaml} pour programmer
-des applications qui interagissent avec le système d'exploitation.
+We have shown how \ocaml's \libmodule{Sys}, \libmodule{Unix}, and
+\libmodule{Threads} modules can be used to program applications that
+interact with the operating system.
 
-Ces bibliothèques relèvent les appels système Unix les plus importants
-au niveau du langage {\ocaml}. Au passage, certains de ces appels
-système ont été remplacés par des fonctions de plus haut niveau, soit
-pour faciliter la programmation, soit pour maintenir des invariants de
-l'environnement d'exécution des programmes {\ocaml}.  En général, cela
-conduit à une économie dans l'écriture des applications.
+These modules allow to invoke the most important Unix system calls
+directly from OCaml. Some of these calls were replaced by higher-level
+functions, either to facilitate programming or to maintain invariants
+needed by {\ocaml}'s runtime system. In any case, this higer-level
+access to the Unix system streamlines the development of applications.
 
-Certaines fonctionalités du système Unix ne sont pas accessibles au
-travers des bibliothèques précédentes, mais il est toujours possible
-d'y accéder directement via du code C.
+Not every feature of the Unix system is available through these
+modules, however it is still possible to access the missing ones by
+writing C bindings.
 
-Il existe aussi une bibliothèque Cash~\cite{Cash} dédiée à l'écriture
-de scripts en Ocaml. Cette bibliothèque complète le module \ml+Unix+
-dans deux directions différentes. D'une part, elle peut se voir comme
-une couche au dessus du module \ml+Unix+ qui offre, en plus de
-fonctions dédiées à l'écriture de scripts, de nombreuses variations
-autour des appels systèmes d'\ml+Unix+, en particulier en ce qui
-concerne la gestion des processus et des tuyaux.  D'autre part, elle
-fournit quelques accès supplémentaires au système Unix.
+Another useful library is Cash~\cite{Cash} which focuses on writing
+scripts directly in {\ocaml}. This library completes the \ml+Unix+
+module in two different ways. First, regardless of a few helper
+functions to write scripts, it provides, on top of the \ml+Unix+
+module, a few system call variations to assist the programmer in
+process and pipe management. Second, it offers additional entry points
+to the Unix system.
