@@ -1,0 +1,1391 @@
+%------------------------------------------------------------------------------
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%
+% Translation by
+%------------------------------------------------------------------------------
+
+\chapter{Communications inter-processus classiques}
+\label{sec/pipes}
+\cutname{pipes.html}
+
+On a vu jusqu'ici comment manipuler des processus et les faire
+communiquer avec l'extérieur par l'intermédiaire de fichiers. Le reste
+de ce cours est consacré au problème de faire communiquer entre eux
+des processus s'exécutant en parallèle, pour leur permettre de
+coopérer.
+
+\section{Les tuyaux}
+
+Les fichiers normaux ne fournissent pas un moyen satisfaisant de
+communication entre processus parallèles. Exemple: dans une situation
+écrivain/lecteur (un processus écrit des informations, l'autre les
+lit), si on utilise un fichier comme médium, le lecteur peut constater
+que le fichier ne grossit plus (\ml+read+ renvoie zéro), mais il ne peut
+pas savoir si c'est dû au fait que le processus écrivain a terminé, ou
+bien si l'écrivain est simplement en train de calculer la prochaine
+information. De plus, le fichier garde trace de toutes les
+informations transmises, ce qui pose des problèmes, en particulier de
+place disque.
+
+Les tuyaux (parfois également appelés tubes) fournissent un mécanisme
+adapté à ce style de communication. Un tuyau se présente sous la forme
+de deux descripteurs de fichiers. L'un, ouvert en écriture, représente
+l'entrée du tuyau.  L'autre, ouvert en lecture, représente la sortie
+du tuyau. On crée un tuyau par l'appel système \syscall{pipe}:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{pipe}$ : unit -> file_descr * file_descr
+\end{listingcodefile}
+%
+Un appel à pipe retourne une paire \ml+(fd_in, fd_out)+.  Le premier
+résultat \ml+fd_in+ est un descripteur ouvert en \emph{lecture} sur la
+sortie du tuyau; le deuxième résultat \ml+fd_out+ est un descripteur
+ouvert en \emph{écriture} sur l'entrée du tuyau. Le tuyau proprement
+dit est un objet interne au noyau, accessible uniquement via ces deux
+descripteurs. En particulier, le tuyau créé n'a pas de nom dans le
+système de fichiers.
+
+%% To draw fd and pipes
+\tikzset{
+  fd/.style={draw,rectangle,inner sep=3mm, rounded corners,
+             text width=1cm, text centered},
+  pipe/.style={draw,cylinder,minimum size=6mm,minimum height=18mm,
+               anchor=shape center}}
+
+
+\begin{myimage}[width="60\%"]
+\begin{tikzpicture}
+\node (pipe) [pipe] {};
+\node (out) [fd, left=of pipe] {\texttt{fd\_out}};
+\node (in) [fd, right=of pipe] {\texttt{fd\_in}};
+\draw [->] (out) to (pipe);
+\draw [->] (pipe) to (in);
+\end{tikzpicture}
+\end{myimage}
+
+Un tuyau se comporte comme un tampon géré en file d'attente (\emph{
+  first-in, first-out}): ce qu'on lit sur la sortie du tuyau, c'est ce
+qu'on a écrit sur l'entrée, dans le même ordre. Les écritures
+(\indexvalue{write} sur le descripteur d'entrée) remplissent le tuyau,
+et lorsqu'il est plein, bloquent en attendant qu'un autre processus
+vide le tuyau en lisant depuis l'autre extrémité; ce processus est
+répété plusieurs fois, si nécessaire, jusqu'à ce que toutes les
+données fournies à \ml+write+ aient été transmises. Les lectures
+(\indexvalue{read} sur le descripteur de sortie) vident le tuyau. Si
+le tuyau est entièrement vide, la lecture bloque jusqu'à ce qu'un
+octet au moins soit écrit dedans. Les lectures retournent dès qu'il y
+a quelque chose dans le tuyau, sans attendre que le nombre d'octets
+demandés à \ml+read+ soit atteint.
+
+Les tuyaux ne présentent donc aucun intérêt si c'est le même processus
+qui écrit et qui lit dedans. (Ce processus risque fort de se bloquer à
+tout jamais sur une écriture trop grosse, ou sur une lecture dans un
+tuyau vide.) Ce sont donc généralement des processus différents qui
+écrivent et qui lisent dans un tuyau. Comme le tuyau n'est pas nommé,
+il faut que ces processus aient été créés par \indexvalue{fork} à
+partir du processus qui a alloué le tuyau. En effet, les descripteurs
+sur les deux extrémités du tuyau, comme tous les descripteurs, sont
+dupliqués au moment du \ml+fork+, et font donc référence au même tuyau
+dans le processus père et dans le processus fils.
+
+\begin{example} 
+Le fragment de code ci-dessous est typique.
+%
+\begin{lstlisting}
+let (fd_in, fd_out) = pipe() in
+match fork () with
+| 0 ->
+    close fd_in;
+    ... write fd_out buffer1 offset1 count1 ...
+| k ->
+    close fd_out;
+    ... read fd_in buffer2 offset2 count2 ...
+\end{lstlisting}
+%
+Après le \ml+fork+, il y a deux descripteurs ouverts sur l'entrée du
+tuyau (un dans le père, un dans le fils), et de même pour la sortie.
+%
+\begin{myimage}[width="45\%"]
+\begin{tikzpicture}
+\node (pipe) at (0,0) [pipe] {};
+\node (outfather) at (-2,1.5) [fd] {\texttt{fd\_out} père};
+\node (outchild) at (-2,-1.5) [fd] {\texttt{fd\_out} fils};
+\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} père};
+\node (inchild) at (2,-1.5) [fd] {\texttt{fd\_in} fils};
+\draw [->] (outfather.south) to [bend right=30] (pipe.west);
+\draw [->] (outchild.north) to [bend left=30] (pipe.west);
+\draw [->] (pipe.east) to [bend right=30] (infather.south);
+\draw [->] (pipe.east) to [bend left=30] (inchild.north);
+\end{tikzpicture}
+\end{myimage}
+
+Dans cet exemple, on a choisi de faire du fils l'écrivain, et du père
+le lecteur. Le fils ferme donc son descripteur \ml+fd_in+ sur la
+sortie du tuyau (pour économiser les descripteurs, et pour éviter
+certaines erreurs de programmation). Cela laisse le descripteur
+\ml+fd_in+ du père inchangé, car les descripteurs sont alloués dans la
+mémoire du processus et, après le fork, la mémoire du fils et celle du
+père sont disjointes.  Le tuyau, alloué dans la mémoire système,
+continue à exister puisqu'il y a encore le descripteur \ml+fd_in+ du
+père ouvert en lecture sur sa sortie.  Le père ferme de même son
+descripteur sur l'entrée du tuyau. La situation est donc la suivante:
+%
+\begin{myimage}[width="45\%"]
+\begin{tikzpicture}
+\node (pipe) at (0,0) [pipe] {};
+\node (outchild) at (-2,-1.5) [fd] {\texttt{fd\_out} fils};
+\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} père};
+\draw [->] (outchild.north) to [bend left=30] (pipe.west);
+\draw [->] (pipe.east) to [bend right=30] (infather.south);
+\end{tikzpicture}
+\end{myimage}
+%
+Les données que le fils écrit sur \ml+fd_out+ arrivent donc bien
+jusqu'au descripteur \ml+fd_in+ du père.
+\end{example}
+
+Lorsqu'on a fermé tous les descripteurs sur l'entrée d'un tuyau,
+\ml+read+ sur la sortie du tuyau renvoie zéro: fin de
+fichier. Lorsqu'on a fermé tous les descripteurs sur la sortie d'un
+tuyau, \ml+write+ sur l'entrée du tuyau provoque la mort du processus
+qui fait \ml+write+.  Plus précisément: le noyau envoie un signal
+\ml+SIGPIPE+ au processus qui fait \ml+write+, et le comportement par
+défaut de ce signal est de tuer le processus (voir la partie
+\quotes{signaux} ci-dessous), ou si le comportement du signal
+\ml+SIGPIPE+ à été modifié alors l'appel système \ml+write+ échoue
+avec une erreur \ml+EPIPE+.
+
+\section{Exemple complet: le crible d'Ératosthène parallèle}
+\label {ex/crible}
+
+L'exemple qui suit est un grand classique de la programmation par
+processus communicants. Le but du programme est d'énumérer les nombres
+premiers et de les afficher au fur et à mesure. L'idée est la
+suivante: initialement, on connecte un processus qui énumère les
+entiers à partir de 2 sur sa sortie avec un processus
+\quotes{filtre}. Le processus filtre commence par lire un entier $p$
+sur son entrée, et l'affiche à l'écran.
+
+\tikzset{process/.style={draw,rectangle,inner sep=2mm, rounded corners,
+             text width=1cm, minimum height=1cm, text
+             centered,font=\small},
+         output/.style={font=\small,above}}
+
+\begin{myimage}[width="38\%"]
+\begin{tikzpicture}
+\node (intgen) at (0,0) [process] {entiers};
+\node (read) at (3.5,0) [process] {lire $p$};
+\draw [->] (intgen) to node [output] {2, 3, 4...} (read);
+\end{tikzpicture}
+\end{myimage}
+%
+Le premier processus filtre lit donc $p=2$. Ensuite, il crée un
+nouveau processus filtre, connecté à sa sortie, et il se met à filtrer
+les multiples de $p$ depuis son entrée; tous les nombres lus qui ne
+sont pas multiples de $p$ sont réémis sur sa sortie.
+%
+\begin{myimage}[width="65\%"]
+\begin{tikzpicture}
+\node (intgen) at (0,0) [process] {entiers};
+\node (filter2) at (3.5,0) [process] {filtrer les $2n$};
+\node (read) at (7,0) [process] {lire $p$};
+\draw [->] (intgen) to node [output] {2, 3, 4...} (filter2);
+\draw [->] (filter2) to node [output] {3, 5, 7...} (read);
+\end{tikzpicture}
+\end{myimage}
+%
+Le processus suivant lit donc $p=3$, l'affiche, et se met à filtrer
+les multiples de 3. Et ainsi de suite.
+%
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (intgen) at (0,0) [process] {entiers};
+\node (filter2) at (3.5,0) [process] {filtrer les $2n$};
+\node (filter3) at (7,0) [process] {filtrer les $3n$};
+\node (ldots) at (10,0) {...};
+\node (read) at (11,0) [process] {lire $p$};
+\draw [->] (intgen) to node [output] {2, 3, 4...} (filter2);
+\draw [->] (filter2) to node [output] {2, 3, 4...} (filter3);
+\draw [->] (filter3) to node [output] {5, 7, 11...} (ldots);
+\end{tikzpicture}
+\end{myimage}
+%
+Cet algorithme n'est pas directement implémentable en Unix, parce
+qu'il crée trop de processus (le nombre d'entiers premiers déjà
+trouvés, plus un). La plupart des systèmes Unix limitent le nombre de
+processus à quelques dizaines. De plus, dix processus actifs
+simultanément suffisent à effondrer la plupart des machines
+mono-processeurs, en raison des coûts élevés de commutation de
+contextes pour passer d'un processus à un autre. Dans l'implémentation
+qui suit, chaque processus attend d'avoir lu un certain nombre
+d'entiers premiers $p_1, \ldots, p_k$ sur son entrée avant de se
+transformer en filtre à éliminer les multiples de $p_1, \ldots,
+p_k$. En pratique, $k = 1000$ ralentit raisonnablement la création de
+nouveaux processus.
+
+On commence par le processus qui produit les nombres entiers 
+de 2 à $k$.
+%
+\begin{listingcodefile}{crible.ml}
+open Unix;;
+
+let input_int = input_binary_int
+let output_int = output_binary_int
+
+let generate k output =
+  let rec gen m =
+    output_int output m;
+    if m < k then gen (m+1)
+  in gen 2;;
+\end{listingcodefile}
+Pour communiquer les entiers en la sortie d'un générateur et l'entrée du
+filtre suivant on peut utiliser les fonctions suivantes: 
+%
+\begin{lstlisting}
+val $\libvalue{Pervasives}{output\_binary\_int}$ : out_channel -> int -> unit
+val $\libvalue{Pervasives}{input\_binary\_int}$ : in_channel -> int
+\end{lstlisting}
+%
+La fonction \ml+output_binary_int+ est une fonction de la bibliothèque
+standard qui écrit la représen\-ta\-tion d'un entier (sous forme de
+quatre octets) sur un \ml+out_channel+. L'entier peut ensuite être
+relu par la fonction \ml+input_binary_int+.  L'intérêt d'employer ici
+la bibliothèque standard est double: premièrement, il n'y a pas à
+faire soi-même les fonctions de conversion entiers/chaînes de quatre
+caractères (la représentation n'est pas spécifiée, mais il est garanti
+que pour une version du langage, elle est indépendante de la machine);
+deuxièmement, on fait beaucoup moins d'appels système, car les
+entrées/sorties sont temporisées, d'où de meilleures performances. Les
+deux fonctions ci-dessous construisent un \ml+in_channel+ ou un
+\ml+out_channel+ qui temporise les lectures ou les écritures sur le
+descripteur Unix donné en argument:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\indexlibvalue{Unix}{in\_channel\_of\_descr}$  : file_descr -> in_channel
+val $\indexlibvalue{Unix}{out\_channel\_of\_descr}$ : file_descr -> out_channel
+\end{listingcodefile}
+%
+Ces fonctions permettent de faire des entrées/sorties temporisées sur
+des descripteurs obtenus indirectement ou autrement que par une
+ouverture de fichier. Leur utilisation n'a pas pour but de mélanger
+les entrées/sorties temporisés avec des entrées sorties non
+temporisées, ce qui est possible mais très délicat et fortement
+déconseillé, en particulier pour les lectures. Il est également
+possible mais très risqué de construire plusieurs \ml+in_channel+ (par
+exemple) sur le même descripteur de fichier.
+
+On passe maintenant au processus filtre. Il utilise la fonction
+auxiliaire \ml+read_first_primes+. L'appel 
+\ml+read_first_primes input n+ lit \ml+n+ nombres sur 
+\ml+input+ (un \ml+in_channel+), en
+éliminant les multiples des nombres déjà lus. On affiche ces \ml+n+
+nombres au fur et à mesure de leur construction, et on en renvoie la
+liste.
+%% définir \ml+input_int+ and \ml+output_int+ as ... and explain independence
+%% of représentation. 
+%
+\begin{listingcodefile}[style=numbers]{crible.ml}
+let print_prime n = print_int n; print_newline()
+
+let read_first_primes input count =
+  let rec read_primes first_primes count =
+    if count <= 0 then
+      first_primes
+    else
+      let n = input_int input in
+      if List.exists (fun m -> n mod m = 0) first_primes then
+        read_primes first_primes count
+      else begin
+        print_prime n; $\label{prog:pprime}$
+        read_primes (n :: first_primes) (count - 1)
+      end in
+  read_primes [] count;;
+\end{listingcodefile}
+%
+Voici la fonction filtre proprement dite.
+%
+\begin{listingcodefile}[style=numbers]{crible.ml}
+let rec filter input =
+  try 
+    let first_primes = read_first_primes input 1000 in
+    let (fd_in, fd_out) = pipe() in
+    match fork() with
+    | 0 ->
+        close fd_out;
+        filter (in_channel_of_descr fd_in)
+    | p ->
+        close fd_in;
+        let output = out_channel_of_descr fd_out in
+        while true do $\label{prog:criblewhile}$
+          let n = input_int input in
+          if List.exists (fun m -> n mod m = 0) first_primes then ()
+          else output_int output n
+        done $\label{prog:cribledone}$
+  with End_of_file -> ();;
+\end{listingcodefile}
+%
+Le filtre commence par appeler \ml+read_first_primes+ pour lire les
+1000 premiers nombres premiers sur son entrée (le paramètre
+\ml+input+, de type \ml+in_channel+). Ensuite, on crée un tuyau et on
+clone le processus par \ml+fork+. Le processus fils se met à filtrer
+de même ce qui sort du tuyau. Le processus père lit des nombres sur
+son entrée, et les envoie dans le tuyau s'ils ne sont pas multiples
+d'un des 1000 nombres premiers lus initialement.
+
+Le programme principal se réduit à connecter par un tuyau le
+générateur d'entiers avec un premier processus filtre (\ml+crible k+
+énumère les nombres premiers plus petits que \ml+k+.  Si \ml+k+ est
+omis (ou n'est pas un entier) il prend la valeur par défaut
+\ml+max_int+).
+%
+\begin{listingcodefile}[style=numbers]{crible.ml}
+let crible () =
+  let len = try int_of_string Sys.argv.(1) with _ -> max_int in
+  let (fd_in, fd_out) = pipe () in
+  match fork() with
+    0 ->
+      close fd_out;
+      filter (in_channel_of_descr fd_in)
+  | p ->
+      close fd_in;
+      generate len (out_channel_of_descr fd_out);; $\label{prog:gen}$
+
+handle_unix_error crible ();;
+\end{listingcodefile}
+%
+Ici, nous n'avons pas attendu que les fils terminent pour terminer le
+programme. Les processus pères sont des générateurs pour leurs fils.
+Lorsque \ml+k+ est donné, le père va s'arrêter en premier, et fermer
+le descripteur sur le tuyau lui permettant de communiquer avec son
+fils.  Lorsqu'il termine, {\ocaml} vide les tampons sur les
+descripteurs ouverts en écriture, donc le processus fils peut lire les
+dernières données fournies par le père. Il s'arrête à son tour, {\etc}
+Les fils deviennent donc orphelins et sont temporairement rattachés au
+processus \ml+1+ avant de terminer à leur tour.
+
+Lorsque \ml+k+ n'est pas fourni, tous les processus continuent
+indéfiniment (jusqu'à ce que l'un ou plusieurs soient tués).  La mort
+d'un processus entraîne la terminaison d'un de ses fils comme dans le
+cas précédent et la fermeture en lecture du tuyau qui le relie à son
+père. Cela provoquera la terminaison de son père à la prochaine
+écriture sur le tuyau (le père recevra un signal \ml+SIGPIPE+, dont
+l'action par défaut est la terminaison du processus).
+
+\begin{exercise}
+Comment faut-il modifier le programme pour que le père attende la
+terminaison de ses fils?
+\end{exercise}
+\begin{answer}
+Il faut attendre le fils bien sûr, mais avant cela il faut fermer le
+descripteur de fichier sur lequel lit le fils, sinon celui-ci
+attendrait indéfiniment que son père émette d'autres données,
+conduisant à un interblocage (la fermeture d'un canal se charge de
+vider le tampon juste avant sa fermeture, donc on ne perd rien).
+Concrètement, on remplace la ligne~\ref{prog:gen} de la fonction
+\ml+crible+ par:
+\begin{lstlisting}
+let output = out_channel_of_descr fd_out in
+ generate len output;
+ close_out output;
+ ignore(waitpid [] k);;
+\end{lstlisting}
+De même, on va entourer le bloc de
+lignes~\ref{prog:criblewhile}--\ref{prog:cribledone} de la fonction
+\ml+filter+ (représenté par \ml+...+ ci-dessous) par les lignes suivantes:
+\begin{lstlisting}
+try 
+  ...
+with End_of_file -> 
+  close_out output;
+  ignore (waitpid [] p)
+\end{lstlisting}
+\end{answer}
+
+\begin{exercise}
+À chaque nombre premier trouvé, la fonction \ml+print_prime+ exécute
+l'expression \ml+print_newline()+ qui effectue un appel système pour
+vider de tampon de la sortie standard, ce qui limite artificiellement
+la vitesse d'exécution.  En fait \ml+print_newline()+ exécute
+\ml+print_char+ \ml+'\n'+ suivi de \ml+flush Pervasives.stdout+. Que
+peut-il se passer si on exécute simplement \ml+print_char '\n'+? Que
+faire alors?
+\end{exercise}
+\begin{answer}
+Les tampons d'entrées/sorties de la bibliothèque standard sont
+dupliqués au moment de la commande \ml+fork+ (puisque le processus
+fils est une copie du processus père). Si, les tampons ne sont plus
+vidés à chaque écriture, alors il faut les vider explicitement juste
+avant la commande \ml+fork+. Pour cela, il suffit d'ajouter 
+\ml+flush Pervasives.stdout+ après la ligne~\ref{prog:pprime} de la
+fonction \ml+read_first_prime+.
+\end{answer}
+%
+\begin{codefile}{finalcrible.ed}
+f finalcrible.ml
+r crible.ml
+/let print_prime/s/print_newline *()/print_char '\\n'/
+/    let (fd_in, fd_out)/a
+    flush Pervasives.stdout;
+.
+/while true do/,/done/c
+        try 
+          while true do
+            let n = input_int input in
+            if List.exists (fun m -> n mod m = 0) first_primes then ()
+            else output_int output n
+          done;
+        with End_of_file -> 
+          close_out output;
+          ignore (waitpid [] p)
+.
+/generate len (out_channel_of_descr/c
+      let output = out_channel_of_descr fd_out in
+      generate len output;
+      close_out output;
+      ignore(waitpid [] p);;
+.
+wq
+\end{codefile}
+
+\section{Les tuyaux nommés}
+
+Certaines variantes d'Unix (System~V, SunOS, Ultrix, Linux)
+fournissent la possibilité de créer des tuyaux associés à un nom dans
+le système de fichiers. Ces tuyaux nommés (aussi appelés \emph{fifo})
+permettent la communication entre des processus sans liens de famille
+particuliers (au contraire des tuyaux normaux, qui limitent la
+communication au créateur du tuyau et à ses descendants).
+
+L'appel permettant de créer un tuyau nommé est:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\indexlibvalue{Unix}{mkfifo}$ : string -> int -> unit
+\end{listingcodefile}
+%
+Le premier argument est le nom du tuyau; le deuxième, les droits
+d'accès voulus.
+
+On ouvre un tuyau nommé par l'appel système \syscall{openfile}, comme
+pour un fichier normal. Lectures et écritures sur un tuyau nommé ont
+la même sémantique que sur un tuyau simple. Cependant l'ouverture d'un
+tuyau nommé en lecture seule ou en écriture seule est bloquante
+jusqu'à ce que ce tuyau soit ouvert par un autre processus en écriture
+ou en lecture, respectivement (ce qui peut déjà être le cas et il n'y
+a pas à attendre), à moins que l'ouverture soit faite avec le drapeau
+\ml+O_NONBLOCK+.  Dans ce denier cas les lectures ou écritures
+effectués sur le tuyau ne seront pas non plus bloquantes.  On peut
+changer ce drapeau une fois le tuyau ouvert avec la fonction
+\ml+clear_nonblock+ et rendre les lectures ou les écritures suivantes
+sur le tuyau bloquantes (ou non bloquantes avec \ml+set_nonblock+).
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\indexlibvalue{Unix}{set\_nonblock}$ : file_descr -> unit
+val $\indexlibvalue{Unix}{clear\_nonblock}$ : file_descr -> unit
+\end{listingcodefile}
+
+\section{Redirections de descripteurs}
+
+Avec ce qu'on a vu jusqu'ici, on ne sait toujours pas connecter par un
+tuyau des processus via leurs entrées et sorties standard, comme le
+fait le shell pour exécuter des commandes de la forme 
+\ml+cmd1 | cmd2+.  
+En effet, les descripteurs sur les extrémités d'un tuyau qu'on obtient
+avec \ml+pipe+ (ou avec \ml+openfile+ sur un tuyau nommé) sont de
+\quotes{nouveaux} descripteurs, distincts des descripteurs \ml+stdin+,
+\ml+stdout+ et \ml+stderr+.
+
+Pour ce genre de problèmes, Unix fournit un appel système,
+\syscall{dup2} (lire: \quotes{DUPlicate a descriptor TO another
+  descriptor}), qui permet de rediriger un descripteur vers un
+autre. Ceci est rendu possible par le fait qu'il y a un niveau
+d'indirection entre un descripteur de fichier (un objet de type
+\ml+file_descr+) et l'objet du noyau, qu'on appelle une \emph{file
+  table entry}, qui contient effectivement le pointeur vers le fichier
+ou le tuyau associé, et la position courante de lecture/écriture.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{dup2}$ : file_descr -> file_descr -> unit
+\end{listingcodefile}
+%
+L'appel \ml+dup2 fd1 fd2+ a pour effet de faire pointer le descripteur
+\ml+fd2+ vers la même {\em file table entry} que celle pointée par
+\ml+fd1+. Après exécution de cet appel, \ml+fd2+ est donc un duplicata
+de \ml+fd1+: les deux descripteurs font référence au même fichier ou
+tuyau, à la même position de lecture/écriture.
+
+\begin{myimage}[width="80\%"]
+\begin{tikzpicture}
+[ft/.style={draw,rectangle,text width=1.5cm, inner sep=2mm,text centered}]
+\node at (1.5,3.5) {Avant \texttt{dup2 fd1 fd2}};
+\node (fd1) at (0,2) [fd] {\texttt{fd1}};
+\node (fd2) at (0,0) [fd] {\texttt{fd2}};
+\node (ft1) at (3,2) [ft] {file table entry 1};
+\node (ft2) at (3,0) [ft] {file table entry 2};
+\draw [->] (fd1) to (ft1);
+\draw [->] (fd2) to (ft2);
+
+\node at (7.5,3.5) {Après \texttt{dup2 fd1 fd2}};
+\node (fd1) at (6,2) [fd] {\texttt{fd1}};
+\node (fd2) at (6,0) [fd] {\texttt{fd2}};
+\node (ft1) at (9,2) [ft] {file table entry 1};
+\node (ft2) at (9,0) [ft] {file table entry 2};
+\draw [->] (fd1) to (ft1);
+\draw [->] (fd2.east) .. controls +(left:-1cm) and +(right:-1cm) .. (ft1.west);
+\end{tikzpicture}
+\end{myimage}
+
+\begin{example} 
+Redirection de l'entrée standard.
+\begin{lstlisting}
+let fd = openfile "foo" [O_RDONLY] 0 in
+dup2 fd stdin;
+close fd;
+execvp "bar" [|"bar"|]
+\end{lstlisting}
+Après le \ml+dup2+, le descripteur \ml+stdin+ fait référence au
+fichier \ml+foo+. Toute lecture sur \ml+stdin+ va donc lire depuis le
+fichier \ml+foo+.  (Et aussi toute lecture depuis \ml+fd+; mais on ne
+va plus utiliser \ml+fd+ par la suite, et c'est pourquoi on le ferme
+immédiatement.) De plus, cet état de choses est préservé par
+\ml+execvp+. Et donc, le programme \ml+bar+ va s'exécuter avec son
+entrée standard reliée au fichier \ml+foo+.  C'est ainsi que le shell
+exécute des commandes de la forme \ml+bar < foo+.
+\end{example}
+
+\begin{example} 
+Redirection de la sortie standard.
+%
+\begin{lstlisting}
+let fd = openfile "foo" [O_WRONLY; O_TRUNC; O_CREAT] 0o666 in
+dup2 fd stdout;
+close fd;
+execvp "bar" [|"bar"|]
+\end{lstlisting}
+%
+Après le \ml+dup2+, le descripteur \ml+stdout+ fait référence au
+fichier \ml+foo+. Toute écriture sur \ml+stdout+ va donc écrire sur le
+fichier \ml+foo+.  Le programme \ml+bar+ va donc s'exécuter avec sa
+sortie standard reliée au fichier \ml+foo+. C'est ainsi que le shell
+exécute des commandes de la forme \ml+bar > foo+.
+\end{example}
+
+\begin{example} 
+Relier l'entrée d'un programme à la sortie d'un autre.
+%
+\begin{lstlisting}
+let (fd_in, fd_out) = pipe() in
+match fork() with
+| 0 -> dup2 fd_in stdin;
+       close fd_out;
+       close fd_in;
+       execvp "cmd2" [|"cmd2"|]
+| _ -> dup2 fd_out stdout;
+       close fd_out;
+       close fd_in;
+       execvp "cmd1" [|"cmd1"|]
+\end{lstlisting}
+%
+Le programme \ml+cmd2+ est exécuté avec son entrée standard reliée à
+la sortie du tuyau. En parallèle, le programme \ml+cmd1+ est exécuté
+avec sa sortie standard reliée à l'entrée du tuyau. Et donc, tout ce
+que \ml+cmd1+ écrit sur sa sortie standard est lu par \ml+cmd2+ sur
+son entrée standard.
+
+Que se passe-t-il si \ml+cmd1+ termine avant \ml+cmd2+? Au moment du
+\ml+exit+ dans \ml+cmd1+, les descripteurs ouverts par \ml+cmd1+ sont
+fermés. Il n'y a donc plus de descripteur ouvert sur l'entrée du
+tuyau. Lorsque \ml+cmd2+ aura vidé les données en attente dans le
+tuyau, la prochaine lecture renverra une fin de fichier; \ml+cmd2+
+fait alors ce qu'il est censé faire quand il atteint la fin de son
+entrée standard~---~par exemple, terminer. Exemple de cette situation:
+%
+\begin{lstlisting}
+cat foo bar gee | grep buz
+\end{lstlisting}
+%
+D'un autre côté, si \ml+cmd2+ termine avant \ml+cmd1+, le dernier
+descripteur sur la sortie du tuyau est prématurément fermé, et donc
+\ml+cdm1+ va recevoir un signal (qui, par défaut, termine le
+processus) la prochaine fois qu'il essaye d'écrire sur sa sortie
+standard.  Exemple de cette situation:
+%
+\begin{lstlisting}
+grep buz gee | more
+\end{lstlisting}
+%
+et on quitte \ml+more+ avant la fin en appuyant sur \ml+q+. À ce
+moment là, \ml+grep+ est prématurément arrêté, sans qu'il aille
+jusqu'à la fin du fichier \ml+gee+.
+\end{example}
+
+\begin{exercise}
+Comment implémenter quelques-unes des autres redirections du shell
+\ml+sh+, à savoir:
+%
+\begin{lstlisting}
+>>      2>      2>>     2>1     <<
+\end{lstlisting}
+%
+\end{exercise}
+\begin{answer}
+Pour \ml+>>+, on procède comme pour \ml+>+, sauf que le fichier est
+ouvert avec les options
+%
+\begin{lstlisting}[]
+[O_WRONLY; O_APPEND; O_CREAT]
+\end{lstlisting}
+%
+Pour \ml+2>+, on procède comme pour \ml+>+, sauf que
+%
+\begin{lstlisting}
+dup2 fd stderr
+\end{lstlisting}
+%
+est exécuté en lieu et place de
+%
+\begin{lstlisting}
+dup2 fd stdout
+\end{lstlisting}
+%
+Pour \ml+2>1+, il suffit d'appeler
+%
+\begin{lstlisting}
+dup2 stderr stdout
+\end{lstlisting}
+%
+avant d'exécuter la commande. Enfin, pour \ml+<<+, le shell \ml+sh+
+crée un fichier temporaire dans \ml+/tmp+, contenant les lignes qui
+suivent \ml+<<+, puis exécute la commande en redirigeant son entrée
+standard sur ce fichier. Une autre méthode serait de connecter par un
+tuyau l'entrée standard de la commande à un processus fils qui envoie
+les lignes suivant \ml+<<+ sur ce tuyau.
+\end{answer}
+
+Échanger deux descripteurs est plus délicat: la séquence % 
+\ml+dup2 fd1 fd2; dup2 fd2 fd1+ à laquelle on pourrait penser
+naïvement ne convient pas. En effet, la seconde opération de
+redirection n'a aucun effet, puisqu'après la premier les deux
+descripteurs \ml+fd1+ et \ml+fd2+ pointent déjà vers la même \emph{file
+  table entry}. L'ancienne valeur de \ml+fd2+ a été perdue. Comme pour
+intervertir le contenu de deux références, il faut utiliser une
+variable auxiliaire pour sauvegarde l'une des deux valeurs. Ici, il
+faut sauvegarder l'un des deux descripteurs, en le recopiant avec
+l'appel système \syscall{dup}.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{dup}$ : file_descr -> file_descr
+\end{listingcodefile}
+%
+L'appel \ml+dup fd+ retourne un nouveau descripteur qui pointe vers la
+même \emph{file table entry} que \ml+fd+.  Par exemple, on peut
+maintenant échanger \ml+stdout+ et \ml+stderr+ par le code suivant:
+%
+\begin{codefile}{dup.ml}
+open Unix;;
+let exchange () = 
+\end{codefile}
+%
+\begin{listingcodefile}{dup.ml}
+let tmp = dup stderr in
+dup2 stderr stdout; 
+dup2 tmp stderr;
+close tmp;;
+\end{listingcodefile}
+%x
+Ne pas oublier de refermer le descripteur temporaire \ml+tmp+, devenu
+inutile, afin d'éviter une fuite de mémoire.
+
+\section{Exemple complet: composer $N$ commandes}
+
+On va construire une commande \ml+compose+, telle que
+\begin{lstlisting}
+compose cmd$\(_1\)$ cmd$\(_2\)$ ... cmd$\(_n\)$ 
+\end{lstlisting}
+se comporte comme la commande shell
+\begin{lstlisting}
+cmd$\(_1\)$ | cmd$\(_2\)$ | ... | cmd$\(_n\)$
+\end{lstlisting}
+\begin{listingcodefile}[style=numbers]{compose.ml}
+open Sys;;
+open Unix;;
+
+let compose () =
+  let n = Array.length Sys.argv - 1 in
+  for i = 1 to n - 1 do $\label{prog:composefor}$
+    let (fd_in, fd_out) = pipe() in
+    match fork() with
+      0 ->
+        dup2 fd_out stdout;
+        close fd_out;
+        close fd_in;
+        execv "/bin/sh" [| "/bin/sh"; "-c"; Sys.argv.(i) |]
+    | _ ->
+        dup2 fd_in stdin;
+        close fd_out;
+        close fd_in
+  done;
+  match fork () with
+  | 0 ->
+      execv "/bin/sh" [|"/bin/sh"; "-c"; Sys.argv.(n) |]
+  | _ ->
+      let rec wait_for_children retcode =
+        try
+          match wait() with
+            (pid, WEXITED n) -> wait_for_children (retcode lor n)
+          | (pid, _)         -> wait_for_children 127
+        with
+            Unix_error(ECHILD, _, _) -> retcode in
+      exit (wait_for_children 0)
+;;
+handle_unix_error compose ();;
+\end{listingcodefile}
+L'essentiel du travail est fait par la boucle \ml+for+ de la
+ligne~\ref{prog:composefor}.  Pour chaque commande sauf la dernière,
+on crée un nouveau tuyau, puis un nouveau processus. Le nouveau
+processus (le fils) relie l'entrée du tuyau à sa sortie standard, et
+exécute la commande. Il hérite l'entrée standard du processus père au
+moment du \ml+fork+. Le processus principal (le père) relie la sortie
+du tuyau à son entrée standard, et continue la boucle. Supposons
+(hypothèse de récurrence) que, au début du $i$ème tour de boucle, la
+situation soit la suivante:
+\tikzset{
+fd/.style={draw,ellipse,font=\small},
+pipe/.style={draw,cylinder,minimum size=4mm,minimum
+  height=10mm,anchor=shape center},
+process/.style={draw,rectangle,inner sep=1mm, rounded corners,
+                text width=1.3cm, minimum height=1cm, text
+                centered,font=\small}}
+\begin{myimage}[width="80\%"]
+\begin{tikzpicture}
+\node (stdin) at (0,0)[fd] {\texttt{stdin}};
+\node (cmd1) at (2.5,0) [process] {\texttt{cmd}$_1$};
+\node (pipe1) at (4.5,0) [pipe] {};
+\node (cmd2) at (6.5,0) [process] {\texttt{cmd}$_2$};
+\node (ldots1) at (8.25,0) {...};
+\draw[->] (stdin) to (cmd1);
+\draw[->] (cmd1) to (pipe1);
+\draw[->] (pipe1) to (cmd2);
+\draw[->] (cmd2) to (ldots1);
+
+\node (ldots2) at (0.75,-1.5) {...};
+\node (cmd) at (2.5,-1.5) [process] {\texttt{cmd}$_{i-1}$};
+\node (pipe2) at (4.5,-1.5) [pipe] {};
+\node (compose) at (6.5,-1.5) [process] {\texttt{compose}};
+\node (stdout) at (9,-1.5) [fd] {\texttt{stdout}};
+\draw[->] (ldots2) to (cmd);
+\draw[->] (cmd) to (pipe2);
+\draw[->] (pipe2) to (compose);
+\draw[->] (compose) to (stdout);
+\end{tikzpicture}
+\end{myimage}
+
+(Les carrés représentent des processus, avec leur entrée standard à
+gauche et leur sortie standard à droite. Les deux ellipses
+représentent l'entrée standard et la sortie standard initiales du
+processus \ml+compose+.) Après \ml+pipe+ et \ml+fork+, la situation est la
+suivante:
+%
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (ldots) at (0, 0) {...};
+\node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
+\node (pipe1) at (3.5, 0) [pipe] {};
+\node (composec) at (5.5,0) [process] {\texttt{compose} \scriptsize{(fils)}};
+\node (pipe2) at (7.5, 0) [pipe] {};
+\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(père)}};
+\node (stdout) at (12,0) [fd] {\texttt{stdout}};
+\draw[->] (cmd) to (pipe1);
+\draw[->] (pipe1) to (composec);
+\draw[->] (pipe1.east) to [bend right=45] (composef.west);
+\draw[->] (composec.east) to [bend right=45] (stdout.west);
+\draw[->] (composef) to (stdout);
+\end{tikzpicture}
+\end{myimage}
+%
+Le père appelle \ml+dup2+; on obtient:
+%
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (ldots) at (0, 0) {...};
+\node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
+\node (pipe1) at (3.5, 0) [pipe] {};
+\node (composec) at (5.5,0) [process] {\texttt{compose} \scriptsize{(fils)}};
+\node (pipe2) at (7.5, 0) [pipe] {};
+\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(père)}};
+\node (stdout) at (12,0) [fd] {\texttt{stdout}};
+\draw[->] (cmd) to (pipe1);
+\draw[->] (pipe1) to (composec);
+\draw[->] (composec.east) to [bend right=45] (stdout.west);
+\draw[->] (pipe2) to (composef);
+\draw[->] (composef) to (stdout);
+\end{tikzpicture}
+\end{myimage}
+%
+Le fils appelle \ml+dup2+ puis \ml+exec+; on obtient:
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (ldots) at (0, 0) {...};
+\node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
+\node (pipe1) at (3.5, 0) [pipe] {};
+\node (cmd2) at (5.5,0) [process] {\texttt{cmd}$_{i}$};
+\node (pipe2) at (7.5, 0) [pipe] {};
+\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(père)}};
+\node (stdout) at (12,0) [fd] {\texttt{stdout}};
+\draw[->] (cmd) to (pipe1);
+\draw[->] (pipe1) to (cmd2);
+\draw[->] (cmd2) to (pipe2);
+\draw[->] (pipe2) to (composef);
+\draw[->] (composef) to (stdout);
+\end{tikzpicture}
+\end{myimage}
+%
+Tout est prêt pour le prochain tour de boucle.
+
+L'exécution de la dernière commande est faite en dehors de la boucle,
+parce qu'il n'y a pas besoin de créer un nouveau tuyau: le processus
+\ml+compose+ a déjà la bonne entrée standard (la sortie de
+l'avant-dernière commande) et la bonne sortie standard (celle fournie
+initialement à la commande \ml+compose+); il suffit donc de faire
+\ml+fork+ et \ml+exec+ du côté du processus fils. Le processus père se
+met alors à attendre que les fils terminent: on fait \ml+wait+ de
+manière répétée jusqu'à ce que l'erreur \ml+ECHILD+ (plus de fils à
+attendre) se déclenche. On combine entre eux les codes de retour des
+processus fils par un \quotes{ou} bit-à-bit (opérateur \ml+lor+) pour
+fabriquer un code de retour raisonnable pour \ml+compose+: zéro si
+tous les fils ont renvoyé zéro, non nul sinon.
+
+Remarque: si les exécutions des commandes \ml+cmd+$_1$ passent par
+l'intermédiaire de \ml+/bin/sh+, c'est pour le cas où l'on fait par
+exemple
+%
+\begin{lstlisting}
+compose "grep foo" "wc -l"
+\end{lstlisting}
+%
+L'appel à \ml+/bin/sh+ assure le découpage de chaque commande complexe en
+mots. (On aurait pu le faire soi-même comme dans l'exemple du
+mini shell, mais c'est pénible.)
+
+\section{Multiplexage d'entrées-sorties}
+
+Dans les exemples qu'on a vus jusqu'ici, les processus communiquent de
+façon \quotes{linéaire}. En particulier, un processus lit des données
+en provenance d'au plus un autre processus. Les situations où un
+processus doit lire des données en provenance de plusieurs processus
+posent des problèmes supplémentaires, comme on va le voir maintenant.
+
+On considère l'exemple d'un émulateur de terminal multi-fenêtres sur
+un micro-ordinateur. C'est-à-dire, on a un micro-ordinateur relié à
+une machine Unix par une liaison série, et on cherche à faire émuler
+par le micro-ordinateur plusieurs terminaux, affichant chacun dans une
+fenêtre différente sur l'écran du micro, et reliés à des processus
+différents sur la machine Unix. Par exemple, une fenêtre peut être
+reliée à un shell, et une autre à un éditeur de textes. Les sorties du
+shell s'affichent sur la première fenêtre, les sorties de l'éditeur,
+sur la seconde; les caractères entrés au clavier du micro sont envoyés
+sur l'entrée standard du shell si la première fenêtre est active, ou
+sur l'entrée standard de l'éditeur si la seconde est active.
+
+Comme il n'y a qu'une liaison physique entre le micro et la machine
+Unix, il va falloir multiplexer les liaisons virtuelles
+fenêtre/processus, c'est-à-dire entrelacer les transmissions de
+données. Voici le protocole qu'on va utiliser. Transitent sur la
+liaison série des paquets de la forme suivante:
+%
+\begin{itemize}
+\item un octet indiquant le numéro du processus ou de la fenêtre
+  destinataire
+
+\item un octet indiquant le nombre $N$ d'octets de données qui suivent
+
+\item $N$ octets représentant les données à transmettre au
+  destinataire.
+\end{itemize}
+
+Voici comment les choses se passent du côté de la machine Unix. Les
+processus utilisateur (shell, éditeur, etc.) vont être reliés par des
+tuyaux à un ou plusieurs processus auxiliaires, qui lisent et écrivent
+sur la liaison série, et effectuent le multiplexage et le
+démultiplexage.  La liaison série se présente sous la forme d'un
+fichier spécial (\ml+/dev/ttya+, par exemple), sur lequel on fait
+\ml+read+ et \ml+write+ pour recevoir ou envoyer des octets au
+micro-ordinateur.
+
+Le démultiplexage (transmission dans le sens micro vers processus) ne
+pose pas de difficultés. Il suffit d'avoir un processus qui lit des
+paquets depuis la liaison série, puis écrit les données lues sur le
+tuyau relié à l'entrée standard du processus utilisateur destinataire.
+%
+%
+\tikzset{
+fd/.style={draw,ellipse,font=\small},
+pipe/.style={draw,cylinder,minimum size=4mm,minimum
+  height=10mm,anchor=shape center},
+process/.style={draw,rectangle,inner sep=1mm, rounded corners,
+                text width=1.3cm, minimum height=1cm, text
+                centered,font=\small}}
+
+\begin{myimage}[width="55\%"]
+\begin{tikzpicture}
+\node (dev) at (0,0) [fd] {\texttt{/dev/ttya}};
+\node (demux) at (3,0) [process] {démulti\-plexeur};
+\node (shell) at (5.5,0.75) [process] {\texttt{shell}};
+\node (emacs) at (5.5,-0.75) [process] {\texttt{emacs}};
+\draw[->] (dev) to (demux);
+\draw[->] (demux) to (shell.west);
+\draw[->] (demux) to (emacs.west);
+\end{tikzpicture}
+\end{myimage}
+
+Le multiplexage (transmission dans le sens processus vers micro) est
+plus délicat. Essayons l'approche symétrique du démultiplexage: un
+processus lit successivement sur les tuyaux reliés aux sorties
+standard des processus utilisateur, puis met les données lues sous
+forme de paquets (en ajoutant le numéro de la fenêtre destinataire et
+la taille du bloc de données lu) et les écrit sur la liaison série.
+%
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (dev) at (0,0) [fd] {\texttt{/dev/ttya}};
+\node (demux) at (3,0) [process] {démulti\-plexeur};
+\node (shell) at (5.5,0.75) [process] {\texttt{shell}};
+\node (emacs) at (5.5,-0.75) [process] {\texttt{emacs}};
+\node (mux) at (8,0) [process] {multi\-plexeur};
+\node (dev2) at (11,0) [fd] {\texttt{/dev/ttya}};
+\draw[->] (dev) to (demux);
+\draw[->] (demux) to (shell.west);
+\draw[->] (demux) to (emacs.west);
+\draw[->] (shell.east) to (mux);
+\draw[->] (emacs.east) to (mux);
+\draw[->] (mux) to (dev2);
+\end{tikzpicture}
+\end{myimage}
+
+Cette approche ne marche pas, car les lectures sur tuyaux sont
+bloquantes. Par exemple, si on décide de lire sur la sortie du shell,
+mais que le shell n'affiche rien pendant ce temps, le processus
+multiplexeur reste bloqué; et si pendant ce temps l'éditeur affiche
+des caractères, ces caractères ne seront pas transmis au
+micro-ordinateur. Il n'y a aucun moyen de savoir à l'avance quels sont
+les tuyaux sur lesquels il y a effectivement des données en attente
+d'affichage. (En algorithmique parallèle, cette situation où un
+processus se voit refuser indéfiniment l'accès à une ressource
+partagée est connue sous le nom de \quotes{situation de famine}.)
+
+Essayons une deuxième approche: à chaque processus utilisateur est
+associé un processus \quotes{répéteur}, qui lit la sortie standard du
+processus utilisateur par l'intermédiaire d'un tuyau, la met sous
+forme de paquet, et écrit directement le paquet sur la liaison série.
+(Chaque processus répéteur a ouvert \ml+/dev/ttya+ en écriture.)
+%
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}
+\node (dev) at (0,0) [fd] {\texttt{/dev/ttya}};
+\node (demux) at (3,0) [process] {démulti\-plexeur};
+\node (shell) at (5.5,0.75) [process] {\texttt{shell}};
+\node (emacs) at (5.5,-0.75) [process] {\texttt{emacs}};
+\node (rep1) at (8,0.75) [process] {répéteur};
+\node (rep2) at (8,-0.75) [process] {répéteur};
+\node (dev2) at (11,0) [fd] {\texttt{/dev/ttya}};
+\draw[->] (dev) to (demux);
+\draw[->] (demux) to (shell.west);
+\draw[->] (demux) to (emacs.west);
+\draw[->] (shell.east) to (rep1);
+\draw[->] (emacs.east) to (rep2);
+\draw[->] (rep1.east) to (dev2.175);
+\draw[->] (rep2.east) to (dev2.185);
+\end{tikzpicture}
+\end{myimage}
+
+Les situations de blocage ne sont plus à craindre, puisque chaque
+processus utilisateur a sa sortie retransmise indépendamment des
+autres processus utilisateur. En revanche, le protocole n'est pas
+forcément respecté. Deux répéteurs peuvent en effet écrire deux
+paquets au même instant (ou presque). Or, le noyau Unix ne garantit
+pas que les écritures sont atomiques, c'est-à-dire effectuées en une
+seule opération ininterruptible. Le noyau peut très bien transmettre à
+\ml+/dev/ttya+ une partie du paquet écrit par le premier répéteur,
+puis le paquet écrit par le second répéteur, puis le reste du premier
+paquet.  Ceci va plonger le démultiplexeur qui est à l'autre bout de
+la liaison dans la plus extrême confusion: il va prendre le deuxième
+paquet pour une partie des données du premier paquet, puis il va
+essayer d'interpréter le reste des données du premier paquet comme un
+en-tête de paquet.
+
+Pour éviter cette situation, il faut que les processus répéteurs se
+synchronisent pour assurer que, à tout instant, au plus un répéteur
+est en train d'écrire sur la liaison série. (En algorithmique
+parallèle, on dit qu'il faut assurer l'exclusion mutuelle entre les
+processus qui accèdent à la ressource partagée.)  On peut le faire
+avec les moyens qu'on a vu jusqu'ici: les répéteurs créent un fichier
+donné (le \quotes{verrou}) avec l'option \ml+O_EXCL+ de \ml+openfile+
+avant d'écrire un paquet, et le détruisent après avoir écrit le
+paquet.  Cette méthode n'est pas très efficace, en raison du coût de
+création et de destruction du fichier verrou.
+
+Une troisième approche consiste à reprendre la première approche (un
+seul processus multiplexeur), en mettant en mode \quotes{non bloquant}
+les descripteurs ouverts sur les tuyaux reliés aux sorties standard
+des processus utilisateur. (Le passage en mode \quotes{non bloquant}
+se fait par une des options de l'appel système \ml+fcntl+, qu'on ne
+décrira pas dans ce cours.) En mode \quotes{non bloquant}, les
+opérations de lecture sur un tuyau vide ne bloquent pas, mais
+retournent immédiatement avec une erreur. Il suffit d'ignorer cette
+erreur et de passer à la lecture sur le prochain processus
+utilisateur. Cette approche empêche la famine et ne pose pas de
+problèmes d'exclusion mutuelle, mais se révèle très inefficace. En
+effet, le processus multiplexeur fait ce qu'on appelle de l'attente
+active: il consomme du temps de calcul même s'il n'y a rien à
+faire~---~par exemple, si les processus utilisateur n'envoient rien
+sur leur sortie pendant un certain temps. Bien entendu, on peut
+diminuer la fréquence des tentatives de lecture en introduisant par
+exemple des appels \ml+sleep+ dans la boucle de lecture; mais il est
+très difficile de trouver la bonne fréquence: celle qui charge
+suffisamment peu la machine lorsqu'il n'y a rien à retransmettre, mais
+qui n'introduit pas de délai perceptible dans la transmission
+lorsqu'il y a beaucoup à retransmettre.
+
+On le voit, il y a là un problème sérieux. Pour le résoudre, les
+concepteurs de \textsc{bsd} Unix ont introduit un nouvel appel
+système, \syscall{select}, qui se trouve maintenant sur la plupart des
+variantes d'Unix. L'appel \ml+select+ permet à un processus de se
+mettre en attente (passive) d'un ou plusieurs événements
+d'entrée-sortie. Les événements possibles sont:
+%
+\begin{itemize}
+\item événements en lecture: \quotes{il y a des données à lire sur tel
+  descripteur}
+
+\item événements en écriture: \quotes{on peut écrire sur tel
+  descripteur sans être bloqué}
+
+\item événements exceptionnels: \quotes{une condition exceptionnelle
+  est vraie sur tel descripteur}. Par exemple, sur certaines
+  connexions réseau, on peut envoyer des données prioritaires (\emph{
+    out-of-band data}), qui court-circuitent les données normales en
+  attente de transmission. La réception de telles données prioritaires
+  constitue une condition exceptionnelle.
+\end{itemize}
+%
+L'appel système \ml+select+ a l'interface suivante:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{select}$ : 
+    file_descr list -> file_descr list -> file_descr list -> 
+      float -> file_descr list * file_descr list * file_descr list
+\end{listingcodefile}
+%
+Les trois premiers arguments sont des ensembles de descripteurs
+(représentés par des listes): le premier argument est l'ensemble des
+descripteurs à surveiller en lecture; le deuxième argument est
+l'ensemble des descripteurs à surveiller en écriture; le troisième
+argument est l'ensemble des descripteurs à surveiller en exception. Le
+quatrième argument est un délai maximal d'attente, exprimé en
+secondes. S'il est positif ou nul, l'appel \ml+select+ va rendre la
+main au bout de ce temps, même si aucun événement ne s'est produit.
+S'il est strictement négatif, l'appel \ml+select+ attend indéfiniment
+qu'un des événements demandés se produise.
+
+L'appel \ml+select+ renvoie un triplet de listes de descripteurs: les
+descripteurs effectivement prêts en lecture (première composante), en
+écriture (deuxième composante), ou sur lesquels une condition
+exceptionnelle s'est produite (troisième composante). Si le délai
+maximal s'est écoulé sans aucun événement, les trois listes sont
+vides.
+
+\begin{example} 
+Le fragment de code ci-dessous surveille en lecture les deux
+descripteurs \ml+fd1+ et \ml+fd2+, et reprendre la main au bout de 0,5
+secondes.
+\begin{lstlisting}
+match select [fd1;fd2] [] [] 0.5 with
+| [], [], [] -> (* le délai de 0,5s est écoulé *)
+| fdl, [], [] ->
+    if List.mem fd1 fdl then
+         (* lire depuis fd1 *);
+    if List.mem fd2 fdl then
+         (* lire depuis fd2 *)
+\end{lstlisting}
+\end{example}
+
+\begin{example} 
+La fonction \ml+multiplex+ ci-dessous est le coeur du
+multiplexeur/démultiplexeur pour l'émulateur de terminaux virtuels
+décrit plus haut. (Pour simplifier, le multiplexeur se contente
+d'étiqueter les messages en fonction de leur provenance et le
+démultiplexeur suppose que les messages sont étiquetés en fonction de
+leur destinataire: on suppose donc soit que chaque émetteur parle à
+une destinataire de même numéro, soit qu'au milieu de la ligne on
+établit la correspondance émetteur destinataire en ré-étiquetant les
+messages.)
+
+La fonction \ml+multiplex+ prend un descripteur ouvert sur la liaison
+série, et deux tableaux de descripteurs de même taille, l'un contenant
+les tuyaux reliés aux entrées standard des processus utilisateur,
+l'autre les tuyaux reliés à leurs sorties standard.
+%
+\begin{listingcodefile}{multiplex.ml}
+open Unix;;
+
+let rec really_read fd buff start length =
+  if length <= 0 then () else
+    match read fd buff start length with
+    | 0 -> raise End_of_file
+    | n -> really_read fd buff (start+n) (length-n);;
+
+let buffer = String.create 258;;
+
+let multiplex channel inputs outputs =
+  let input_fds = channel :: Array.to_list inputs in
+  try
+    while true do
+      let (ready_fds, _, _) = select input_fds [] [] (-1.0) in
+      for i = 0 to Array.length inputs - 1 do
+        if List.mem inputs.(i) ready_fds then begin
+          let n = read inputs.(i) buffer 2 255 in
+          buffer.[0] <- char_of_int i;
+          buffer.[1] <- char_of_int n;
+          ignore (write channel buffer 0 (n+2));
+          ()
+        end
+      done;
+      if List.mem channel ready_fds then begin
+        really_read channel buffer 0 2;
+        let i = int_of_char(buffer.[0])
+        and n = int_of_char(buffer.[1]) in
+        if n = 0 then
+          close outputs.(i)
+        else begin
+          really_read channel buffer 0 n;
+          ignore (write outputs.(i) buffer 0 n);
+          ()
+        end
+      end
+    done
+  with End_of_file -> () ;;
+\end{listingcodefile}
+
+La fonction \ml+multiplex+ commence par construire un ensemble de
+descripteurs (\ml+input_fds+) contenant les descripteurs d'entrée
+(ceux qui sont connectés aux sorties standard des processus
+utilisateur), plus le descripteur sur la liaison série. À chaque tour
+de la boucle \ml+while true+, on appelle \ml+select+ pour surveiller
+en lecture \ml+input_fds+. On ne surveille aucun descripteur en
+écriture ni en exception, et on ne borne pas le temps
+d'attente. Lorsque \ml+select+ retourne, on teste s'il y a des données
+en attente sur un des descripteurs d'entrée, ou sur le canal de
+communication.
+
+S'il y a des données sur une des entrées, on fait \ml+read+ sur cette
+entrée, on ajoute un en-tête aux données lues, et on écrit le paquet
+obtenu sur le canal. Si \ml+read+ renvoie zéro, ceci indique que le
+tuyau correspondant a été fermé. Le programme à l'autre bout de la
+liaison série va recevoir un paquet contenant zéro octets de données,
+ce qu'il va interpréter comme \quotes{le processus utilisateur numéro
+  tant est mort}; il peut alors fermer la fenêtre correspondante.
+
+S'il y a des données sur le canal, on lit d'abord l'en-tête, ce qui
+donne le numéro \ml+i+ de la sortie destinataire et le nombre \ml+n+
+d'octets à lire; puis on lit les \ml+n+ octets sur le canal, et on les
+écrit sur la sortie numéro \ml+i+. Cas particulier: si \ml+n+ vaut 0,
+on ferme la sortie correspondante. L'idée est que l'émulateur de
+terminal à l'autre bout de la liaison va envoyer un paquet avec
+\ml+n+$= 0$ pour signifier une fin de fichier sur l'entrée standard du
+processus correspondant.
+
+On sort de la boucle quand \ml+really_read+ déclenche une exception
+\ml+End_of_file+, c'est-à-dire quand la fin de fichier est atteinte
+sur la liaison série.
+\end{example}
+
+\section{Miscelleaneous:  \texttt{write}}
+\label{single_write}
+
+La commande \ml+Unix.write+ itère l'appel système \syscall{write}
+jusqu'à ce que la quantité demandée soit effectivement la quantité
+transférée. Lorsque le descripteur est un tuyau (ou une prise que l'on
+verra dans le chapitre suivant), l'écriture est par défaut
+bloquante. L'appel système \ml+write+ peut donc être interrompu en
+présence de signaux.  L'erreur \ml+EINTR+ est alors remontée vers
+OCaml, alors qu'une partie des données a déjà pu être transférée par
+un appel précédent à \ml+write+. La taille des données transférée est
+alors perdue, irrémédiablement, ce qui rend \ml+Unix.write+
+inutilisable en présence de signaux.
+
+Pour remédier à ce problème, OCaml relève également l'appel système
+\ml+write+ sous le nom \ml+single_write+. Nous montrons sur cet
+exemple comment relever un appel système en OCaml. Il s'agit en fait
+simplement d'interfacer OCaml avec du code C et on pourra se reporter
+à la section correspondante du manuel {\ocaml}.  Le code suivant est
+écrit dans un fichier \ml+single_write.c+.
+%
+\begin{listingcodefile}[style=numbers]{single_write.c}
+#include <errno.h>
+#include <string.h>
+#include <caml/mlvalues.h>
+#include <caml/memory.h>
+#include <caml/signals.h>
+#include <caml/unixsupport.h>
+
+CAMLprim value caml_single_write
+        (value fd, value buf, value vofs, value vlen) {
+  CAMLparam4(fd, buf, vofs, vlen);
+  long ofs, len;
+  int numbytes, ret;
+  char iobuf[UNIX_BUFFER_SIZE];
+  ofs = Long_val(vofs)
+  len = Long_val(vlen)
+  ret = 0;
+  if (len > 0) {
+    numbytes = len > UNIX_BUFFER_SIZE ? UNIX_BUFFER_SIZE : len;
+    memmove (iobuf, &Byte(buf, ofs), numbytes);
+    enter_blocking_section(); $\label{prog:enterbs}$
+    ret = write(Int_val(fd), iobuf, numbytes);
+    leave_blocking_section(); $\label{prog:leavebs}$
+    if (ret == -1) uerror("single_write", Nothing);
+  }
+  CAMLreturn (Val_int(ret));
+}
+\end{listingcodefile}
+%
+Les deux premières lignes incluent des bibliothèques C standards.  Les
+quatre suivantes incluent des bibliothèques C spécifiques à {\ocaml}
+et installées avec. La bibliothèque \ml+unixsupport.h+ permet de
+réutiliser certaines fonctions C d'Unix comme le traitement d'erreur,
+etc.
+
+La ligne la plus significative est l'appel à \ml+write+.  Comme
+celui-ci est bloquant (si le descripteur est un tuyau ou une
+chaussette), il faut relâcher le verrou {\ocaml} immédiatement avant
+l'appel et le reprendre après (lignes \ref{prog:enterbs} et
+\ref{prog:leavebs}), afin d'être compatible avec la bibliothèque
+\ml+Thread+ et de permettre éventuellement à d'autres coprocessus de
+s'exécuter pendant l'attente (voir le Chapitre~\ref
+{sec/coprocessus}). OCaml peut donc effectuer un GC pendant
+l'exécution de l'appel système, ce qui oblige à se prémunir contre un
+déplacement de la chaîne {\ocaml} \ml+buf+ en la recopiant dans une
+chaîne C \ml+iobuf+. Cela a un coût supplémentaire, mais seulement de
+l'ordre de 10\% et non de l'ordre de 50\% comme on pourrait s'y
+attendre, car la gestion de l'appel système et des structures systèmes
+liés à la copie gardent un coût prépondérant.
+
+La taille de cette chaîne est bornée par \ml+UNIX_BUFFER_SIZE+, afin
+d'éviter des à coups inutiles, définie dans \ml+unix_support.h+. Une
+erreur pendant l'appel système, signalée par une valeur de retour
+strictement négative, est propagée vers {\ocaml} par la fonction
+\ml+uerror+, définie dans la bibliothèque \ml+Unix+.
+
+Pour remonter ce code en {\ocaml}, le fichier \ml+unix.mli+ déclare
+%
+\begin{codefile}{write.mli}
+open Sys
+open Unix
+val single_write : file_descr -> string -> int -> int -> int 
+(** Same as [write] but does not attempt to write all data. Return after
+the first successful partial transfer. *)
+\end{codefile}
+%
+\begin{codefile}{write.ml}
+open Sys
+open Unix
+\end{codefile}
+%
+\begin{listingcodefile}{write.ml}
+external unsafe_single_write :
+  file_descr -> string -> int -> int -> int = "caml_single_write"
+\end{listingcodefile}
+%
+En pratique, on vérifie les arguments avant d'appeler cette fonction.
+\begin{listingcodefile}{write.ml}
+let single_write fd buf ofs len =
+  if ofs < 0 || len < 0 || ofs > String.length buf - len
+  then invalid_arg "Unix.write"
+  else unsafe_single_write fd buf ofs len
+\end{listingcodefile}
+%
+Cette fonction est disponible en {\ocaml} depuis la version
+\texttt{3.08}.  Autrement, pour utiliser cette fonction dans un
+programme \ml+main.ml+, en supposant que l'on ait écrit le code
+précédant dans des fichiers \ml+write.mli+ et \ml+write.ml+, il aurait
+fallu compiler comme suit:
+%
+\begin{lstlisting}
+ocamlc -c single_write.c write.ml
+ocamlc -custom -o prog unix.cma single_write.o write.cmo mod1.ml mod2.ml
+\end{lstlisting}
+%
+Il est souvent plus pratique de fabriquer une bibliothèque
+\ml+write.cma+ réunissant le code C et {\ocaml}:
+%
+\begin{lstlisting}
+ocamlc -custom -a -o write.cma single_write.o write.cmo
+\end{lstlisting}
+%
+On peut alors utiliser \ml+write.cma+ simplement comme on utilise
+\ml+unix.cma+:
+%
+\begin{lstlisting}
+ocamlc -o main.byte unix.cma write.cma main.ml
+\end{lstlisting}
+
+La fonction \ml+single_write+ reproduit l'appel \syscall{write} aussi
+fidèlement que possible. La seule différence reste que lorsque la
+chaîne d'origine est très longue, l'appel est autoritairement découpé
+en plusieurs appels. L'atomicité de l'appel à \ml+write+ (garantie
+dans le cas des fichiers réguliers) n'est donc pas préservée pour des
+écritures très longues. Cette différence est assez marginale, mais il
+faut en être conscient.
+
+Au dessus de cet appel nous pouvons réimplanter une fonction de plus
+haut niveau \ml+really_write+ analogue à \ml+really_read+ qui écrit
+effectivement la quantité demandée.
+%
+\begin{codefile}{misc.mli}
+val really_write : file_descr -> string -> int -> int -> unit
+(** as [single_write] but restarts on [EINTR] until all bytes have been
+written. When an error occurs, some unknown number of bytes may have been
+written. Hence, an error should in general be considered as fatal. *)
+\end{codefile}
+%
+\begin{listingcodefile}{misc.ml}
+let rec really_write fd buffer offset len =
+  let n = restart_on_EINTR (single_write fd buffer offset) len in
+  if n < len then really_write fd buffer (offset + n) (len - n);;
+\end{listingcodefile}
+%
+\begin{codefile}{copyintr.ml}
+open Sys
+open Unix
+
+let buffer_size = 10240
+
+let copy fdin fdout = 
+  let buffer = String.create buffer_size in
+  let rec copy()  =
+    let len = 1 + Random.int (buffer_size - 1) in
+    let n = Misc.restart_on_EINTR (read fdin buffer 0) len in
+    if n > 0 then
+      begin
+        Misc.really_write fdout buffer 0 n;
+        copy()
+      end in
+  copy()
+
+let main () =
+  let eintr _ = () in
+  let _ = signal sigalrm (Signal_handle eintr) in
+  let _ = setitimer ITIMER_REAL { it_interval = 1e-5; it_value = 1e-5; } in
+  copy stdin stdout;;
+
+handle_unix_error main ()
+\end{codefile}
+%
+\begin{codefile}{copyintr.test}
+COP=./copyintr.byte 
+$COP < $COP | $COP | $COP | diff --brief - $COP 
+\end{codefile}
+

@@ -1,0 +1,85 @@
+%------------------------------------------------------------------------------
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%
+% Translation by
+%------------------------------------------------------------------------------
+
+\chapter*{\ifhtml{\aname{htocintro}}Introduction}
+\addcontentsline{toc}{chapter}{\ifhtml{\ahrefloc{htocintro}}{Introduction}}
+\label{sec/intro}
+\cutname{intro.html}
+
+Ces notes sont issues d'un cours de programmation système que Xavier
+Leroy a enseigné en première année du Magistère de Mathématiques
+Fondamentales et Appliquées et d'Informatique de l'École Normale
+Supérieure en 1994. Cette première version utilisait le langage
+Caml-Light~\cite{Caml-Light}.
+%
+Didier Rémy en a fait une traduction pour le langage
+{\ocaml}~\cite{OCaml} pour un cours enseigné en Majeure d'Informatique
+à l'École Polytechnique de 2003 à 2006. À cette occasion, Gilles
+Roussel, Fabrice Le Fessant et Maxence Guesdon qui ont aidé à ce cours
+ont également contribué à améliorer ces notes. Cette version comporte
+des ajouts et quelques mises à jour: en presque une décennie certains
+ordres de grandeur ont décalé leur virgule d'un chiffre; aussi, la
+toile était seulement en train d'être tissée et l'exemple, aujourd'hui
+classique, du relais {\http} aurait presqu'eut un coté précurseur en
+1994. Mais surtout le langage {\ocaml} a gagné en maturité depuis et a
+été utilisé dans de véritables applications système, telles que
+Unison~\cite{Unison}.
+
+La tradition veut que la programmation du système Unix se fasse dans
+le langage C. Dans le cadre de ce cours, il a semblé plus
+intéressant d'utiliser un langage de plus haut niveau, Caml en
+l'occurrence, pour expliquer la programmation du système Unix.
+
+La présentation Caml des appels systèmes est plus abstraite, utilisant
+toute la puissance de l'algèbre de types de ML pour représenter de
+manière claire les arguments et les résultats, au lieu de devoir tout
+coder en termes d'entiers et de champs de bits comme en C. En
+conséquence, il est plus facile d'expliquer la sémantique des appels
+systèmes, sans avoir à se perdre dans les détails de l'encodage des
+arguments et des résultats. (Voir par exemple la présentation de
+l'appel \ml+wait+, page~\pageref{wait}.)
+
+De plus, {\ocaml} apporte une plus grande sécurité de programmation
+que C, en particulier grâce au typage statique et à la clarté de ses
+constructions de base. Ces traits, qui peuvent apparaître au
+programmeur C chevronné comme de simples éléments de confort, se
+révèlent cruciaux pour les programmeurs inexpérimentés comme ceux
+auxquels ce cours s'adresse.
+
+Un deuxième but de cette présentation de la programmation système en
+{\ocaml} est de montrer le langage {\ocaml} à l'{\oe}uvre dans un
+domaine qui sort nettement de ses applications usuelles, à savoir la
+démonstration automatique, la compilation, et le calcul
+symbolique. {\ocaml} se tire plutôt bien de l'expérience,
+essentiellement grâce à son solide noyau impératif, complété
+ponctuellement par les autres traits plus novateurs du langage
+(polymorphisme, fonctions d'ordre supérieur, exceptions).  Le fait que
+{\ocaml} combine programmation applicative et programmation
+impérative, au lieu de les exclure mutuellement, rend possible
+l'intégration dans un même programme de calculs symboliques compliqués
+et d'une bonne interface avec le système.
+
+Ces notes supposent le lecteur familier avec le système {\ocaml}, et
+avec l'utilisation des commandes Unix, en particulier du shell. On se
+reportera à la documentation du système {\ocaml} \cite{OCaml} pour
+toutes les questions relatives au langage, et à la section~1 du manuel
+Unix ou à un livre d'introduction à Unix \cite{KP,R1} pour toutes les
+questions relatives à l'utilisation d'Unix.
+
+On décrit ici uniquement l'interface \quotes{programmatique} du
+système Unix, et non son implé\-men\-ta\-tion ni son architecture
+interne.  L'architecture interne de \textsc{bsd} 4.3 est décrite
+dans~\cite{BSD}; celle de System~\textsc{v}, dans~\cite{Bach}. Les
+livres de Tanenbaum~\cite{T1,T2} donnent une vue d'ensemble des
+architectures de systèmes et de réseaux.
+
+Le système Objective Caml dont la bibliothèque d'interface avec Unix
+présentée ici fait partie intégrante est en accès libre à l'{\URL}
+\url{http://caml.inria.fr/ocaml/}.

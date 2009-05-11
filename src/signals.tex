@@ -1,0 +1,750 @@
+%------------------------------------------------------------------------------
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%
+% Translation by
+%------------------------------------------------------------------------------
+
+\chapter{Les signaux}
+\label{sec/signals}
+\cutname{signals.html}
+
+Les signaux, ou interruptions logicielles, sont des événements
+externes qui changent le déroulement d'un programme de manière
+asynchrone, c'est-à-dire à n'importe quel instant lors de l'exécution
+du programme. En ceci les signaux s'opposent aux autres formes de
+communications où les programmes doivent explicitement demander à
+recevoir les messages externes en attente, par exemple en faisant
+\indexvalue{read} sur un tuyau.
+
+Les signaux transportent peu d'information (le type du signal et rien
+d'autre) et n'ont pas été conçus pour communiquer entre processus mais
+pour permettre à un processus de recevoir des informations atomiques
+sur l'évolution de l'environnement extérieur (l'état du système ou
+d'autres processus).
+
+\section{Le comportement par défaut}
+
+Lorsqu'un processus reçoit un signal, plusieurs comportements sont
+possibles.
+%
+\begin{itemize}
+\item Le signal termine l'exécution du processus. Dans certain cas, le
+  système écrit une image de l'état du processus dans le fichier
+  \ml+core+, qu'on peut examiner plus tard avec un \emph{debugger};
+  c'est ce qu'on appelle un \emph{core dump}.
+
+\item Le signal suspend l'exécution du processus, mais le garde en
+  mémoire. Le processus père (typiquement, un shell) est prévenu de ce
+  fait, et peut choisir de terminer le processus, ou de le redémarrer
+  en tâche de fond, en lui envoyant d'autres signaux.
+
+\item Rien ne se passe. Le signal est complètement ignoré.
+
+\item Le signal provoque l'exécution d'une fonction qui lui a été
+  associée dans le programme. L'exécution normale du programme reprend
+  lorsque la fonction retourne.
+\end{itemize}
+%
+Il y a plusieurs types de signaux, indiquant chacun une condition
+particulière. Le type énuméré \ml+signal+ en donne la liste. 
+Le tableau~\ref{tab/signals} en donne quelque-uns, avec le
+comportement par défaut associé.
+\begin{mytable}
+\begin{tabular}{lll}
+Nom & Signification & Comportement \\
+\hline
+\ml+sighup+ &
+Hang-up (fin de connexion) &
+Terminaison \\
+\ml+sigint+ &
+Interruption (\ml+ctrl-C+) &
+Terminaison \\
+\ml+sigquit+ &
+Interruption forte (\ml+ctrl-\+) &
+Term. + core dump \\
+\ml+sigfpe+ &
+Erreur arithmétique (division par zéro) &
+Term. + core dump \\
+\ml+sigkill+ &
+Interruption très forte (ne peut être ignorée) &
+Terminaison \\
+\ml+sigsegv+ &
+Violation des protections mémoire &
+Term. + core dump \\
+\ml+sigpipe+ &
+Écriture sur un tuyau sans lecteurs &
+Terminaison \\
+\ml+sigalrm+ &
+Interruption d'horloge &
+Ignoré \\
+\ml+sigtstp+ &
+Arrêt temporaire d'un processus (\ml+ctrl-Z+) &
+Suspension \\
+\ml+sigcont+ &
+Redémarrage d'un processus arrêté &
+Ignoré \\
+\ml+sigchld+ &
+Un des processus fils est mort ou a été arrêté &
+Ignoré \\
+\end{tabular}
+
+\caption{Quelques types de signaux et leur comportement par défaut}
+\label{tab/signals}
+\end{mytable}
+
+Les signaux reçus par un programme proviennent de plusieurs sources
+possibles:
+%
+\begin{itemize}
+\item L'utilisateur, au clavier. Par exemple, le \emph{driver} de
+  terminal envoie le signal \ml+sigint+ à tous les processus lancés
+  depuis ce terminal (qui n'ont pas été mis en arrière plan) quand
+  l'utilisateur tape le caractère d'interruption \ml+ctrl-C+. De même,
+  il envoie \ml+sigquit+ quand l'utilisateur tape
+  \verb'ctrl-\'\footnote{Ces caractères sont choisis par défaut, mais
+    il est possible de les changer en modifiant les paramètres du
+    terminal, voir section~\ref {sec/termio}.}. Et il envoie
+  \ml+sighup+ lorsque la connexion avec le terminal est fermée, ou
+  bien parce que l'utilisateur s'est déconnecté, ou bien, dans le cas
+  d'une connexion à travers un modem, parce que la liaison
+  téléphonique a été coupée.
+
+\item L'utilisateur, par la commande \ml+kill+. Cette commande permet
+  d'envoyer un signal quelconque à un processus quelconque. Par
+  exemple, \ml+kill -KILL 194+ envoie le signal \ml+sigkill+ au
+  processus 194, ce qui a pour effet de terminer à coup sûr ce
+  processus.
+
+\item D'un autre programme (via le système) qui exécute un appel
+  système \ml+kill+ (le cas précédent en étant un cas particulier).
+
+\item Le système, pour des processus qui se comportent mal. Par
+  exemple, un processus qui effectue une division par zéro reçoit un
+  signal \ml+sigfpe+.
+
+\item Le système, pour prévenir un processus que son environnement a
+  changé. Par exemple, lorsqu'un processus meurt, son père reçoit le
+  signal \ml+sigchld+.
+\end{itemize}
+
+\section{Produire des signaux}
+
+L'appel système \syscall{kill} permet d'envoyer un signal à un
+processus.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{kill}$ : int -> int -> unit
+\end{listingcodefile}
+%
+Le paramètre entier est le numéro du processus auquel le signal est
+destiné. Une erreur se produit si on envoie un signal à un processus
+n'appartenant pas au même utilisateur que le processus émetteur. Un
+processus peut s'envoyer des signaux à lui-même.  Lorsque l'appel
+système \ml+kill+ retourne, il est garanti que le signal a été délivré
+au processus destinataire. C'est-à-dire que si le processus
+destinataire n'ignore pas et ne masque pas le signal, sa première
+action sera de traiter un signal (celui-ci ou un autre).  Si un
+processus reçoit plusieurs fois le même signal pendant un laps de
+temps très court, il peut n'exécuter qu'un seule fois (le code associé
+à) ce signal. Un programme ne peut donc pas compter le nombre de fois
+qu'il reçoit un signal, mais seulement le nombre de fois qu'il le
+traite.
+
+L'appel système \syscall{alarm} permet de produire des interruptions
+d'horloge.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{alarm}$ : int -> int
+\end{listingcodefile}
+%
+L'appel \ml+alarm s+ retourne immédiatement, mais fait envoyer au
+processus le signal \ml+sigalrm+ (au moins) \ml+s+ secondes plus tard
+(le temps maximal d'attente n'est pas garanti).  L'appel renvoie le
+nombre de seconde restante jusqu'à la programmation précédente. Si
+\ml+s+ est nulle, l'effet est simplement d'annuler la précédente
+programmation de l'alarme.
+
+
+\section{Changer l'effet d'un signal}
+
+L'appel système \syscall{signal} permet de changer le comportement du
+processus lorsqu'il reçoit un signal d'un certain type.
+%
+\begin{codefile}{tmpsys.mli}
+type signal_behavior = Sys.signal_behavior
+\end{codefile}
+%
+\begin{listingcodefile}{tmpsys.mli}
+val signal : int -> signal_behavior -> signal_behavior
+\end{listingcodefile}
+%
+Le deuxième argument indique le comportement désiré. Si le deuxième
+argument est la constante \ml+Signal_ignore+, le signal est ignoré. Si
+le deuxième argument est \ml+Signal_default+, le comportement par
+défaut est restauré. Si le deuxième argument est \ml+Signal_handle f+,
+où \ml+f+ est une fonction de type \ml+unit -> unit+, la fonction
+\ml+f+ sera appelée à chaque fois qu'on reçoit le signal.
+
+L'appel \indexvalue{fork} préserve les comportements des signaux: les
+comportements initiaux pour le fils sont ceux pour le père au moment
+du \ml+fork+. Les appels \indexvalue{exec} remettent les comportements
+à \ml+Signal_default+, à une exception près: les signaux ignorés avant
+le \ml+exec+ restent ignorés après.
+
+\begin{example} 
+On veut parfois se déconnecter en laissant tourner des tâches de fond
+(gros calculs, programmes \quotes{espions}, etc). Pour ce faire, il
+faut éviter que les processus qu'on veut laisser tourner ne terminent
+lorsqu'ils reçoivent le signal \ml+SIGHUP+ envoyé au moment où l'on se
+déconnecte. Il existe une commande \ml+nohup+ qui fait précisément
+cela:
+\begin{lstlisting}
+nohup cmd arg1 ... argn
+\end{lstlisting}
+exécute la commande \ml+cmd arg1 ... argn+ en la rendant insensible au
+signal \ml+SIGHUP+. (Certains shells font automatiquement \ml+nohup+
+sur tous les processus lancés en tâche de fond.) Voici comment
+l'implémenter en trois lignes:
+%
+\begin{listingcodefile}{nohup.ml}
+open Sys;;
+signal sighup Signal_ignore;;
+Unix.execvp argv.(1) (Array.sub argv 1 (Array.length argv - 1));;
+\end{listingcodefile}
+%
+L'appel \ml+execvp+ préserve le fait que \ml+sighup+ est ignoré.
+\end{example}
+
+Voici maintenant quelques exemples d'interception de signaux.
+
+\begin{example} 
+Pour sortir en douceur quand le programme s'est mal comporté. Par
+exemple, un programme comme \ml+tar+ peut essayer de sauver une
+information importante dans le fichier ou détruire le fichier corrompu
+avant de s'arrêter.  Il suffit d'exécuter, au début du programme:
+%
+\begin{lstlisting}
+signal sigquit (Signal_handle quit);
+signal sigsegv (Signal_handle quit);
+signal sigfpe  (Signal_handle quit);
+\end{lstlisting}
+%
+où la fonction \ml+quit+ est de la forme:
+%
+\begin{lstlisting}
+let quit() =
+  (* Essayer de sauver l'information importante dans le fichier *);
+  exit 100;;
+\end{lstlisting}
+\end{example}
+
+\begin{example} 
+Pour récupérer les interruptions de l'utilisateur.  Certains
+programmes interactifs peuvent par exemple vouloir revenir dans la
+boucle de commande lorsque l'utilisateur frappe \ml+ctrl-C+.  Il
+suffit de déclencher une exception lorsqu'on reçoit le signal
+\ml+SIGINT+.
+%
+\begin{lstlisting}
+exception Break;;
+let break () = raise Break;;
+...
+let main_loop() =
+  signal sigint (Signal_handle break);
+  while true do
+    try
+      (* lire et exécuter une commande *)
+    with Break ->
+      (* afficher "Interrompu" *)
+  done;;
+\end{lstlisting}
+\end{example}
+
+\begin{example} 
+Pour exécuter des tâches périodiques (animations, etc) entrelacées
+avec l'exécution du programme principal. Par exemple, voici comment
+faire \quotes{bip} toutes les 30 secondes, quel que soit l'activité du
+programme (calculs, entrées-sorties).
+\begin{lstlisting}
+let beep () = output_char stdout `\007`; flush stdout; alarm 30; ();;
+...
+signal sigalrm (Signal_handle beep); alarm 30;;
+\end{lstlisting}
+\end{example}
+
+\subsection*{Points de contrôle}
+
+Les signaux transmettent au programme une information de façon
+asynchrone. C'est leur raison d'être, et ce qui les rend souvent
+incontournables, mais c'est aussi ce qui en fait l'une des grandes
+difficultés de la programmation système.
+
+En effet, le code de traitement s'exécute à la réception d'un signal,
+qui est asynchrone, donc de façon pseudo concurrente (c'est-à-dire
+entrelacée) avec le code principal du programme.  Comme le traitement
+d'un signal ne retourne pas de valeur, leur intérêt est de faire des
+effets de bords, typiquement modifier l'état d'une variable
+globale. Il s'ensuit une compétition (race condition) entre le signal
+et le programme principal pour l'accès à cette variable globale.  La
+solution consiste en général à bloquer les signaux pendant le
+traitement de ces zones critiques comme expliqué ci-dessous.
+
+Toutefois, OCaml ne traite pas les signaux de façon tout à faire
+asynchrone.  À la réception du signal, il se contente d'enregistrer sa
+réception et le traitement ne sera effectué, c'est-à-dire le code de
+traitement associé au signal effectivement exécuté, seulement à
+certains points de contrôles. Ceux-ci sont suffisamment fréquents pour
+donner l'illusion d'un traitement asynchrone.  Les points de contrôles
+sont typiquement les points d'allocation, de contrôle de boucles ou
+d'interaction avec le système (en particulier autour des appels
+systèmes).  OCaml garantit qu'un code qui ne boucle pas, n'alloue pas,
+et n'interagit pas avec le système ne sera pas entrelacer avec le
+traitement d'un signal. En particulier l'écriture d'une valeur non
+allouée (entier, booléen, etc. mais pas un flottant!) dans une
+référence ne pose pas de problème de compétition.
+
+
+\section{Masquer des signaux}
+
+Les signaux peuvent être bloqués. Les signaux bloqués ne sont pas
+ignorés, mais simplement mis en attente, en général pour être délivrés
+ultérieurement. L'appel système \syscall{sigprocmask} permet de
+changer le masque des signaux bloqués:
+%
+\begin{codefile}{tmpunix.mli}
+type sigprocmask_command = Unix.sigprocmask_command
+\end{codefile}
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{sigprocmask}$ : sigprocmask_command -> int list -> int list
+\end{listingcodefile}
+%
+\ml+sigprocmask cmd sigs+ change l'ensemble des signaux bloqués et
+retourne la liste des signaux qui étaient bloqués juste avant
+l'exécution de la commande, ce qui permettra ultérieurement de
+remettre le masque des signaux bloqués dans son état initial.
+L'argument \ml+sigs+ est une liste de signaux dont le sens dépend de
+la commande \ml+cmd+:
+\begin{mltypecases}
+\mltypecase{SIG\_BLOCK} les signaux \ml+sigs+ sont ajoutés aux signaux bloqués.
+
+\mltypecase{SIG\_UNBLOCK} les signaux \ml+sigs+ sont retirés des
+signaux débloqués.
+
+\mltypecase{SIG\_SETMASK} les signaux \ml+sigs+ sont exactement les
+signaux bloqués.
+\end{mltypecases}
+%
+Un usage typique de \ml+sigprocmask+ est de masquer temporairement
+certains signaux.
+%
+\begin{lstlisting}
+let old_mask = sigprocmask cmd sigs in 
+(* do something *)
+let _ = sigprocmask SIG_SETMASK old_mark
+\end{lstlisting}
+%
+Bien souvent, on devra se protéger contre les erreurs éventuelles en
+utilisant plutôt le schéma:
+%
+\begin{codefile}{sign.ml}
+open Unix;;
+let tmp cmd sigs = 
+\end{codefile}
+%
+\begin{listingcodefile}{sign.ml}
+let old_mask = sigprocmask cmd sigs in 
+let treat() = ((* do something *)) in
+let reset() = ignore (sigprocmask SIG_SETMASK old_mask) in
+Misc.try_finalize treat () reset ()
+\end{listingcodefile}
+
+
+\section{Signaux et appels-système} 
+
+Attention! un signal non ignoré peut interrompre certains appels
+système. En général, les appels systèmes interruptibles sont seulement
+des appels systèmes dits \emph{lents}, qui peuvent a priori prendre un
+temps arbitrairement long: par exemple, lectures/écritures au
+terminal, \ml+select+ (voir plus loin), \ml+system+, \etc En cas
+d'interruption, l'appel système n'est pas exécuté et déclenche
+l'exception \ml+EINTR+.  Noter que l'écriture/lecture dans un fichier
+ne sont pas interruptibles: bien que ces opérations puissent suspendre
+le processus courant pour donner la main à un autre le temps que les
+données soient lues sur le disques, lorsque c'est nécessaire, cette
+attente sera toujours brève---si le disque fonctionne correctement. En
+particulier, l'arrivée des données ne dépend que du système et pas
+d'un autre processus utilisateur.
+
+Les signaux ignorés ne sont jamais délivrés. Un signal n'est pas
+délivré tant qu'il est masqué. Dans les autres cas, il faut se
+prémunir contre une interruption possible.
+
+Un exemple typique est l'attente de la terminaison d'un fils.  Dans ce
+cas, le père exécute \ml+waitpid [] pid+ où \ml+pid+ est le numéro du
+fils à attendre.  Il s'agit d'un appel système bloquant, donc
+\quotes{lent}, qui sera interrompu par l'arrivée éventuelle d'un
+signal.  En particulier, le signal \ml+sigchld+ est envoyé au
+processus père à la mort d'un fils.
+
+Le module \ml+Misc+ contient la fonction suivante
+\ml+restart_on_EINTR+ de type \ml+('a -> 'b) -> 'a -> 'b+ qui permet
+de lancer un appel système et de le répéter lorsqu'il est interrompu
+par un signal, \ie.  lorsqu'il lève l'exception \ml+EINTR+.
+%
+\begin{codefile}{misc.mli}
+val restart_on_EINTR : ('a -> 'b) -> 'a -> 'b
+(** [restart_on_EINTR f x] calls [f x] repeatedly until it does not fails
+with [EINTR] *)
+\end{codefile}
+%
+\begin{listingcodefile}{misc.ml}
+let rec restart_on_EINTR f x = 
+  try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x
+\end{listingcodefile}
+\label{restart_on_EINTR}%
+Pour attendre réellement un fils, on pourra alors simplement écrire
+\ml+restart_on_EINTR (waitpid flags) pid+.
+
+\begin{example}
+Le père peut aussi récupérer ses fils de façon asynchrone, en
+particulier lorsque la valeur de retour n'importe pas pour la suite de
+l'exécution.  Cela peut se faire en exécutant une fonction
+\ml+free_children+ à la réception du signal \ml+sigchld+.  Nous
+plaçons cette fonction d'usage général dans la bibliothèque \ml+Misc+.
+%
+\begin{codefile}{misc.mli}
+val free_children : int -> unit
+(** [free_children signal] free all zombies of the current processus, 
+    discarding their exit status. *)
+\end{codefile}
+%
+\begin{listingcodefile}{misc.ml}
+let free_children signal = 
+  try while fst (waitpid [ WNOHANG ] (-1)) > 0 do () done 
+  with Unix_error (ECHILD, _, _) -> ()
+\end{listingcodefile}
+%
+Cette fonction appelle la fonction \ml+waitpid+ en mode non bloquant
+(option \ml+WNOHANG+) et sur n'importe quel fils, et répète l'appel
+quand qu'un fils a pu être retourné.  Elle s'arrête lorsque il ne
+reste plus que des fils vivants (zéro est retourné à la place de
+l'identité du processus délivré) ou lorsqu'il n'y a plus de fils
+(exception \ml+ECHILD+). Lorsque le processus reçoit le signal
+\ml+sigchld+ il est en effet impossible de savoir le nombre de
+processus ayant terminé, si le signal est émis plusieurs fois dans un
+intervalle de temps suffisamment court, le père ne verra qu'un seul
+signal. Noter qu'ici il n'est pas nécessaire de se prémunir contre le
+signal \ml+EINTR+ car \ml+waitpid+ n'est pas bloquant lorsqu'il est
+appelé avec l'option \ml+WNOHANG+.
+
+Dans d'autres cas, ce signal ne peut être ignoré (l'action associée
+sera alors de libérer tous les fils ayant terminé, de façon non
+bloquante---on ne sait jamais combien de fois le signal à été émis).
+\end{example}
+
+\begin{example}
+La commande \ml+system+ du module \ml+Unix+ est simplement définie par
+\begin{lstlisting}
+let system cmd =
+  match fork() with
+    0 -> 
+      begin try
+        execv "/bin/sh" [| "/bin/sh"; "-c"; cmd |]; assert false
+      with _ -> exit 127 
+      end
+  | id -> snd(waitpid [] id);;
+\end{lstlisting}
+L'assertion qui suit l'appel système \ml+execv+ est là pour corriger
+une restriction erronée du type de retour de la fonction \ml+execv+
+(dans les version antérieures ou égale à 3.07).  L'appel système ne
+retournant pas, aucune contrainte ne doit porter sur la valeur
+retournée, et bien sûr l'assertion ne sera jamais exécutée.
+
+La commande \ml+system+ de la bibliothèque standard de la bibliothèque
+C précise que le père ignore les signaux \ml+sigint+ et \ml+sigquit+
+et masque le signal \ml+sigchld+ pendant l'exécution de la
+commande. Cela permet d'interrompre ou de tuer le programme appelé
+(qui reçoit le signal) sans que le programme principal ne soit affecté
+pendant l'exécution de la commande.
+
+Nous préférons définir la fonction \ml+system+ comme spécialisation
+d'une fonction plus générale \ml+exec_as_system+ qui n'oblige pas à
+faire exécuter la commande par le shell. Nous la plaçons dans le
+module \ml+Misc+.
+%
+\begin{codefile}{misc.mli}
+val system : string -> process_status
+(** [system cmd] behaves as [Unix.system cmd] except that [sigchld] is
+blocked and [sigint] and [sigquit] are ignored during the excecution 
+of the command [cmd] *)
+
+val exec_as_system : ('a -> process_status) -> 'a -> process_status
+(** [system exec args] behaves as [system cmd] except that it takes as
+arguments a function [exec] and arguments [args] to be passed to [exec]
+to start in the new process. In particular, [system] is an abbreviation for 
+[exec_as_system (execv "/bin/sh") \[|"-c"; cmd; |\] v]. *)
+\end{codefile}
+%
+\begin{codefile}{misc.ml}
+open Sys;;
+open Unix;;
+\end{codefile}
+%
+\begin{listingcodefile}[style=numbers]{misc.ml}
+let exec_as_system exec args = 
+  let old_mask = sigprocmask SIG_BLOCK [sigchld ] in 
+  let old_int = signal sigint Signal_ignore in 
+  let old_quit = signal sigquit Signal_ignore in 
+  let reset() =
+    ignore (signal sigint old_int); 
+    ignore (signal sigquit old_quit);
+    ignore (sigprocmask SIG_SETMASK old_mask) in
+  let system_call () = 
+    match fork() with
+    | 0 -> 
+        reset(); $\label{prog:sreset}$
+        begin try 
+          exec args 
+        with _ -> exit 127 
+        end
+    | k -> 
+        snd (restart_on_EINTR (waitpid []) k) in
+  try_finalize system_call() reset();; $\label{prog:stry}$
+
+let system cmd = 
+  exec_as_system (execv "/bin/sh") [| "/bin/sh"; "-c"; cmd |];;
+\end{listingcodefile}
+%
+Noter que le changement des signaux doit être effectué avant l'appel à
+\ml+fork+. En effet, immédia\-te\-ment après cet appel, seulement l'un
+des deux processus fils ou père a la main (en général le
+fils). Pendant le laps de temps où le fils prend la main, le père
+pourrait recevoir des signaux, notamment \ml+sigchld+ si le fils
+termine immédiatement. En conséquence, il faut remettre les signaux à
+leur valeur initiale dans le fils avant d'exécuter la commande
+(ligne~\ref{prog:sreset}). En effet, l'ensemble des signaux ignorés est
+préservé par \ml+fork+ et \ml+exec+ et le comportement des signaux est
+lui-même préservé par \ml+fork+. La commande \ml+exec+ remet
+normalement les signaux à leur valeur par défaut, sauf justement si le
+comportement est d'ignorer le signal.
+
+Enfin, le père doit remettre également les signaux à leur valeur
+initiale, immédiatement après l'appel, y compris en cas d'erreur, d'où
+l'utilisation de la commande \ml+try_finalize+
+(ligne~\ref{prog:stry}).
+\end{example}
+
+
+\section{Le temps qui passe}
+
+\subsection*{Temps anciens}
+
+Dans les premières versions d'Unix, le temps était compté en secondes.
+Par soucis de compatibilité, on peut toujours compter le temps en
+secondes.  La date elle-même est comptée en secondes écoulées depuis
+le 1er janvier 1970 à \ml+00:00:00 GMT+. Elle est retournée par
+la fonction:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\indexlibvalue{Unix}{time}$ : unit -> float
+\end{listingcodefile}
+%
+
+L'appel système \syscall{sleep} peut arrêter l'exécution du programme
+pendant le nombre de secondes donné en argument:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{sleep}$ : int -> unit
+\end{listingcodefile}
+%
+Cependant, cette fonction n'est pas primitive. Elle est programmable
+avec des appels systèmes plus élémentaire à l'aide de la fonction
+\ml+alarm+ (vue plus haut) et \syscall{sigsuspend}:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{sigsuspend}$ : int list -> unit
+\end{listingcodefile}
+%
+L'appel \ml+sigsuspend l+ suspend temporairement les signaux de la
+liste \ml+l+, puis arrête l'exécution du programme jusqu'à la
+réception d'un signal non ignoré non suspendu (au retour, le masque
+des signaux est remis à son ancienne valeur par le système).
+\begin{example}
+Nous pouvons maintenant programmer la fonction \ml+sleep+.
+%
+\begin{codefile}{sleep.ml}
+open Sys;;
+open Unix;;
+\end{codefile}
+%
+\begin{listingcodefile}[style=numbers]{sleep.ml}
+let sleep s = 
+  let old_alarm = signal sigalrm (Signal_handle (fun s -> ())) in $\label{prog:sold}$
+  let old_mask = sigprocmask SIG_UNBLOCK [ sigalrm ] in
+  let _ = alarm s in
+  let new_mask = List.filter (fun x -> x <> sigalrm) old_mask in
+  sigsuspend new_mask; 
+  let _ = alarm 0 in
+  ignore (signal sigalrm old_alarm); 
+  ignore (sigprocmask SIG_SETMASK old_mask);; $\label{prog:ssigproc}$
+\end{listingcodefile}
+%
+Dans un premier temps, le comportement du signal \ml+sigalarm+ est de
+ne rien faire. Notez que \quotes{ne rien faire} n'est pas équivalent à
+ignorer le signal.  Dans le second cas, le processus ne serait pas
+réveillé à la réception du signal. Le signal \ml+sigalarm+ est mis
+dans l'état non bloquant. Puis on se met en attente en suspendant tous
+les autres signaux qui ne l'étaient pas déjà (\ml+old_mask+). Après le
+réveil, on défait les modifications précédentes.  (Noter que la
+ligne~\ref{prog:ssigproc} aurait pu est placée immédiatement après la
+ligne~\ref{prog:sold}, car l'appel à \ml+sigsuspend+ préserve le
+masque des signaux.)
+\end{example}
+
+\subsection*{Temps modernes et sabliers}
+
+Dans les Unix récents, le temps peut aussi se mesurer en
+micro-secondes.  En OCaml les temps en micro-secondes sont représentés
+comme des flottants.  La fonction \syscall{gettimeofday} est
+l'équivalent de \ml+time+ pour les temps modernes.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{gettimeofday}$ : unit -> float
+\end{listingcodefile}
+
+\subsection*{Les sabliers}
+Dans les Unix modernes chaque processus est équipé de trois sabliers,
+chacun décomptant le temps de façon différente.  Les types de sabliers
+sont:
+%
+\begin{mltypecases}
+\mltypecase{ITIMER\_REAL} temps réel (\ml+sigalrm+)
+\mltypecase{ITIMER\_VIRTUAL} temps utilisateur (\ml+sigvtalrm+)
+\mltypecase{ITIMER\_PROF} utilisateur et système (\ml+sigprof+)
+\end{mltypecases}
+%
+L'état d'un sablier est décrit par le type \ml+interval_timer_status+
+qui est une structure à deux champs (de type \ml+float+ représentant
+le temps).
+%
+\begin{itemize}
+\item Le champ \ml+it_interval+ indique la période du sablier.
+
+\item Le champ \ml+it_value+ est la valeur courante du sablier;
+  lorsqu'elle devient nulle, le signal \ml+sigvtalarm+ est émis et le
+  sablier est remis à la valeur \ml+it_interval+.
+\end{itemize}
+%
+Un sablier est donc inactif lorsque ses deux champs sont nuls. Les
+sabliers peuvent être consultés ou modifiés avec les fonctions
+suivantes:
+%
+\begin{codefile}{tmpunix.mli}
+type interval_timer = Unix.interval_timer
+type interval_timer_status = Unix.interval_timer_status
+\end{codefile}
+%
+\begin{listingcodefile}{tmpunix.mli}
+val getitimer : interval_timer -> interval_timer_status
+val setitimer : 
+    interval_timer -> interval_timer_status -> interval_timer_status
+\end{listingcodefile}
+%
+La valeur retournée par \ml+setitimer+ est l'ancienne valeur du
+sablier au moment de la modification.
+
+\begin{exercise}[noanswer]
+Pour gérer plusieurs sabliers, écrire une module ayant l'interface
+suivante:
+%
+\begin{listingcodefile}{timers.mli}
+module type Timer = sig
+  open Unix
+  type t
+  val new_timer : interval_timer -> (unit -> unit) -> t
+  val get_timer : t -> interval_timer_status
+  val set_timer : t -> interval_timer_status -> interval_timer_status
+end
+\end{listingcodefile}
+%
+La fonction \ml+new_timer k f+ créé un nouveau sablier de type \ml+k+
+déclenchant l'action \ml+f+, inactif à sa création; la fonction
+\ml+set_timer t+ permettant de régler le sablier \ml+t+ (l'ancien
+réglage étant retourné).
+\end{exercise}
+
+\subsection* {Calcul des dates}
+
+Les versions modernes d'Unix fournissent également des fonctions de
+manipulation des dates en bibliothèque: voir la structure \ml+tm+ qui
+permet de représenter les dates selon le calendrier (année, mois,
+etc.) ainsi que les fonctions de conversion:
+\indexlibvalue{Unix}{gmtime}, \indexlibvalue{Unix}{localtime},
+\indexlibvalue{Unix}{mktime}, \etc
+
+\section{Problèmes avec les signaux}
+
+L'utilisation des signaux, en particulier comme mécanisme de
+communication asynchrone inter-processus, se heurte à un certain
+nombre de limitations et de difficultés:
+%
+\begin{itemize}
+\item L'information transmise est minimale---le type du signal et rien
+  d'autre.
+
+\item Les signaux peuvent se produire n'importe quand au cours de
+  l'exécution du programme. En conséquence, une fonction appelée sur
+  un signal ne doit pas en général modifier les structures de données
+  du programme principal, parce que le programme principal peut avoir
+  été interrompu juste au milieu d'une modification de la
+  structure. Le cas échéant, c'est tout le programme qui doit se
+  protéger contre l'accès concurrent aux structures modifiables par
+  l'action associée à un signal.
+
+\item l'utilisation des signaux par le programme principal oblige à
+  prendre en compte la possibilité que les appels systèmes longs
+  soient interrompus dans tout le code du programme principal, même si
+  les signaux gardent leur comportement par défaut.
+
+\item les fonctions de bibliothèque d'usage général doivent donc
+  toujours considérer l'utilisation de signaux dans le programme
+  principal et se prémunir contre les interruptions des appels
+  systèmes.
+
+\end{itemize}
+%
+Les signaux apportent donc toutes les difficultés de la communication
+asynchrone, tout en n'en fournissant qu'une forme très limitée.  On
+aura donc intérêt à s'en passer lorsqu'il que c'est possible, par
+exemple en utilisant \indexvalue{select} plutôt qu'une alarme pour se
+mettre en attente.  Toutefois, dans certaines situations (langage de
+commandes, par essence), leur prise en compte est vraiment
+indispensable.
+
+Les signaux sont peut-être la partie la moins bien conçue du système
+Unix.  Sur certaines anciennes versions d'Unix (en particulier
+System~V), le comportement d'un signal est automatiquement remis à
+\ml+Signal_default+ lorsqu'il est intercepté. La fonction associée
+peut bien sûr rétablir le bon comportement elle-même; ainsi, dans
+l'exemple du \quotes{bip} toutes les 30 secondes, il faudrait écrire:
+\begin{lstlisting}
+let rec beep () =
+  set_signal SIGALRM (Signal_handle beep);
+  output_char stdout `\007`; flush stdout;
+  alarm 30; ();;
+\end{lstlisting}
+Le problème est que les signaux qui arrivent entre le moment où le
+comportement est automatiquement remis à \ml+Signal_default+ et le
+moment où le \ml+set_signal+ est exécuté ne sont pas traités
+correctement: suivant le type du signal, ils peuvent être ignorés, ou
+causer la mort du processus, au lieu d'exécuter la fonction associée.
+
+D'autres versions d'Unix (\textsc{bsd} ou Linux) traitent les signaux
+de manière plus satisfaisante: le comportement associé à un signal
+n'est pas changé lorsqu'on le reçoit; et lorsqu'un signal est en cours
+de traitement, les autres signaux du même type sont mis en attente.

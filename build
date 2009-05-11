@@ -1,0 +1,99 @@
+#!/bin/sh
+set -e
+
+# Project info 
+PROJECTNAME="ocamlunix"
+SHORTDESCRIPTION="Unix System Programming in OCaml"
+COPYRIGHTYEAR="1991-"`date +"%Y"`
+VERSION=`date +"%Y-%m-%d"`
+
+INSTALLDIR=${INSTALLDIR:="`ocamlc -where`/$PROJECTNAME"}
+BDIR="_build/src"
+
+# Caml tools
+OCAMLBUILD=${OCAMLBUILD:="ocamlbuild"}
+BUILDFLAGS=${BUILDFLAGS:=-no-links -classic-display}
+
+# Misc tools
+CP=${CP:="cp"}
+RM=${RM:="rm"}
+MKDIR=${MKDIR:="mkdir"}
+
+ocb () { $OCAMLBUILD $BUILDFLAGS $* ; }
+
+action () 
+{
+  case $1 in
+    all)
+      action $PROJECTNAME.pdf
+      action $PROJECTNAME.html
+      action index.html;;
+    install)
+      action all
+      $MKDIR -p $INSTALLDIR
+      $CP $BDIR/*.html $BDIR/*.css $BDIR/*.gif $BDIR/*.png $BDIR/ocamlunix.pdf \
+	  LICENSE src/META $INSTALLDIR ;;
+    install-distrib) install_distrib;;
+    *.native|*.byte|*.cmi|*.cmo|*.cmx|*.ml|*.mli)
+      ocb $PROJECTNAME.extract
+      ocb $1;;
+    check-signatures)
+       action tmpcondition.cmo
+       action tmpevent.cmo
+       action tmpmutex.cmo
+       action tmppervasives.cmo
+       action tmpsys.cmo
+       action tmpthread.cmo
+       action tmpunix.cmo;;
+    clean)
+      ocb -clean
+      $RM -f code/*;;
+    *)
+      ocb $1;;
+  esac;
+} 
+
+install_distrib ()
+{
+  CD=${CD:="cd"}
+  FIND=${FIND:="find"}
+  GREP=${GREP:="grep"}
+  TAR=${TAR:="tar"}
+
+  DIRNAME=$PROJECTNAME
+  ROOTDIR=/tmp/$DIRNAME-$VERSION
+  $RM -rf $ROOTDIR
+  $MKDIR -p $ROOTDIR
+  $CP -r . $ROOTDIR
+  $CD $ROOTDIR
+  action clean
+
+  $RM publish
+  $RM -rf _darcs
+  $FIND $ROOTDIR \
+    \( -name "*~" -o -name ".DS_Store" -o -name ".gdb_history" \) \
+    -exec $RM {} ';'
+  for file in `$FIND $ROOTDIR -type f -print`; do
+    sed -i "" "s/!!VERSION!!/$VERSION/; \
+               s/!!COPYRIGHTYEAR!!/$COPYRIGHTYEAR/; \
+               s/!!SHORTDESCRIPTION!!/$SHORTDESCRIPTION/; \
+               s/!!PROJECTNAME!!/$PROJECTNAME/;" \
+        $file
+  done
+
+  action all
+  action install
+  action check-signatures
+  action clean
+
+  $CD ..
+  $TAR -cvjf $DIRNAME-$VERSION.tbz $DIRNAME-$VERSION
+  $CP $DIRNAME-$VERSION.tbz $INSTALLDIR
+  $RM -r $DIRNAME-$VERSION
+  $RM $DIRNAME-$VERSION.tbz
+}
+
+if [ $# -eq 0 ]; then action all; else
+  while [ $# -gt 0 ]; do action $1; shift ; done
+fi
+

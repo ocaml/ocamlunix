@@ -1,0 +1,253 @@
+%------------------------------------------------------------------------------
+% Copyright (c) 2009, Daniel C. Buenzli
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%------------------------------------------------------------------------------
+
+% Definitions for PDF output.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{prelude}
+
+%% Encoding & Fonts 
+\RequirePackage[T1]{fontenc}
+\RequirePackage{textcomp}
+\RequirePackage{lmodern}
+\RequirePackage[scaled=0.8]{beramono}
+
+%% Html conditionals
+\newcommand{\ifhtml}[1]{}
+\newcommand{\ifnothtml}[1]{#1}
+\newcommand{\ifhtmlelse}[2]{#2}
+
+%% Inactive in PDF
+\newcommand{\cutname}[1]{}
+
+% PDF meta data & hyperlinks
+\hypersetup{%
+  pdftitle={\mytitle},
+  pdfauthor={\myauthors},
+  pdfsubject={Cours de programmation système Unix en Objective Caml},
+  pdfkeywords={\mykeywords},
+  pdfborder={0 0 0.5},
+  pdflang={fr-FR},
+  urlbordercolor={0 0 1},
+  citebordercolor={1 0 0},
+  linkbordercolor={1 0 0}}
+
+%% Page geometry.
+\setlxvchars
+\settrimmedsize{297mm}{210mm}{*} %{148mm}{105mm}{*}
+\settrims{0pt}{0pt}
+\settypeblocksize{*}{1.2\lxvchars}{*}
+\setlrmargins{*}{*}{1.618}
+\setulmarginsandblock{72pt}{*}{1.618}
+\setheadfoot{\onelineskip}{3\onelineskip}
+\setheaderspaces{*}{\onelineskip}{*}
+\setmarginnotes{1em}{0.75\foremargin}{\onelineskip}
+\checkandfixthelayout
+
+%% Title
+\pretitle{\hrule\begin{flushleft}\Huge\scshape\MakeLowercase}
+\posttitle{\end{flushleft}\vskip 2em}
+\preauthor{\begin{flushleft}\Large}
+\postauthor{\par\end{flushleft}\vskip 0.5em}
+\predate{\begin{flushleft}\Large}
+\postdate{\par\end{flushleft}}
+
+%% Copyright notice
+\newenvironment{copyrightnotice}
+   {\begingroup
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{\baselineskip}
+    \footnotesize}
+   {\endgroup}
+
+%% Abstract
+\renewcommand{\abstractnamefont}{\bfseries}
+\renewcommand{\abstracttextfont}{\normalfont}
+\abslabeldelim{\quad}
+\setlength{\absrightindent}{0pt}
+\setlength{\absleftindent}{0pt}
+\setlength{\abstitleskip}{-\parindent}
+\abstractrunin
+
+%% Sections & paragraphs
+\frenchbsetup{IndentFirst=false}
+\setsecnumdepth{section}
+\openright 
+\makechapterstyle{mychap}{%
+  \renewcommand{\chapterheadstart}{\clearforchapter}
+  \renewcommand{\printchaptername}{}
+  \renewcommand{\chapternamenum}{}
+  \renewcommand{\chaptitlefont}{\huge\normalfont\bfseries\raggedright}
+  \renewcommand{\chapnumfont}{\chaptitlefont}
+  \renewcommand{\printchapternum}{\chapnumfont\thechapter\hspace{1ex}}
+  \renewcommand{\afterchapternum}{}}
+\chapterstyle{mychap}
+
+\setsecheadstyle{\Large\bfseries\raggedright}
+\setbeforesecskip{-\onelineskip}
+\setaftersecskip{\onelineskip}
+%\setsubsecheadstyle{\sethangfrom{\noindent ##1}\raggedright\itshape}
+\setsubsecheadstyle{\raggedright\itshape}
+\setbeforesubsecskip{-\onelineskip}
+\setaftersubsecskip{\onelineskip}
+
+\setbeforeparaskip{-\onelineskip}
+\setparaheadstyle{\raggedright\bfseries}
+
+%% Headers and footers
+\makepagestyle{myheaders}
+\makeevenhead{myheaders}{}{\large\itshape\leftmark}{}
+\makeoddhead{myheaders}{}{\large\itshape\rightmark}{}
+\makeevenfoot{myheaders}{\thepage}{}{}
+\makeoddfoot{myheaders}{}{}{\thepage}
+\makepsmarks{myheaders}{%
+%  \def\chaptermark##1{\markboth{\thechapter\space ##1}{}}%
+  \def\chaptermark##1{\markboth{##1}{}}%
+  \def\sectionmark##1{\markright{##1}}}
+
+\makepagestyle{mynoheaders}
+\makeevenfoot{mynoheaders}{\thepage}{}{}
+\makeoddfoot{mynoheaders}{}{}{\thepage}
+
+%% Table of contents
+% No title for toc
+\renewcommand{\tocheadstart}{}
+\renewcommand{\aftertoctitle}{}
+\renewcommand{\printtoctitle}[1]{}
+\setpnumwidth{0pt}
+\setrmarg{0pt}
+\renewcommand{\cftchapterfont}{\hfill\bfseries\normalsize}
+\setlength{\cftbeforechapterskip}{4\smallskipamount}
+\renewcommand{\cftchapterpresnum}{\hfill}
+\settowidth{\cftchapternumwidth}{A\quad}
+\renewcommand{\cftchapteraftersnum}{\hspace*{10pt}}
+\renewcommand{\cftchapteraftersnumb}{}
+\newlength{\spacelength} % to align with chapter (why ?)
+\settowidth{\spacelength}{\small\space}
+\renewcommand{\cftchapterleader}{\hspace{-\spacelength}}
+\renewcommand{\cftchapterpagefont}{\footnotesize\quad}
+\renewcommand{\cftsectionfont}{\hfill\rmfamily\footnotesize}
+%\setlength{\cftbeforesectionskip}{0.5\smallskipamount}
+\settowidth{\cftsectionnumwidth}{A\quad}
+\renewcommand{\cftsectionpresnum}{\hfill}
+\renewcommand{\cftsectionaftersnumb}{}%{\itshape}
+\renewcommand{\cftsectionaftersnum}{\hspace*{10pt}}
+\renewcommand{\cftsectionleader}{} 
+\renewcommand{\cftsectionpagefont}{\rmfamily\footnotesize\quad}
+
+%% Examples
+
+\newenvironment{example}
+{\vskip\onelineskip\hrule\vskip 0.5\onelineskip%
+ \begingroup\noindent\textbf{Exemple}\quad}
+{\vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
+
+%% Code listings
+\RequirePackage{fink} % Maintains the current tex input filename in \finkfile
+
+\newoutputstream{code}
+\newoutputstream{codetmp}
+\openoutputfile{\jobname.code}{code}
+\newcommand{\codefilename}[1]{%
+\addtostream{code}{=#1}%
+\addtostream{code}{\finkfile}%
+\addtostream{code}{\the\inputlineno}}
+
+\newenvironment{listingcodefile}[2][]%
+{\setlength{\topsep}{\z@}% 
+ \setlength{\partopsep}{\z@}% 
+ \setlength{\parskip}{\z@}%
+ \renewcommand{\verbatim@processline}%
+               {\addtostream{code}{\the\verbatim@line}%
+                \addtostream{codetmp}{\the\verbatim@line}}%
+  \openoutputfile{\jobname.codetmp}{codetmp}%
+  \lstset{#1}%
+  \codefilename{#2}%
+  \verbatim}%
+{\endverbatim%
+ \vspace{-\baselineskip}%
+ \closeoutputstream{codetmp}%
+ \lstinputlisting{\jobname.codetmp}}
+
+\newenvironment{codefile}[1]
+{\codefilename{#1}\writeverbatim{code}}
+{\endwriteverbatim}
+
+\newenvironment{mltypecases}%
+{\list{}{%
+    \setlength{\labelsep}{1em}
+    \setlength{\itemindent}{1em}
+    \setlength{\leftmargin}{2.5em}
+    \setlength{\labelwidth}{\leftmargin}
+    \addtolength{\labelwidth}{-\labelsep}
+    \setlength{\listparindent}{\parindent}
+    \setlength{\topsep}{0.5\onelineskip}
+    \setlength{\parsep}{\parskip}
+    \setlength{\itemsep}{0.5\onelineskip}}}%
+{\endlist}
+\newcommand{\mltypecase}[1]{\item[\texttt{#1}]}
+
+%% Exercises
+\newoutputstream{ans}
+\openoutputfile{\jobname.ans}{ans}
+\newcounter{exercise}
+\newcommand{\exerciseanswer}{}
+\newenvironment{exercise}[1][]
+{\stepcounter{exercise}%
+ \renewcommand{\exerciseanswer}{#1}%
+ \vskip\onelineskip\hrule\vskip 0.5\onelineskip%
+ \begingroup\noindent\textbf{Exercice~\theexercise}\label{ex\theexercise}\quad}
+{\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
+ {\hfill Corrigé page~\pageref{exans\theexercise}.}%
+ \vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
+
+\newenvironment{answer}{%
+ \renewcommand{\verbatim@processline}%
+               {\addtostream{ans}{\the\verbatim@line}}
+ \addtostream{ans}{%
+   \protect%
+   \paragraph{Exercice~\theexercise~(page~\pageref{ex\theexercise})}%
+   \protect\label{exans\theexercise}}%
+ \verbatim}
+{\endverbatim}
+
+\newcommand{\inputexerciseanswers}{%
+\closeoutputstream{ans}
+\input{\jobname.ans}}
+
+%% Figures, tables, captions and floats
+\newenvironment{myfigure}%
+{\figure\centering\hrule\vspace{\onelineskip}}%
+{\vspace{0.5\onelineskip}\hrule\endfigure}
+\renewcommand{\figurename}{Figure}
+
+\newenvironment{mytable}
+{\table\centering\hrule\vspace{\onelineskip}}%
+{\vspace{0.5\onelineskip}\hrule\endtable}
+\renewcommand{\tablename}{Tableau}
+\renewcommand{\arraystretch}{1.4} 
+
+\renewcommand{\captionsfrench}{} % take precedence over babel french.
+\captiondelim{~---~}
+\captionnamefont{\normalfont\normalsize}
+\captiontitlefont{\normalfont\normalsize}
+
+% Pictures and extraction
+\usepackage{graphics}
+\usepackage{tikz}
+\usetikzlibrary{%
+ arrows,decorations.pathmorphing,positioning,fit,shapes.geometric}
+\tikzset{every picture/.style={>=stealth'}} %% arrow kind
+
+\newenvironment{myimage}[1][]{\center}{\endcenter}
+
+\usepackage[tightpage]{preview}
+\PreviewEnvironment[{[]}]{tikzpicture}
+
+%% Bibliography
+\newcommand{\bibcomment}[1]{\item[\textbf{#1}]}

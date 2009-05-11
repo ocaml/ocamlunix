@@ -1,0 +1,18 @@
+#!/bin/sh
+# Script to publish to ocamlunix.forge.ocamlcore.org
+set -e
+
+SCP=${SCP:="scp"}
+RM=${RM:="rm"}
+MKDIR=${MKDIR="mkdir"}
+
+HOST=ocamlcore
+ROOTDIR=/home/groups/ocamlunix/htdocs
+TMP=${TMP:="/tmp/ocamlcore"}
+
+$RM -rf $TMP
+$MKDIR -p $TMP
+INSTALLDIR=$TMP ./build install-distrib
+for f in `ls $TMP`; do 
+    scp $TMP/$f $HOST:$ROOTDIR/$f
+done

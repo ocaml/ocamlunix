@@ -1,0 +1,488 @@
+%------------------------------------------------------------------------------
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%
+% Translation by
+%------------------------------------------------------------------------------
+
+\chapter{Les processus}
+\label{sec/processes}
+\cutname{processes.html}
+
+Un processus est un programme en train de s'exécuter. Un processus se
+compose d'un texte de programme (du code machine) et d'un état du
+programme (point de contrôle courant, valeur des variables, pile des
+retours de fonctions en attente, descripteurs de fichiers ouverts,
+etc.)
+
+Cette partie présente les appels systèmes Unix permettant de créer de
+nouveaux processus et de leur faire exécuter d'autres programmes.
+
+\section{Création de processus}
+
+L'appel système \syscall{fork} permet de créer un processus.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{fork}$ : unit -> int
+\end{listingcodefile}
+%
+Le nouveau processus (\quotes{le processus fils}) est un clone presque
+parfait du processus qui a appelé \ml+fork+ (\quotes{le processus
+  père})\footnote{Les dénominations politiquement correctes sont
+  \quotes{processus parent} et \quotes{processus enfant}. Il est aussi
+  accepté d'alterner avec \quotes{incarnation mère} et
+  \quotes{incarnation fille}.}. Les deux processus exécutent le même
+texte de programme, sont initialement au même point de contrôle (le
+retour de \ml+fork+), attribuent les mêmes valeurs aux variables, ont
+des piles de retours de fonctions identiques, et détiennent les mêmes
+descripteurs de fichiers ouverts sur les mêmes fichiers.  Ce qui
+distingue les deux processus, c'est la valeur renvoyée par \ml+fork+:
+zéro dans le processus fils, un entier non nul dans le processus
+père. En testant la valeur de retour de \ml+fork+, un programme peut
+donc déterminer s'il est dans le processus père ou dans le processus
+fils, et se comporter différemment dans les deux processus:
+%
+\begin{lstlisting}
+match fork() with
+| 0 -> (* code execute uniquement par le fils *)
+| _ -> (* code execute uniquement par le pere *)
+\end{lstlisting}
+%
+L'entier non nul renvoyé par \ml+fork+ dans le processus père est
+l'identificateur du processus fils. Chaque processus est identifié
+dans le noyau par un numéro, l'identificateur du processus
+(\emph{process id}). Un processus peut obtenir son numéro
+d'identification par l'appel \indexlibvalue{Unix}{getpid}.
+
+Le processus fils est initialement dans le même état que le
+processus père (mêmes valeurs des variables, mêmes descripteurs de
+fichiers ouverts). Cet état n'est pas partagé entre le père et
+le fils, mais seulement dupliqué au moment du \ml+fork+. Par exemple, 
+si une variable est liée à une référence avant le \ml+fork+, une copie de
+cette référence et de son contenu courant est faite au moment du
+\ml+fork+; après le \ml+fork+, chaque processus modifie indépendamment
+\quotes{sa} référence, sans que cela se répercute sur l'autre processus. 
+
+De même, les descripteurs de fichiers ouverts sont dupliqués au moment
+du \ml+fork+: l'un peut être fermé et l'autre reste ouvert. Par
+contre, les deux descripteurs désignent la même entrée dans la table
+des fichiers (qui est allouée dans la mémoire système) et partagent
+donc leur position courante: si l'un puis l'autre lit, chacun lira une
+partie différente du fichier; de même les déplacement effectués par
+l'un avec \ml+lseek+ sont immédiatement visibles par l'autre. (Les
+descripteurs du fils et du père se comportent donc comme les deux
+descripteurs argument et résultat après exécution de la commande
+\ml+dup+, mais sont dans des processus différents au lieu d'être
+dans le même processus.)
+
+\section{Exemple complet: la commande {\normalfont\texttt{leave}}}
+
+La commande \ml+leave hhmm+ rend la main immédiatement, mais crée un
+processus en tâche de fond qui, à l'heure \ml+hhmm+, rappelle qu'il
+est temps de partir.
+%
+\begin{listingcodefile}[style=numbers]{leave.ml}
+open Sys;;
+open Unix;;
+
+let leave () =
+  let hh = int_of_string (String.sub Sys.argv.(1) 0 2)
+  and mm = int_of_string (String.sub Sys.argv.(1) 2 2) in
+  let now = localtime(time ()) in
+  let delay = (hh - now.tm_hour) * 3600 + (mm - now.tm_min) * 60 in $\label{prog:delay}$
+  if delay <= 0 then begin
+    print_endline "Hey! That time has already passed!";
+    exit 0
+  end;
+  if fork () <> 0 then exit 0;
+  sleep delay;
+  print_endline "\007\007\007Time to leave!";
+  exit 0;;
+
+handle_unix_error leave ();;
+\end{listingcodefile}
+%
+On commence par un parsing rudimentaire de la ligne de commande, pour
+extraire l'heure voulue. On calcule ensuite la durée d'attente, en
+secondes (ligne~\ref{prog:delay}). (L'appel \ml+time+ renvoie la date
+courante, en secondes depuis le premier janvier 1970, minuit. La
+fonction \ml+localtime+ transforme ça en
+année/mois/jour/heures/minutes/secondes.)  On crée alors un nouveau
+processus par \ml+fork+. Le processus père (celui pour lequel
+\ml+fork+ renvoie un entier non nul) termine immédiatement. Le shell
+qui a lancé \ml+leave+ rend donc aussitôt la main à l'utilisateur. Le
+processus fils (celui pour lequel \ml+fork+ renvoie zéro) continue à
+tourner.  Il ne fait rien pendant la durée indiquée (appel
+\ml+sleep+), puis affiche son message et termine.
+
+
+\section{Attente de la terminaison d'un processus} \label{double-fork}
+
+L'appel système \ml+wait+ attend qu'un des processus
+fils créés par \ml+fork+ ait terminé, et renvoie des informations sur
+la manière dont ce processus a terminé. Il permet la synchronisation
+père-fils, ainsi qu'une forme très rudimentaire de communication du
+fils vers le père.
+\label{wait}
+%
+\begin{codefile}{tmpunix.mli}
+type process_status = Unix.process_status
+type wait_flag = Unix.wait_flag
+\end{codefile}
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\indexlibvalue{Unix}{wait}$ : unit -> int * process_status
+val $\libvalue{Unix}{waitpid}$ : wait_flag list -> int -> int * process_status
+\end{listingcodefile}
+%
+L'appel système primitif est \syscall{waitpid} et la fonction
+\ml+wait ()+ n'est qu'un racourci pour l'expression 
+\ml+waitpid [] (-1)+.  
+%
+L'appel système \ml+waitpid [] p+ attend la terminaison du processus
+\ml+p+ si \ml+p+ $> 0$ est strictement positif, ou d'un sous-ensemble
+de processus fils du même groupe si \ml+p+ $= 0$, quelconque si
+\ml+p+ $= -1$, ou du groupe \ml+-p+ si \ml+p+ $<-1$.
+
+Le premier résultat est le numéro du processus fils intercepté par
+\ml+wait+. Le deuxième résultat peut être:
+%
+\begin{mltypecases}
+\mltypecase{WEXITED (r)} le processus fils a terminé normalement (par
+\ml+exit+ ou en arrivant au bout du programme); \ml+r+ est le code de
+retour (l'argument passé à \ml+exit+)
+
+\mltypecase{WSIGNALED (s)} le processus fils a été tué par un signal
+(ctrl-C, \ml+kill+, etc.; voir plus bas pour les signaux); \ml+s+
+identifie le type du signal
+
+\mltypecase{WSTOPPED (s)} le processus fils a été stoppé par le signal
+\ml+s+; ne se produit que dans le cas très particulier où un processus
+(typiquement un debugger) est en train de surveiller l'exécution d'un
+autre (par l'appel \ml+ptrace+).
+\end{mltypecases}
+%
+Si un des processus fils a déjà terminé au moment où le père exécute
+\ml+wait+, l'appel \ml+wait+ retourne immédiatement. Sinon, \ml+wait+
+bloque le père jusqu'à ce qu'un des fils termine (comportement dit
+\quotes{de rendez-vous}). Pour attendre $n$ fils, il faut répéter $n$
+fois \ml+wait+.
+
+La commande \ml+waitpid+ accepte deux options facultatifs comme
+premier argument: L'option \ml+WNOHANG+ indique de ne pas attendre,
+s'il il a des fils qui répondent à la demande mais qui n'ont pas
+encore terminé. Dans ce cas, le premier résultat est \ml+0+ et le
+second non défini. L'option \ml+WUNTRACED+ indique de retourner
+également les fils qui ont été arrêté par le signal \ml+sigstop+.  La
+commande lève l'erreur \ml+ECHILD+ si aucun fils du processus appelant
+ne répond à la spécification \ml+p+ (en particulier, si \ml+p+ vaut
+\ml+-1+ et que le processus courrant n'a pas ou plus de fils).
+
+\begin{example} 
+\label{ex/forksearch}
+La fonction \ml+fork_search+ ci-dessous fait une recherche linéaire
+dans un vecteur, en deux processus. Elle s'appuie sur la fonction
+\ml+simple_search+, qui fait la recherche linéaire simple.
+%
+\begin{listingcodefile}[style=numbers]{forksearch.ml}
+open Unix
+exception Found;;
+
+let simple_search cond v =
+  try
+    for i = 0 to Array.length v - 1 do
+      if cond v.(i) then raise Found
+    done;
+    false
+  with Found -> true;;
+
+let fork_search cond v =
+  let n = Array.length v in
+  match fork () with
+  | 0 ->
+      let found = simple_search cond (Array.sub v (n/2) (n-n/2)) in $\label{prog:found}$
+      exit (if found then 0 else 1) $\label{prog:searchexit}$
+  | _ ->
+      let found = simple_search cond (Array.sub v 0 (n/2)) in
+      match wait () with
+      | (pid, WEXITED retcode) -> found or (retcode = 0) $\label{prog:wexit}$
+      | (pid, _)               -> failwith "fork_search";;$\label{prog:wwexit}$
+\end{listingcodefile}
+%
+Après le \ml+fork+, le processus fils parcourt la moitié haute du
+tableau, et sort avec le code de retour $1$ s'il a trouvé un élément
+satisfaisant le prédicat \ml+cond+, ou $0$ sinon
+(lignes~\ref{prog:found} et~\ref{prog:searchexit}). Le processus père
+parcourt la moitié basse du tableau, puis appelle \ml+wait+ pour se
+synchroniser avec le processus fils (lignes~\ref{prog:wexit}
+et~\ref{prog:wwexit}). Si le fils a terminé normalement, on combine
+son code de retour avec le booléen résultat de la recherche dans la
+moitié basse du tableau. Sinon, quelque chose d'horrible s'est
+produit, et la fonction \ml+fork_search+ échoue.
+\end{example}
+
+En plus de la synchronisation entre processus, l'appel \ml+wait+
+assure aussi la récupération de toutes les ressources utilisées par le
+processus fils. Quand un processus termine, il passe dans un état dit
+\quotes{zombie}, où la plupart des ressources qu'il utilise (espace
+mémoire, etc) ont été désallouées, mais pas toutes: il continue à
+occuper un emplacement dans la table des processus, afin de pouvoir
+transmettre son code de retour au père via l'appel \ml+wait+. Ce n'est
+que lorsque le père a exécuté \ml+wait+ que le processus zombie
+disparaît de la table des processus. Cette table étant de taille fixe,
+il importe, pour éviter le débordement, de faire \ml+wait+ sur les
+processus qu'on lance.
+
+Si le processus père termine avant le processus fils, le fils se voit
+attribuer le processus numéro~$1$ (\ml+init+) comme père. Ce processus
+contient une boucle infinie de \ml+wait+, et va donc faire disparaître
+complètement le processus fils dès qu'il termine. Ceci débouche sur
+une technique utile dans le cas où on ne peut pas facilement appeler
+\ml+wait+ sur chaque processus qu'on a créé (parce qu'on ne peut pas se
+permettre de bloquer en attendant la terminaison des fils, par
+exemple): la technique \quotes{du double \ml+fork+}.
+%
+\begin{lstlisting}
+match fork () with
+| 0 -> if fork () <> 0 then exit 0;
+       (* faire ce que le fils doit faire *)
+| _ -> wait ();
+       (* faire ce que le pere doit faire *)
+\end{lstlisting}
+%
+Le fils termine par \ml+exit+ juste après le deuxième \ml+fork+. Le petit-fils
+se retrouve donc orphelin, et est adopté par le processus \ml+init+.
+Il ne laissera donc pas de processus zombie. Le père exécute \ml+wait+
+aussitôt pour récupérer le fils. Ce \ml+wait+ ne bloque pas longtemps
+puisque le fils termine très vite.
+
+\section{Lancement d'un programme}
+
+Les appels systèmes \syscall{execve}, \syscall{execv} et
+\syscall{execvp} lancent l'exécution d'un programme à l'intérieur du
+processus courant. Sauf en cas d'erreur, ces appels ne retournent
+jamais: ils arrêtent le déroulement du programme courant et se
+branchent au début du nouveau programme.
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{execve}$ : string -> string array -> string array -> unit
+val $\libvalue{Unix}{execv}$  : string -> string array -> unit
+val $\libvalue{Unix}{execvp}$ : string -> string array -> unit
+\end{listingcodefile}
+%
+Le premier argument est le nom du fichier contenant le code du
+programme à exécuter. Dans le cas de \ml+execvp+, ce nom est également
+recherché dans les répertoires du path d'exécution (la valeur de la
+variable d'environnement \ml+PATH+).
+
+Le deuxième argument est la ligne de commande à transmettre au
+programme exécuté; ce vecteur de chaînes va se retrouver dans
+\ml+Sys.argv+ du programme exécuté.
+
+Dans le cas de \ml+execve+, le troisième argument est l'environnement
+à transmettre au programme exécuté; \ml+execv+ et \ml+execvp+
+transmettent inchangé l'environnement courant.
+
+Les appels \ml+execve+, \ml+execv+ et \ml+execvp+ ne retournent jamais
+de résultat: ou bien tout se passe sans erreurs, et le processus se
+met à exécuter un autre programme; ou bien une erreur se produit
+(fichier non trouvé, etc.), et l'appel déclenche l'exception
+\ml+Unix_error+.
+
+\begin{example} 
+Les trois formes ci-dessous sont équivalentes:
+\begin{lstlisting}
+execve "/bin/ls" [|"ls"; "-l"; "/tmp"|] (environment ())
+execv  "/bin/ls" [|"ls"; "-l"; "/tmp"|]
+execvp "ls"      [|"ls"; "-l"; "/tmp"|]
+\end{lstlisting}
+\end{example}
+
+\begin{example} 
+Voici un \quotes{wrapper} autour de la commande \ml+grep+, qui
+ajoute l'option \ml+-i+ (confondre majuscules et minuscules) à la liste
+d'arguments:
+%
+\begin{listingcodefile}{grep.ml}
+open Sys;;
+open Unix;;
+let grep () =
+  execvp "grep"
+    (Array.concat 
+       [ [|"grep"; "-i"|]; 
+         (Array.sub Sys.argv 1 (Array.length Sys.argv - 1)) ])
+;;
+handle_unix_error grep ();;
+\end{listingcodefile}
+\end{example}
+
+\begin{example} 
+Voici un \quotes{wrapper} autour de la commande \ml+emacs+, qui
+change le type du terminal:
+%
+\begin{listingcodefile}{emacs.ml}
+open Sys;;
+open Unix;;
+let emacs () =
+  execve "/usr/bin/emacs" Sys.argv
+    (Array.concat [ [|"TERM=hacked-xterm"|]; (environment ()) ]);;
+handle_unix_error emacs ();;
+\end{listingcodefile}
+\end{example}
+
+C'est le même processus qui a fait \ml+exec+ qui exécute le nouveau
+programme. En conséquence, le nouveau programme hérite de certains
+morceaux de l'environnement d'exécution du programme qui a fait
+\ml+exec+:
+\begin{itemize}
+\item même numéro de processus, même processus père, même comportement
+vis-à-vis du processus père qui fait \ml+wait+
+\item même entrée standard, même sortie standard, même sortie d'erreur
+standard
+\item même signaux ignorés (cf. la partie sur les signaux)
+\end{itemize}
+
+\section{Exemple complet: un mini-shell}
+
+Le programme qui suit est un interprète de commandes simplifié: il lit
+des lignes sur l'entrée standard, les coupe en mots, lance la commande
+correspondante, et recommence jusqu'à une fin de fichier sur l'entrée
+standard. On commence par la fonction qui coupe une chaîne de
+caractères en une liste de mots. Pas de commentaires pour cette horreur.
+\begin{listingcodefile}{minishell.ml}
+open Unix;;
+
+let split_words s =
+  let rec skip_blanks i =
+    if i < String.length s & s.[i] = ' '
+    then skip_blanks (i+1)
+    else i in
+  let rec split start i =
+    if i >= String.length s then
+      [String.sub s start (i-start)]
+    else if s.[i] = ' ' then
+      let j = skip_blanks i in
+      String.sub s start (i-start) :: split j j
+    else
+      split start (i+1) in
+  Array.of_list (split 0 0);;
+\end{listingcodefile}
+%
+On passe maintenant à la boucle principale de l'interpréteur.
+%
+\begin{listingcodefile}{minishell.ml}
+let exec_command cmd = 
+  try execvp cmd.(0) cmd
+  with Unix_error(err, _, _) ->
+    Printf.printf "Cannot execute %s : %s\n%!"
+      cmd.(0) (error_message err);
+    exit 255
+      
+let print_status program status =
+  match status with
+  | WEXITED 255 -> ()
+  | WEXITED status ->  
+      Printf.printf "%s exited with code %d\n%!" program status;
+  | WSIGNALED signal -> 
+      Printf.printf "%s killed by signal %d\n%!" program signal;
+  | WSTOPPED signal -> 
+      Printf.printf "%s stopped (???)\n%!" program;;
+\end{listingcodefile}
+%
+La fonction \ml+exec_command+ exécute une commande avec récupération
+des erreurs. Le code de retour 255 indique que la commande n'a pas pu
+être exécutée. (Ce n'est pas une convention standard; on espère que
+peu de commandes renvoient le code de retour 255.)  La fonction
+\ml+print_status+ décode et imprime l'information d'état retournée par
+un processus, en ignorant le code de retour 255.
+%
+\begin{listingcodefile}{minishell.ml}
+let minishell () =
+  try
+    while true do
+      let cmd = input_line Pervasives.stdin in
+      let words = split_words cmd in
+      match fork () with
+      | 0 -> exec_command words
+      | pid_son ->
+          let pid, status = wait () in
+          print_status "Program" status
+    done
+  with End_of_file -> ()
+;;     
+
+handle_unix_error minishell ();;
+\end{listingcodefile}
+%
+À chaque tour de boucle, on lit une ligne sur l'entrée standard, via
+la fonction \ml+input_line+ de la bibliothèque standard
+\ml+Pervasives+. (Cette fonction déclenche l'exception
+\ml+End_of_file+ quand la fin de fichier est atteinte, faisant sortir
+de la boucle.) On coupe la ligne en mots, puis on fait \ml+fork+. Le
+processus fils fait \ml+exec_command+ pour lancer la commande avec
+récupération des erreurs. Le processus père appelle \ml+wait+ pour
+attendre que la commande termine et imprime l'information d'état
+renvoyée par \ml+wait+.
+
+\begin{exercise}
+\label{shell}
+Ajouter la possibilité d'exécuter des commandes en tâche de fond, si
+elles sont suivies par \ml+&+.
+\end{exercise}
+\begin{answer}
+Dans le cas où la ligne de commande se termine par \ml+&+, il suffit
+que le processus père n'appelle pas \ml+wait+, et passe immédiatement
+au prochain tour de la boucle. Seule difficulté: le père peut
+maintenant avoir plusieurs fils qui s'exécutent en même temps (les
+commandes en arrière-plan qui n'ont pas encore terminé, plus la
+dernière commande synchrone), et \ml+wait+ peut se synchroniser sur
+l'un quelconque de ces fils. Dans le cas d'une commande synchrone, il
+faut donc répéter \ml+wait+ jusqu'à ce que le fils récupéré soit bien
+celui qui exécute la commande.
+%
+\begin{codefile}{shell.ml}
+open Minishell
+open Sys
+open Unix
+let parse_command_line cmd =
+ let rec skip_blanks_backward i = 
+   if i >= 0 && cmd.[i] = ' ' then skip_blanks_backward (i-1) else i in
+ let i = skip_blanks_backward (String.length cmd - 1) in
+ let rest, ampersand = 
+   if i >= 0 && cmd.[i] = '&' then
+     String.sub cmd 0 (1 + skip_blanks_backward (i-1)), true
+   else cmd, false in
+ split_words rest, ampersand
+;;
+let shell () =
+ try
+\end{codefile}
+\begin{listingcodefile}{shell.ml}
+    while true do
+      let cmd = input_line Pervasives.stdin in
+      let words, ampersand = parse_command_line cmd in
+      match fork() with
+      | 0 -> exec_command words
+      | pid_son ->
+          if ampersand then ()
+          else
+            let rec wait_for_son () = 
+              let pid, status = wait () in
+              if pid = pid_son then
+                print_status "Program" status
+              else
+                let p = "Background program " ^ (string_of_int pid) in
+                print_status p status; 
+                wait_for_son () in
+            wait_for_son ()
+    done
+\end{listingcodefile}
+\begin{codefile}{shell.ml}
+ with End_of_file -> () 
+;;
+handle_unix_error shell ();;
+\end{codefile}
+\end{answer}

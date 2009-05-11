@@ -1,0 +1,244 @@
+%------------------------------------------------------------------------------
+% Copyright (c) 2009, Daniel C. Buenzli
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%------------------------------------------------------------------------------
+
+% Definitions for HTML output.
+
+\ProvidesPackage{prelude}
+\RequirePackage{makeidx}
+
+%% HTML conditionals
+\renewcommand{\ifhtml}[1]{#1}
+\newcommand{\ifnothtml}[1]{}
+\newcommand{\ifhtmlelse}[2]{#1}
+
+%% Inactive or different in HTML
+\newenvironment{titlingpage}{}{}
+\newcommand{\frontmatter*}{}
+\newcommand{\mainmatter}{}
+\newcommand{\backmatter}{}
+\newcommand{\vfill}{}
+\newcommand{\hfill}{}
+\newcommand{\hyperpage}{}
+
+%% Page geometry
+\newstyle{*}{ padding: 0em; border: 0em; margin: 0em;
+              font-family: georgia, serif; font-weight: normal;
+              font-size: 100\%;}
+
+\newstyle{BODY} { margin: 2em 10\% 2em 10\%;
+                  font-size: 9pt; line-height: 140\%; text-align: justify;
+                  background: white; color: black;
+                  max-width: 75ex; min-width: 40ex;}
+
+%% Typewriter 
+\newstyle{TT}{font-family:monospace;}
+\newstyle{TT A}{font-family:monospace;}
+\newstyle{B} {font-weight: bold }
+
+%% Links
+\newstyle{A}{color: blue; text-decoration : none }
+
+%% Title 
+\newstyle{.titlemain}{font-size: 180\%; text-align: left}
+\newstyle{.titlerest}{text-align: left; margin-top: 1em}
+\newstyle{TABLE.title TR TD}{ padding:0em; border-style:none}
+
+%% Copyright notice
+\newenvironment{copyrightnotice}
+   {\@open{DIV}{class="copyrightnotice"}}{\@close{DIV}}
+\newstyle{.copyrightnotice}{ margin-top: 1em; 
+                             font-size: 80\%;
+                             text-align: left}
+\newstyle{.ccimage}{ vertical-align: text-top;}
+
+%% Abstract
+\renewenvironment{abstract}
+   {\@open{DIV}{class="abstract"}}{\@close{DIV}}
+\newstyle{.abstract}{ margin-top: 1em }
+
+%% Lists 
+\newstyle{UL} { padding-top: 1ex; }
+\newstyle{LI} { padding-top: 1ex; }
+
+%% Sections & paragraphs
+\renewcommand{\chaptername}{} % No chapter name.
+\newstyle{.chapter} { margin-top:1.5em; font-size: 180\%; text-align:left}
+\newstyle{.chapter A} { color: black  } % number
+\newstyle{.section} { font-size: 140\%; margin-top: 1.5em; text-align:left}
+\newstyle{.section A} { color: black } % number
+\newstyle{.subsection} { font-style: italic; margin-top: 2em; text-align:left}
+\newstyle{.paragraph} { font-weight: bold; margin-top: 1em; margin-bottom:-1em}
+\newstyle{P}{ padding-top : 1em }
+
+%% Table of contents
+\newstyle{.li-toc UL .li-toc}{ padding-top:1ex;}
+\newstyle{UL.toc LI} { padding-top:1.5em }
+\newstyle{.li-toc A} { color: black }
+\newstyle{.li-toc A:hover} { color: blue }
+
+\setcounter{cuttingdepth}{0}
+
+%% Footnotes
+\newstyle{HR.footnoterule}{ border-width: 0pt }
+
+%% Suppress HeVeA footer
+\setboolean{footer}{false}
+
+%% Rules 
+\newstyle{HR} { margin: 1em 0em 1em 0em;  
+	        border-width: thin; 
+		border-bottom-style: solid;}
+
+%% Index
+\newcommand{\preindexhook}{}
+\newstyle{.li-indexenv}{list-style-type : none}
+\newstyle{.li-indexenv B A}{font-weight : bold}
+\let \oldindexenv\indexenv
+\def \indexenv {\preindexhook \oldindexenv} 
+
+%% Examples
+\setenvclass{example}{example}
+\newenvironment{example}%
+{\@open{DIV}{class="example"}\par\textbf{Exemple}\quad}%
+{\@close{DIV}}
+\newstyle{DIV.example}{ margin-top: 1em; 
+			margin-bottom: 1em;
+			padding-bottom: 1em;
+			border-width: thin; 
+		        border-bottom-style: solid;
+                        border-top-style: solid;}
+
+%% Code listings
+\setenvclass{lstlisting}{mylisting}
+\newstyle{CODE}{font-family:monospace; white-space:pre;}
+\newstyle{DIV.mylisting}{ padding-top : 1em; font-family:monospace;
+		       white-space:pre; margin-right:auto;
+		       margin-left:0ex; text-align:left;} 
+\newstyle{.mylisting b}{ font-family:monospace; font-weight : bold }
+\newstyle{.mylisting FONT} { font-family:monospace; font-size: 70\% }
+\newstyle{.mylisting A} { font-family:monospace; color : \#0000A0 }
+
+\lstnewenvironment{listingcodefile}[2][]{\lstset{#1}}{}
+\setenvclass{listingcodefile}{mylisting}
+\newenvironment{codefile}[1]{\begin{latexonly}}{\end{latexonly}}
+
+
+\newenvironment{mltypecases}%
+%% too much problems with DL's, use itemize
+{\@open{DIV}{class="mltypecases"}\begin{itemize}} 
+{\end{itemize}\@close{DIV}}
+\newcommand{\mltypecase}[1]{\item\@open{CODE}{}#1\@close{CODE}\quad}
+\setenvclass{mltypecases}{mltypecases}
+\newstyle{.mltypecases UL} { padding-top: 1ex; margin-left: 1em;}
+\newstyle{.mltypecases LI} { list-style-type : none; padding-top: 1ex; }
+
+%% Exercises
+\newcounter{exercise}
+\newcommand{\exerciseanswer}{}
+\newenvironment{exercise}[1][]
+{\stepcounter{exercise}%
+ \renewcommand{\exerciseanswer}{#1}%
+ \@open{DIV}{class="exercise"}%
+ \par\textbf{Exercice~\theexercise}\label{ex\theexercise}\quad}
+{\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
+ {\hfill\ahrefloc{exans\theexercise}{Corrigé}.}%
+ \@close{DIV}}
+
+\setenvclass{exercise}{exercise}
+\newstyle{DIV.exercise}{margin-top: 1em; 
+			margin-bottom: 1em;
+			padding-bottom: 1em;
+			border-width: thin; 
+		        border-bottom-style: solid;
+                        border-top-style: solid;}
+
+
+\newenvironment{answer}{%
+ \begin{cutflow}{Corrigé exercice~\theexercise}%
+ \cutname{exercise\theexercise .html}%
+ \@open{DIV}{class="answer"}%
+ \par\textbf{Corrigé \ahrefloc{ex\theexercise}{exercice~\theexercise}}\quad%
+ \label{exans\theexercise}}
+{\@close{DIV}\end{cutflow}}
+
+\setenvclass{answer}{answer}
+\newstyle{DIV.answer}{margin-top: 1em; 
+		      margin-bottom: 1em;
+	              padding-bottom: 1em;
+		      border-width: thin; 
+		      border-top-style: solid;
+		      border-bottom-style: solid;}
+
+
+%% Figures, tables, captions and floats
+\newsavebox{\@caption}
+\newcommand{\caption}[1]{\sbox{\@caption}{#1}}
+
+%% \newcommand{\caption}[2][]{%
+%% \@open{DIV}{class="caption"}Figure \themyfigure~---~#2\@close{DIV}}
+
+\newcounter{myfigure}
+\newenvironment{myfigure}[1][]%
+{\caption{}\refstepcounter{myfigure}%
+ \@open{DIV}{class="figure"}}%
+{\@open{DIV}{class="caption"}Figure \themyfigure~---~\usebox{\@caption}%
+ \@close{DIV}\@close{DIV}}
+
+\newstyle{DIV.figure}{ margin-top:1em; margin-bottom:1em;
+                       padding-bottom:1em;
+	               border-width: thin; 
+		       border-bottom-style: solid;
+                       border-top-style: solid;
+                       text-align: center; }
+
+\newcounter{mytable}
+\newenvironment{mytable}[1][]%
+{\caption{}\refstepcounter{mytable}%
+ \@open{DIV}{class="table"}}
+{\@open{DIV}{class="caption"}Tableau \themytable~---~\usebox{\@caption}%
+ \@close{DIV}\@close{DIV}}
+\newstyle{DIV.table} { margin-top:1em; margin-bottom:1em;
+                       padding-bottom:1em;
+	               border-width: thin; 
+		       border-bottom-style: solid;
+                       border-top-style: solid;
+                       text-align: center; }
+
+\newstyle{TABLE}{margin-top:1em}
+\newstyle{TR} {margin-top: 4ex }
+\newstyle{TD}{ padding-left: 2ex; padding-top:1ex }
+\newstyle{.hbar}{background-color:white;
+                 border-width:thin; 
+		 border-top-style: solid; 
+		 height:0px;}
+
+\newstyle{.caption} { margin-top: 2em; }
+
+
+
+
+%% Pictures & extraction
+\newcommand{\imagebase}{ocamlunix-image}
+\newcounter{myimage}
+\newenvironment{tikzpicture}{\begin{latexonly}}{\end{latexonly}}
+\newcommand{\tikzset}[1]{}
+\newenvironment{myimage}[1][width="100\%"]%
+{\stepcounter{myimage}%
+\@open{DIV}{class="image"}\imgsrc[#1]{\imagebase\themyimage.png}\@close{DIV}}%
+{}
+\newstyle{.image} { display: block; text-align: center; 
+		   margin-top:1em; margin-bottom: 1em;}
+
+%% Bibliography
+\newstyle{.thebibliography DL}{ margin-top : 1em;}
+\newstyle{.thebibliography DT}{ margin-top : 1em;}
+\newstyle{.thebibliography DD}{ display : inline; }
+\newstyle{.thebibliography FONT}{ color: black; }
+\newstyle{.thebibliography B}{font-weight : bold}
+\newstyle{.bibsection}{font-weight : bold}
+\newcommand{\bibcomment}[1]{\@open{DT}{class="bibsection"}#1\@close{DT}}

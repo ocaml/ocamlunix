@@ -1,0 +1,50 @@
+%------------------------------------------------------------------------------
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+%
+% All rights reserved. Distributed under a creative commons
+% attribution-non-commercial-share alike 2.0 France license.
+% http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
+%
+% Translation by
+%------------------------------------------------------------------------------
+
+\begin{titlingpage}
+%% Title page
+\maketitle
+\newpage
+
+%% Copyright page
+\begin{copyrightnotice}
+\textcopyright{} 1991, 1992, 2003, 2004, 2005, 2006, 2008, 2009 \\
+\myauthors, \textsc{inria} Rocquencourt.\\
+Droits réservés.
+\ifhtmlelse
+    {Voir les \href{LICENSE}{termes légaux.}  \href{\licenseURL}%
+      {\imgsrc[alt="CreativeCommons License" class="ccimage"]%
+        {http://i.creativecommons.org/l/by-nc-sa/2.0/fr/80x15.png}}
+    }
+    {Distribué sous licence Creative Commons Paternité~--~Pas
+      d'Utilisation Commerciale~--~Partage des Conditions Initiales à
+      l'Identique 2.0 France. Voir \url{\licenseURL} pour les termes
+      légaux.}
+\end{copyrightnotice}
+
+\ifhtml{ 
+Disponible en version \ahref{ocamlunix.html}{monolitique},
+\ahref{index.html}{par chapitres}, et en \ahref{ocamlunix.pdf}{PDF}
+--- les \ahref{ocamlunix-!!VERSION!!.tbz}{sources}.} 
+\vfill
+\begin{abstract}
+Ce document est un cours d'introduction à la programmation du système
+Unix, mettant l'accent sur la communication entre les processus. La
+principale nouveauté de ce travail est l'utilisation du langage
+Objective Caml, un dialecte du langage ML, à la place du langage C qui
+est d'ordinaire associé à la programmation système. Ceci donne des
+points de vue nouveaux à la fois sur la programmation système et sur
+le langage ML.
+\end{abstract}
+\end{titlingpage}
+
+%% Table of contents
+\ifhtmlelse{\tableofcontents\cutname{toc.html}}{\tableofcontents*}
+\newpage

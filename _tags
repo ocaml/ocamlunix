@@ -1,0 +1,5 @@
+<src> : include
+<src/ocamlunix.tex> : tex_master
+<code> : include
+<code/*.{ml,mli,native,byte}> : thread, use_unix
+<code/{url,geturl,proxy}.{native,byte}> : use_str
