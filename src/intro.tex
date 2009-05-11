@@ -5,7 +5,7 @@
 % attribution-non-commercial-share alike 2.0 France license.
 % http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
 %
-% Translation by
+% Translation by Daniel C. Buenzli
 %------------------------------------------------------------------------------
 
 \chapter*{\ifhtml{\aname{htocintro}}Introduction}
@@ -13,73 +13,67 @@
 \label{sec/intro}
 \cutname{intro.html}
 
-Ces notes sont issues d'un cours de programmation système que Xavier
-Leroy a enseigné en première année du Magistère de Mathématiques
-Fondamentales et Appliquées et d'Informatique de l'École Normale
-Supérieure en 1994. Cette première version utilisait le langage
-Caml-Light~\cite{Caml-Light}.
+These course notes originate from a system programming course Xavier
+Leroy teached in 1994 to the first year students of the master in
+fundamentals and applied mathematics and computer science at the École
+Normale Supérieure. This earliest version used the
+Caml-Light~\cite{Caml-Light} language.
 %
-Didier Rémy en a fait une traduction pour le langage
-{\ocaml}~\cite{OCaml} pour un cours enseigné en Majeure d'Informatique
-à l'École Polytechnique de 2003 à 2006. À cette occasion, Gilles
-Roussel, Fabrice Le Fessant et Maxence Guesdon qui ont aidé à ce cours
-ont également contribué à améliorer ces notes. Cette version comporte
-des ajouts et quelques mises à jour: en presque une décennie certains
-ordres de grandeur ont décalé leur virgule d'un chiffre; aussi, la
-toile était seulement en train d'être tissée et l'exemple, aujourd'hui
-classique, du relais {\http} aurait presqu'eut un coté précurseur en
-1994. Mais surtout le langage {\ocaml} a gagné en maturité depuis et a
-été utilisé dans de véritables applications système, telles que
-Unison~\cite{Unison}.
+For a master course in computer science at the École Polytechnique
+teached from 2003 to 2006, Didier Rémy adapted the notes to use the
+{\ocaml} language. During these years, Gilles Roussel, Fabrice Le
+Fessant and Maxence Guesdon helped to teach the course and also
+contributed to this document. The new version also brought
+additions and updates. In ten years, some orders of magnitude have
+shifted by a digit and the web left its infancy. For example the
+{\http} relay example, now classical, may have been a forerunner in
+1994. But foremost the {\ocaml} language gained maturity and was used
+to program real system applications like Unison~\cite{Unison}.
 
-La tradition veut que la programmation du système Unix se fasse dans
-le langage C. Dans le cadre de ce cours, il a semblé plus
-intéressant d'utiliser un langage de plus haut niveau, Caml en
-l'occurrence, pour expliquer la programmation du système Unix.
+Tradition dictates that Unix system programming must be done in C. For
+this course we found it more interesting to use a higer-level
+language, namely {\ocaml}, to explain the fundamentals of Unix system
+programming.
 
-La présentation Caml des appels systèmes est plus abstraite, utilisant
-toute la puissance de l'algèbre de types de ML pour représenter de
-manière claire les arguments et les résultats, au lieu de devoir tout
-coder en termes d'entiers et de champs de bits comme en C. En
-conséquence, il est plus facile d'expliquer la sémantique des appels
-systèmes, sans avoir à se perdre dans les détails de l'encodage des
-arguments et des résultats. (Voir par exemple la présentation de
-l'appel \ml+wait+, page~\pageref{wait}.)
+The {\ocaml} interface to Unix system calls is more abstract. Instead
+of encoding everything in terms of integers and bit fields as in C,
+{\ocaml} uses the whole power of the ML type system to clearly
+represent the system calls' arguments and results. Hence it becomes
+easier to explain the semantics of the calls instead of losing oneself
+explaining how the arguments and the results have to be en/decoded. (See
+for example the presentation of the system call \ml+wait+,
+page~\pageref{wait}.)
 
-De plus, {\ocaml} apporte une plus grande sécurité de programmation
-que C, en particulier grâce au typage statique et à la clarté de ses
-constructions de base. Ces traits, qui peuvent apparaître au
-programmeur C chevronné comme de simples éléments de confort, se
-révèlent cruciaux pour les programmeurs inexpérimentés comme ceux
-auxquels ce cours s'adresse.
+Furthermore, due to the static type system and the clarity of its
+primitives, it is safer to program in {\ocaml} than in C. The
+experienced C programmer may see these benefits as useless luxury,
+however they are crucial for the inexperienced audience of this course.
 
-Un deuxième but de cette présentation de la programmation système en
-{\ocaml} est de montrer le langage {\ocaml} à l'{\oe}uvre dans un
-domaine qui sort nettement de ses applications usuelles, à savoir la
-démonstration automatique, la compilation, et le calcul
-symbolique. {\ocaml} se tire plutôt bien de l'expérience,
-essentiellement grâce à son solide noyau impératif, complété
-ponctuellement par les autres traits plus novateurs du langage
-(polymorphisme, fonctions d'ordre supérieur, exceptions).  Le fait que
-{\ocaml} combine programmation applicative et programmation
-impérative, au lieu de les exclure mutuellement, rend possible
-l'intégration dans un même programme de calculs symboliques compliqués
-et d'une bonne interface avec le système.
+A second goal of this exposition of system programming is to show
+{\ocaml} performing in a domain out of its usual applications in
+theorem proving, compilation and symbolic computation. The outcome of
+the experiment is rather positive, thanks to {\ocaml}'s solid
+imperative kernel and its other novel aspects like parametric
+polymorphism, higher-horder functions and exceptions. It also shows
+that instead of mutally excluding applicative and imperative
+programming, their combination makes it possible to integrate in the
+same program complex symbolic computations and a good interface with
+the operating system.
 
-Ces notes supposent le lecteur familier avec le système {\ocaml}, et
-avec l'utilisation des commandes Unix, en particulier du shell. On se
-reportera à la documentation du système {\ocaml} \cite{OCaml} pour
-toutes les questions relatives au langage, et à la section~1 du manuel
-Unix ou à un livre d'introduction à Unix \cite{KP,R1} pour toutes les
-questions relatives à l'utilisation d'Unix.
+These notes assume the reader is familiar with {\ocaml} and unix shell
+commands. For any question about the language, consult the Objective
+Caml System documentation~\cite{OCaml} and for questions about Unix,
+read section~1 of the Unix \texttt{man}ual or Unix introductory books
+like~\cite{KP,R1}.
 
-On décrit ici uniquement l'interface \quotes{programmatique} du
-système Unix, et non son implé\-men\-ta\-tion ni son architecture
-interne.  L'architecture interne de \textsc{bsd} 4.3 est décrite
-dans~\cite{BSD}; celle de System~\textsc{v}, dans~\cite{Bach}. Les
-livres de Tanenbaum~\cite{T1,T2} donnent une vue d'ensemble des
-architectures de systèmes et de réseaux.
 
-Le système Objective Caml dont la bibliothèque d'interface avec Unix
-présentée ici fait partie intégrante est en accès libre à l'{\URL}
+This document describes only the programmatic interface to the Unix
+system. It presents neither its implementation, neither its internal
+architecture. The internal architecture of \textsc{bsd}~4.3 is
+described in~\cite{BSD} and of System~\textsc{v}
+in~\cite{Bach}. Tanenbaum's books~\cite{T1,T2} give an overal view of
+network and operating system architecture.
+
+The Unix interface presented in this document is part from the
+Objective Caml System available as free software at
 \url{http://caml.inria.fr/ocaml/}.
