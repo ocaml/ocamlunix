@@ -1,68 +1,60 @@
 %------------------------------------------------------------------------------
-% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.  
+% Copyright (c) !!COPYRIGHTYEAR!!, Xavier Leroy and Didier Remy.
 %
 % All rights reserved. Distributed under a creative commons
 % attribution-non-commercial-share alike 2.0 France license.
 % http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
 %
-% Translation by
+% Translation by Till Varoquaux
 %------------------------------------------------------------------------------
 
-\chapter{Communications modernes: les prises}
+\chapter{Modern communication: sockets}
 \label{sec/sockets}
 \cutname{sockets.html}
 
-La communication par tuyaux présente certaines insuffisances. Tout
-d'abord, la communication est locale à une machine: les processus qui
-communiquent doivent tourner sur la même machine (cas des tuyaux
-nommés), voire même avoir le créateur du tuyau comme ancêtre commun
-(cas des tuyaux normaux). D'autre part, les tuyaux ne sont pas bien
-adaptés à un modèle particulièrement utile de communication, le modèle
-dit par connexions, ou modèle client-serveur.  Dans ce modèle, un seul
-programme (le serveur) accède directement à une ressource partagée;
-les autres programmes (les clients) accèdent à la ressource par
-l'intermédiaire d'une connexion avec le serveur; le serveur sérialise
-et réglemente les accès à la ressource partagée.  (Exemple: le système
-de fenêtrage \textsc{x}-window~---~les ressources partagées étant ici
-l'écran, le clavier, la souris et le haut-parleur.) Le modèle
-client-serveur est difficile à implémenter avec des tuyaux. La grande
-difficulté, ici, est l'établissement de la connexion entre un client
-et le serveur. Avec des tuyaux non nommés, c'est impossible: il
-faudrait que les clients et le serveur aient un ancêtre commun ayant
-alloué à l'avance un nombre arbitrairement grand de tuyaux. Avec des
-tuyaux nommés, on peut imaginer que le serveur lise des demandes de
-connexions sur un tuyau nommé particulier, ces demandes de connexions
-pouvant contenir le nom d'un autre tuyau nommé, créé par le client, à
-utiliser pour communiquer directement avec le client. Le problème est
-d'assurer l'exclusion mutuelle entre les demandes de connexion
-provenant de plusieurs clients en même temps.
+Communication using pipes can be somewhat lacking. It is local to a machine:
+communicating processes must run on the same machine (when using named pipes)
+or even share the pipe's creator as a common ancestor (when using anonymous
+pipes). Furthermore pipes are not very suitable for a very useful model of
+communication: the connected or client-server model. In this model only one
+program (the server) has direct access to a shared resource; the other programs
+(the clients) access the res-source through a shared connection with the server;
+the server serializes and controls those accesses. (e.g. The \textsc{x}-window
+windowing system ~---~ the shared resources here being the screen, the keyboard
+and the mouse.) The client-server model is hard to implement with pipes. The
+problem being establishing the connection between a client and the server. With
+anonymous pipes it is impossible: it would require for the server and the client
+to have a common ancestor. With named pipe one could imagine that the server
+would read connection requests on a given named pipe, these requests could carry
+the name of another named pipe then used to talk directly to the client. The
+issue is ensuring mutual exclusion between simultaneous connection requests.
 
-Les prises (traduction libre de (\emph{sockets}) sont une généralisation des
-tuyaux qui pallie ces faiblesses.  Le modèle du client serveur avec prises
-(en mode connecté) est décrit dans la figure~\ref{fig/client-serveur}
+Sockets are a generalization of pipes addressing these issues. The client server
+model (in connected mode) is described in figure~\ref{fig/client-server}.
+
 \begin{myfigure}
 \begin{myimage}[width="70\%"]
 \begin{tikzpicture}
 [port/.style={draw,fill,circle,minimum size=1mm,inner sep=0mm},
  server/.style={draw, rectangle, inner sep=2mm,rounded corners},
  client/.style={draw, ellipse}]
-\node (V) at (0,4) [server] {Serveur $V$};
+\node (V) at (0,4) [server] {Server $V$};
 \node (Vp1) at (V.-8) [port] {};
 \node (Vp2) at (V.8) [port] {};
-\node (U) at (-1,2) [server] {Serveur $U$};
+\node (U) at (-1,2) [server] {Server $U$};
 \node (Up1) at (U.-8) [port] {};
 \node[below right] at (Up1.east) {(1)}; % because of babel french
 
 \node (Up2) at (U.8) [port] {};
 
-\node (W) at (0,0) [server] {Serveur $W$};
+\node (W) at (0,0) [server] {Server $W$};
 \node (Wp1) at (W.-8) [port] {};
 \node (Wp2) at (W.8) [port] {};
 
-\node (A) at (5,3) [client] {Client $A$}; 
+\node (A) at (5,3) [client] {Client $A$};
 \node (Ap) at (A.west) [port] {};
 
-\node (B) at (5,1) [client] {Client $B$}; 
+\node (B) at (5,1) [client] {Client $B$};
 \node (Bp) at (B.west) [port] {};
 
 \draw [<->] (Up1) to [bend right=15] node[below]{(2)} (Ap);
@@ -74,123 +66,113 @@ tuyaux qui pallie ces faiblesses.  Le modèle du client serveur avec prises
 \draw [densely dotted] (U.south) to [bend right=20] (W.north);
 \end{tikzpicture}
 \end{myimage}
-\caption{Modèle Client-Serveur}
-\label{fig/client-serveur}
+\caption{Client-Server model}
+\label{fig/client-server}
 \end{myfigure}
 
 \begin{enumerate}
 \item
-Le serveur $U$ créé une prise $s$ et la branche sur un port $p$ connu des
-clients puis attend les connexions sur sa prise (1).
+The server $U$ creates a socket $p$ on a port $p$ known from the clients and
+waits for connections on it (1).
 %
 \item
-Un  client $A$ créé une prise et se connecte au serveur sur le port $p$~(2). 
-Le système alloue alors une nouvelle prise pour communiquer en privé
-avec le client $A$ (3). Dans le schéma choisi ici, il se duplique
-en un serveur auxiliaire $V$~(4), ferme sa prise avec le client $A$ (en
-trait haché), et laisse son fils $V$ traiter la connexion avec $A$~(5).
+The client $A$ creates a socket and connects to the server on the port
+$p$~(2). The server then allocates a new socket to communicate privately with
+the client $A$ (3). In the example given here the server forks off an auxiliary
+server $v$~(4), closes his connection with the client $4$ (represented by the
+hashed line) and lets its child $V$ handle the connection with $A$~(5).
 %
 \item
-Le serveur peut alors accepter un nouveau client $B$, établir une autre
-connexion en parallèle servie par un autre clone $W$~(6), et ainsi de suite.
+The server can then accept a new client $B$, establish a new connection handled
+by a clone $w$~(6) and so on.
+%
+\item
+The server can close his service by closing the file descriptor bound to the
+socket $p$. After a while the system frees the port $p$ which can then be reused
+(for instance to provide another service).
+
+\end{enumerate}
+
+In the model the server $U$ and the client $A$ must establish a private
+connection (3) to communicate until the end of the connection without
+interfering with other requests issued by other clients. Because of that this
+mode is referred to as the \emph{connected} mode. If the transaction is short
+the server could handle the request directly (without forking) through the
+connection (3). In this case the next client must wait for the server to be
+available either because it has finished handling connection (3) or because it
+handles explicitly several connexions via multiplexing.
+
+Sockets also allow a disconnect \emph{disconnect} client-server mode (although
+it is less frequently used). In this mode instead of establishing a private
+connection with the client the server answers directly to the client's
+requests. Section~\ref {sec/mode-deconnecte} gives and overview of this
+model. In the remaining of this chapter we shall mostly detail the
+\emph{connected} mode.
+
+\section{Sockets}
+
+The socket mechanism, which is an extension of the pipe mechanism, was
+introduced in \textsc{bsd} 4.2 and can now be found in virtually every network
+connected Unix machine (whether via Ethernet or some other medium). First,
+special system calls are provided to establish connections in the client-server
+model. Then sockets enable local and remote inter-process communication in a
+(nearly) transparent way. Several communication domains are considered. The
+communication domain bound to a socket indicates with whom we can communicate on
+that socket ; it conditions the format of the address used on that socket. Two
+examples of domains:
+
+\begin{itemize}
+\item the Unix domain: addresses are names in the file system
+  hierarchy  of a machine. Communication is limited to processes
+  running on that machine (like with named pipes).
 %
 \item 
-Le serveur peut fermer son service en fermant le descripteur
-associé à la prise $s$. Au bout d'un certain temps le système libère le port
-$p$ qui peut alors être réutilisé, par exemple pour y installer un autre
-service. 
-\end{enumerate}
-%
-Il est essentiel dans ce modèle que le serveur $U$ et le client $A$
-aient établi une connexion privée (3) pour dialoguer jusqu'à la fin de
-la connexion, sans interférence avec d'autres requêtes provenant
-d'autres clients. Pour cette raison, on dit que l'on fonctionne en
-mode \emph{connecté}. Si le service est court, le serveur pourrait
-lui-même servir la requête directement (sans se cloner) au travers de
-la connexion (3). Dans ce cas, le client suivant doit attendre que le
-serveur soit libre, soit parce qu'il a effectivement fini de traiter
-la connexion (3), soit parce qu'il gère explicitement plusieurs
-connexions par multiplexage.
-
-Les prises permettent également un modèle client-serveur en mode
-\emph{déconnecté}. Dans ce cas, moins fréquent, le serveur n'établit
-pas une connexion privée avec le client, mais répond directement à
-chaque requête du client. Nous verrons brièvement comment procéder
-selon ce modèle dans la section~\ref {sec/mode-deconnecte}.  Dans le
-reste, de ce chapitre nous décrivons essentiellement la communication
-en mode dit \quotes{connecté}.
-
-\section{Les prises}
-
-Le mécanisme des prises, qui étend celui des tuyaux, a été introduit
-en \textsc{bsd} 4.2, et se retrouve maintenant sur toutes les machines
-Unix connectées à un réseau (Ethernet ou autre).  Tout d'abord, des
-appels systèmes spéciaux sont fournis pour établir des connexions
-suivant le modèle client-serveur.  Ensuite, les prises permettent la
-communication locale ou à travers le réseau entre processus tournant
-sur des machines différentes de façon (presque) transparente. Pour
-cela, plusieurs domaines de communication sont pris en compte. Le
-domaine de communication associé à une prise indique avec qui on peut
-communiquer via cette prise; il conditionne le format des adresses
-employées pour désigner le correspondant. Deux exemples de domaines:
-%
-\begin{itemize}
-\item le domaine Unix: les adresses sont des noms dans la hiérarchie
-de fichiers d'une machine. La communication est limitée aux processus
-tournant sur cette machine (comme dans le cas des tuyaux nommés).
-%
-\item le domaine Internet: les adresses sont constituées de l'adresse
-d'une machine dans le réseau Internet (adresse de la forme
-\ml+129.199.129.1+, par exemple), plus un numéro de service à l'intérieur
-de la machine. La communication est possible entre processus tournant
-sur deux machines quelconques reliées au réseau Internet.\footnote{
-Le réseau Internet se compose de réseaux locaux, généralement du type
-Ethernet, reliés par des liaisons spécialisées. Il relie
-des millions de machines dans le monde entier. À l'intérieur du
-domaine Internet, il n'y a pas de différence au niveau des programmes
-entre communiquer avec la machine voisine, branchée sur le même câble
-Ethernet, et communiquer avec une machine à l'autre bout du monde, à
-travers une dizaine de routeurs et une liaison satellite.}
+the Internet domain: addresses are made of the address of a machine on the
+Internet network (i.e. \ml+129.199.129.1+) and a service number on that
+machine. Communication is possible between running on any two machines connected
+to Internet. \footnote{ the Internet network is made of local networks, usually
+  Ethernet networks connected by specialized links. It connects millions of
+  machines in the whole wide word. On the Internet there machines can
+  communicate to a neighbor machine connected to the same cable just the same
+  as to one on the other side of the planet through tens of routers and a
+  satellite.}
 \end{itemize}
 %
-Enfin, plusieurs sémantiques de communication sont prises en compte.
-La sémantique indique en particulier si la communication est fiable
-(pas de pertes ni de duplication de données), et sous quelle forme les
-données se présentent au récepteur (flot d'octets, ou flot de
-paquets~---~petits blocs d'octets délimités). La sémantique
-conditionne le protocole utilisé pour la transmission des
-données. Voici trois exemples de sémantiques possibles:
+Finally several communication semantics are handled. These semantic amongst
+other things, indicate whether the communication is reliable (no loss nor
+duplication of data) and which form the data is sent as (byte flux or packet
+flux ~---~small delimited blocks of bytes). The semantic conditions the protocol
+used to transmit data. Here are three examples of possible semantics:
 %
 \smallskip
 \begin{center}
 \begin{tabular}{l|lll}
-         & Flots & Datagramme & Paquet segmentés \\
+         & Flux & Datagram & Segmented packets \\
 \hline
-Fiable   & oui    & non       & oui \\
-Forme des données & flot d'octets & paquets & paquets \\
+Reliable   & yes    & no       & yes \\
+Representation of the data & byte flux & packets & packets \\
 \end{tabular}
 \end{center}
 \smallskip
+
+
+\quotes{flux} semantic is really close to the one in pipe
+communication. It is the most widespread semantic  specifically when
+transmitted unstructured byte sequences (\emph{e.g.} \ml+rsh+).
+\quotes{Structured packets} semantic splits the transmitted data in
+packets: each write delimits a packet, each read reads at most a
+packet. It is well suited to message based
+communication. \quotes{Datagram} is the closest to the hardware specs
+of an Ethernet network: transmissions are packet based but there is no
+guaranty packets arrive at destination. It is the most economical in
+terms of network load. Some programs use it to transmit non crucial
+data ({\emph{e.g.} \ml+biff+}); others to have a lighter network
+footprint given. They must deal with data loses on there own.
+
 %
-La sémantique par \quotes{flot} est très proche de celle de la
-communication par tuyaux. C'est la plus employée, en particulier
-lorsqu'il s'agit de retransmettre des suites d'octets sans structure
-particulière (exemple: \ml+rsh+). La sémantique par \quotes{paquets
-  segmentés} structure les données transmises en paquets: chaque
-écriture délimite un paquet, chaque lecture lit au plus un
-paquet. Elle est donc bien adaptée à la communication par messages. La
-sémantique par \quotes{datagrammes} correspond au plus près aux
-possibilités hardware d'un réseau de type Ethernet: les transmissions
-se font par paquets, et il n'est pas garanti qu'un paquet arrive à son
-destinataire. C'est la sémantique la plus économique en termes
-d'occupation du réseau.  Certains programmes l'utilisent pour
-transmettre des données sans importance cruciale (exemple: \ml+biff+);
-d'autres, pour tirer plus de performances du réseau, étant entendu
-qu'ils doivent gérer eux-mêmes les pertes.
+\section{Socket creation}
 
-\section{Création d'une prise}
-
-L'appel système \syscall{socket} permet de créer une nouvelle prise:
+The \syscall{socket} system call creates a new socket:
 %
 \begin{codefile}{tmpunix.mli}
 type socket_domain = Unix.socket_domain
@@ -201,42 +183,37 @@ type socket_type = Unix.socket_type
 val $\libvalue{Unix}{socket}$ : socket_domain -> socket_type -> int -> file_descr
 \end{listingcodefile}
 %
-Le résultat est un descripteur de fichier qui représente la nouvelle
-prise. Ce descripteur est initialement dans l'état dit \quotes{non
-connecté}; en particulier, on ne peut pas encore faire \ml+read+ ou
-\ml+write+ dessus.
+The result is a file descriptor representing the new socket. This descriptor is
+originally in \quotes{non-connected} mode. In this state it not ready to accept
+any \ml+read+ or \ml+write+.
 
-Le premier argument indique le domaine de communication auquel la
-prise appartient:
+The first argument is the communication domain to which the socket is bound:
 %
 \begin{mltypecases}
-\mltypecase{PF\_UNIX} le domaine Unix
-\mltypecase{PF\_INET} le domaine Internet
+\mltypecase{PF\_UNIX} the Unix domain
+\mltypecase{PF\_INET} the Internet domain
 \end{mltypecases}
 %
-Le deuxième argument indique la sémantique de communication désirée:
+The second argument is the desired communication semantic:
 %
 \begin{mltypecases}
-\mltypecase{SOCK\_STREAM} flot d'octets, fiable
-\mltypecase{SOCK\_DGRAM}  paquets, non fiable
-\mltypecase{SOCK\_RAW} accès direct aux couches basses du réseau
-\mltypecase{SOCK\_SEQPACKET} paquets, fiable
+\mltypecase{SOCK\_STREAM} byte streams, reliable
+\mltypecase{SOCK\_DGRAM}  packets, unreliable
+\mltypecase{SOCK\_RAW} direct access to the lower level layer of the network
+\mltypecase{SOCK\_SEQPACKET} packets, reliable
 \end{mltypecases}
 %
-Le troisième argument est le numéro du protocole de communication à
-utiliser. Il vaut généralement 0, ce qui désigne le protocole par
-défaut, généralement déterminé à partir du type de communication
-(typiquement, \ml+SOCK_DGRAM+ et \ml+SOCK_STREAM+ sont associés aux
-protocoles \textsc{udp} et \textsc{tcp}).  D'autres valeurs donnent
-accès à des protocoles spéciaux.  Exemple typique: le protocole
-\textsc{icmp} (Internet Control Message Protocol), qui est le
-protocole utilisé par la commande \ml+ping+ pour envoyer des paquets
-avec retour automatique à l'envoyeur. Les numéros des protocoles
-spéciaux se trouvent dans le fichier \ml+/etc/protocols+ ou dans la
-table \ml+protocols+ du système d'informations réparti \textsc{nis}
-(\emph{Network Information Service}), le cas échéant.  L'appel système
-\syscall{getprotobyname} permet de consulter cette table de manière
-portable:
+The third argument is the number of the communication protocol to use. It is
+generally 0 which is the default protocol usually inferred from the
+communication type (\ml+SOCK_DGRAM+ and \ml+SOCK_STREAM+ are usually associated
+with the \textsc{udp} and \textsc{tcp} protocols).  Other values give access to
+special protocols. For instance : the \textsc{icmp} (\emph{Internet Control
+  Message Protocol}) protocol which is the protocol used by the \ml+ping+ to
+send packets with automatic return to sender. The protocol numbers are set in
+the file: \ml+/etc/protocols+ or in the \ml+protocols+ of the \textsc{nis}
+(\emph{Network Information Service}) information system. The
+\syscall{getprotobyname} system call enables to read this table in a portable
+way:
 %
 \begin{codefile}{tmpunix.mli}
 type protocol_entry = Unix.protocol_entry
@@ -246,32 +223,28 @@ type protocol_entry = Unix.protocol_entry
 val $\libvalue{Unix}{getprotobyname}$ : string -> protocol_entry
 \end{listingcodefile}
 %
-L'argument est le nom du protocole désiré. Le résultat est un type
-\emph{record} comprenant, entre autres, un champ \ml+p_proto+ qui est
-le numéro du protocole.
+the argument is the name of the desired protocol. The result is a \emph{record}
+with \ml+p_proto+ which is the number of the protocol.
 
-\section{Adresses}
+\section{Addresses}
 
-Un certain nombre d'opérations sur les prises utilisent des adresses
-de prises. Ce sont des valeurs du type concret \ml+sockaddr+:
+Several socket operations use socket addresses. They are value of concrete type
+\ml+sockaddr+:
 \begin{lstlisting}
 type $\libtype{Unix}{sockaddr}$ =
   | ADDR_UNIX of string
   | ADDR_INET of inet_addr * int
 \end{lstlisting}
-L'adresse \ml+ADDR_UNIX (f)+ est une adresse dans le domaine Unix. La
-chaîne \ml+f+ est le nom du fichier correspondant dans la hiérarchie
-de fichiers de la machine.
+The \ml+ADDR_UNIX f+ address is an address in the Unix domain. The string \ml+f+
+is the name of the corresponding file in the computer's file system.
 
-L'adresse \ml+ADDR_INET (a,p)+ est une adresse dans le domaine
-Internet.  Le premier argument, \ml+a+, est l'adresse Internet d'une
-machine; le deuxième argument, \ml+p+, est un numéro de service
-(\emph{port number}) à l'intérieur de cette machine.
+\ml+ADDR_INET (a,p)+ is an address in the Internet domain. The first argument,
+\ml+a+, is the Internet address of a machine. The second argument, \ml+p+, is a
+service number (\emph{port number}) in this machine.
 
-Les adresses Internet sont représentées par le type abstrait
-\ml+inet_addr+. Deux fonctions permettent de convertir des chaînes de
-caractères de la forme \ml+128.93.8.2+ en valeurs du type
-\ml+inet_addr+, et réciproquement:
+Internet addresses are represented by the abstract type \ml+inet_addr+. There
+are two functions enabling to convert strings like \ml+128.93.8.2+ between
+\ml+inet_addr+ and reciprocally:
 %
 \begin{codefile}{tmpunix.mli}
 type inet_addr = Unix.inet_addr
@@ -282,14 +255,13 @@ val $\indexlibvalue{Unix}{inet\_addr\_of\_string}$ : string -> inet_addr
 val $\indexlibvalue{Unix}{string\_of\_inet\_addr}$ : inet_addr -> string
 \end{listingcodefile}
 %
-Une autre manière d'obtenir des adresses Internet est par consultation
-de la table \ml+/etc/hosts+, qui associe des adresses Internet aux
-noms de machines.  On peut consulter cette table ainsi que la base de
-donnée \textsc{nis} par l'appel système \syscall{gethostbyname}.  Sur
-les machines modernes, cette fonction interroge les \quotes{name
-  servers} soit en cas d'échec, soit au contraire de façon
-prioritaire, n'utilisant alors le fichier \ml+/etc/hosts+ qu'en
-dernier recours.
+
+Another way to obtain Internet addresses is by consulting the \ml+/etc/hosts+
+table. This file binds Internet addresses to machine names. This file as well as
+the \textsc{nis} table. Can be consulted via the \syscall{gethostbyname} system
+call. On modern machines, this functions queries the \quotes{name servers}
+either as a fallback or, contrarily, using the file \ml+/etc/hosts+ as a last
+resort.
 %
 \begin{codefile}{tmpunix.mli}
 type host_entry = Unix.host_entry
@@ -299,16 +271,14 @@ type host_entry = Unix.host_entry
 val $\libvalue{Unix}{gethostbyname}$ : string -> host_entry
 \end{listingcodefile}
 %
-L'argument est le nom de la machine désirée. Le résultat est un type
-\emph{record} comprenant, entre autres, un champ \ml+h_addr_list+, qui
-est un vecteur d'adresses Internet: les adresses de la machine. (Une
-même machine peut être reliée à plusieurs réseaux, sous des adresses
-différentes.)
+The argument is the name of the desired machine. The result is an \emph{record}
+having a \ml+h_addr_list+ field which is an array of Internet addresses: the
+addresses of the machine. (The same machine can be connected to different
+networks under different addresses.)
 
-Pour ce qui est des numéros de services (\emph{port numbers}), les
-services les plus courants sont répertoriés dans la table
-\ml+/etc/services+. On peut la consulter de façon portable par la
-fonction \syscall{getservbyname}~:
+The most commons service number (\emph{port numbers}), are referenced in the
+\ml+/etc/services/+. It can be read in portable way using the
+\syscall{getservbyname} system call~:
 %
 \begin{codefile}{tmpunix.mli}
 type service_entry = Unix.service_entry
@@ -318,18 +288,16 @@ type service_entry = Unix.service_entry
 val $\libvalue{Unix}{getservbyname}$ : string -> string -> service_entry
 \end{listingcodefile}
 %
-Le premier argument est le nom du service (par exemple, \ml+ftp+ pour
-le serveur FTP, \ml+smtp+ pour le courrier, \ml+nntp+ pour le serveur
-de News, \ml+talk+ et \ml+ntalk+ pour les commandes du même nom,
-etc.). Le deuxième argument est le nom du protocole: généralement,
-\ml+"tcp"+ si le service utilise des connexions avec la sémantique
-\quotes{stream}, ou \ml+"udp"+ si le service utilise des connexions
-avec la sémantique \quotes{datagrams}. Le résultat de
-\ml+getservbyname+ est un type \emph{record} dont le champ \ml+s_port+
-contient le numéro désiré.
+The first argument is the service name (ie, \ml+ftp+ for FTP servers, \ml+smtp+
+for emails, \ml+nntp+ for News server, \ml+talk+ and \ml+ntalk+ for the talk and
+ntalk commands). The second argument is the protocol's name: usually \ml+"tcp"+
+if the service is using \quotes{stream} semantic or \ml+"udp"+ if the service
+uses \quotes{datagrams}' semantic. The result of \ml+getservbyname+ is a record
+which \ml+s_port+ field contains the desired number.
 
-\begin{example} Pour obtenir l'adresse du serveur FTP de
-\ml+pauillac.inria.fr+:
+
+\begin{example} To obtain the address of:
+\ml+pauillac.inria.fr+~:
 %
 \begin{lstlisting}
 ADDR_INET((gethostbyname "pauillac.inria.fr").h_addr_list.(0),
@@ -337,10 +305,10 @@ ADDR_INET((gethostbyname "pauillac.inria.fr").h_addr_list.(0),
 \end{lstlisting}
 \end{example}
 
-\section{Connexion à un serveur}
+\section{Connection to a server}
 
-L'appel système \syscall{connect} permet d'établir une connexion avec un
-serveur à une adresse donnée.
+The \syscall{connect} system call establishes a connection with a server at a
+given address.
 %
 \begin{codefile}{tmpunix.mli}
 type sockaddr = Unix.sockaddr
@@ -350,37 +318,33 @@ type sockaddr = Unix.sockaddr
 val $\libvalue{Unix}{connect}$ : file_descr -> sockaddr -> unit
 \end{listingcodefile}
 %
-Le premier argument est un descripteur de prise. Le deuxième argument
-est l'adresse du serveur auquel on veut se connecter.
+The first argument is a socket descriptor. The second argument is the address of
+the server to which we want to connect.
 
-Une fois \ml+connect+ effectué, on peut envoyer des données au serveur
-en faisant \indexvalue{write} sur le descripteur de la prise, et lire
-les données en provenance du serveur en faisant \indexvalue{read} sur
-le descripteur de la prise. Lectures et écritures sur une prise se
-comportent comme sur un tuyau: \ml+read+ bloque tant qu'aucun octet
-n'est disponible, et peut renvoyer moins d'octets que demandé; et si
-le serveur a fermé la connexion, \ml+read+ renvoie zéro et \ml+write+
-déclenche un signal \ml+SIGPIPE+.
+Once the connection is established one can send data to the server using
+\indexvalue{write} on the socket descriptor and data originating from the server
+with \indexvalue{read}. Sockets behave the same as pipes for read and write
+operations: \ml+read+ blocks if no data is available and can return less bytes
+than requested, if the server closes the connection \ml+read+ returns 0 and
+\ml+write+ raises a \ml+SIGPIPE+ signal.
 
-Un effet de \ml+connect+ est de brancher la prise à une adresse locale qui est
-choisie par le système. Parfois, il est souhaitable de choisir soi-même 
-cette adresse, auquel cas il est possible d'appeler l'opération \ml+bind+
-(voir ci-dessous) avant \ml+connect+. 
+\ml+connect+ binds the socket to a local address chosen by the system. Sometimes
+it is preferable to manually chose this address in which case one can call the
+\ml+bind+ function before \ml+connect+.
 
-Pour suivre les connexions en cours cours on peut utiliser la commande 
-\ml+netstat+ depuis un shell.
+The \ml+netstat+ connection can be used to monitor current connections in the
+shell.
 
-\section{Déconnexion}
+\section{Disconnection}
 
-Il y a deux manières d'interrompre une connexion. La première est de faire
-\indexvalue{close} sur la prise. Ceci ferme la connexion en écriture et en
-lecture, et désalloue la prise.  Ce comportement est parfois trop
-brutal. Par exemple, un client peut vouloir fermer la connexion dans le sens
-client vers serveur, pour transmettre une fin de fichier au serveur, mais
-laisser la connexion ouverte dans le sens serveur vers client, pour que le
-serveur puisse finir d'envoyer les données en attente. L'appel système
-\syscall{shutdown} permet ce genre de coupure progressive de
-connexions.
+There are two ways to interrupt an established connection. The first is to call
+\indexvalue{close} on the socket, This closes the read and write sides of the
+connection and de-allocates the socket. The behavior is sometimes too
+brutal. For instance a client might want to close the connection in the client
+to server direction in order to indicate the end of file to the server but still
+keep the connection open on the reading side so that the server can keep on
+sending data. The \syscall{shutdown} system call enable shutting down just one
+side of the connection.
 %
 \begin{codefile}{tmpunix.mli}
 type shutdown_command = Unix.shutdown_command
@@ -390,52 +354,45 @@ type shutdown_command = Unix.shutdown_command
 val $\libvalue{Unix}{shutdown}$ : file_descr -> shutdown_command -> unit
 \end{listingcodefile}
 %
-Le premier argument est le descripteur de la prise à fermer.  Le
-deuxième argument peut être:
+The first argument is the descriptor of the socket to close. The second argument
+is one of:
 \begin{mltypecases}
-\mltypecase{SHUTDOWN\_RECEIVE} ferme la prise en lecture; \ml+write+
-sur l'autre bout de la connexion va déclencher un signal \ml+SIGPIPE+
+\mltypecase{SHUTDOWN\_RECEIVE} Closes the read side of the socket; \ml+write+
+on the server side will raises a \ml+SIGPIPE+ signal.
 
-\mltypecase{SHUTDOWN\_SEND} ferme la prise en écriture; \ml+read+ sur
-l'autre bout de la connexion va renvoyer une marque de fin de fichier
+\mltypecase{SHUTDOWN\_SEND} closes the read side of a socket; \ml+read+ on the
+server side returns end of file.
 
-\mltypecase{SHUTDOWN\_ALL} ferme la prise en lecture et en écriture; à
-la différence de \ml+close+, la prise elle-même n'est pas désallouée
+\mltypecase{SHUTDOWN\_ALL} closes the read and the write sides of the
+socket. Unlike with \ml+close+, the socket itself is not de-allocated.
 \end{mltypecases}
-En fait, la désallocation d'une prise peut prendre un certain temps
-que celle-ci soit faite avec politesse ou brutalité.
+De allocation can be a lengthy operation whether done brutally or not.
 
 
-\section{Exemple complet: Le client universel}
+\section{Complete example: The universal client}
 
-On va définir une commande \ml+client+ telle que \ml+client host port+
-établit une connexion avec le service de numéro \ml+port+ sur la
-machine de nom \ml+host+, puis envoie sur la connexion tout ce qu'il
-lit sur son entrée standard, et écrit sur sa sortie standard tout ce
-qu'il reçoit sur la connexion.
+We are going to define a \ml+client+ such that \ml+client host port+ establishes
+a connection with a service numbered \ml+port+ on the machine named \ml+host+,
+than sends on the connections everything it reads from its standard in and
+writes on its standard out everything it receives on the connection.
 
-Par exemple, la commande
+For instance the command
 \begin{lstlisting}
 echo -e 'GET /~remy/ HTTP/1.0\r\n\r\n' | ./client pauillac.inria.fr 80
 \end{lstlisting}
-se connecte sur le port \ml+80+ et \ml+pauillac.inria.fr+ et envoie la
-commande \ml+HTTP+ qui demande la page web d'accueil \ml+/~remy/+ sur
-ce serveur.
+connects to the port \ml+80+ of the \ml+paulliac.inria.fr+ and sends the
+\ml+HTTP+ command requesting the home page \ml+/~remy/+ on this server.
 
-Cette commande constitue une application client \quotes{universel},
-dans la mesure où elle regroupe le code d'établissement de connexions
-qui est commun à beaucoup de clients, tout en déléguant la partie
-implémentation du protocole de communication, propre à chaque
-application au programme qui appelle \ml+client+.
+This command is an \quotes{universal} client because it factors out the
+connection establishing code common to many clients while delegating the
+protocol specific part to the caller.
 
-Nous utilisons une fonction de bibliothèque \ml+retransmit+ qui
-recopie les données arrivant d'un descripteur sur un autre
-descripteur. Elle termine lorsque la fin de fichier est atteinte sur
-le descripteur d'entrée, sans refermer les descripteurs. Notez que
-\ml+retransmit+ peut-être interrompue par un signal.
+We use a library call \ml+retransmit+ copying data from one descriptor to
+another. It terminates when the end of file is reached on the input
+descriptor. \ml+retransmit+ can still be interrupted by a signal.
 \begin{codefile}{misc.mli}
 val retransmit : file_descr -> file_descr -> unit
-(** [retransmit fdin fdout] copy the contain of fdin into fdout, until 
+(** [retransmit fdin fdout] copy the contain of fdin into fdout, until
 it receives end of file in fdin. It does not close descriptors at the
 end *)
 \end{codefile}
@@ -443,13 +400,13 @@ end *)
 let retransmit fdin fdout =
   let buffer_size = 4096 in
   let buffer = String.create buffer_size in
-  let rec copy() = 
+  let rec copy() =
     match read fdin buffer 0 buffer_size with
       0 -> ()
     | n -> ignore (write fdout buffer 0 n); copy() in
   copy ();;
 \end{listingcodefile}
-Les choses sérieuses commencent ici.
+Serious things start here.
 \begin{listingcodefile}[style=numbers]{client.ml}
 open Sys;;
 open Unix;;
@@ -473,206 +430,184 @@ let client () =
       Misc.retransmit stdin sock;
       shutdown sock SHUTDOWN_SEND;
       exit 0
-  | _ -> 
+  | _ ->
       Misc.retransmit sock stdout;
       close stdout;
       wait();;
 
 handle_unix_error client ();;
 \end{listingcodefile}
-On commence par déterminer l'adresse Internet du serveur auquel se
-connecter. Elle peut être donnée (dans le premier argument de la
-commande) ou bien sous forme numérique, ou bien sous forme d'un nom de
-machine. La commande \ml+gethostbyname+ traite correctement les deux
-cas de figure. Dans le cas d'une adresse symbolique, la base
-\ml+/etc/hosts+ est interrogée et on prend la première des adresses
-obtenues. Dans le cas d'une adresse numérique aucune vérification
-n'est effectuée: une structure est simplement créée pour l'adresse
-demandée.
 
-Ensuite, on crée une prise dans le domaine Internet, avec la
-sémantique \quotes{stream} et le protocole par défaut, et on la
-connecte à l'adresse indiquée.
+We start be figuring the Internet address of the server to which we want to
+connect. It can be passed (as the first argument of the command) either as a
+string or a number. The \ml+gethostbyname+ handles correctly both cases. In the
+case of a symbolic address the \ml+/etc/hosts+ table is queried and the first
+satisfying entry is returned. When a numerical address is given no checks are
+performed: a structure is simply allocated for the requested entry.
 
-On clone alors le processus par \ml+fork+. Le processus fils recopie
-les données de l'entrée standard vers la prise; lorsque la fin de
-fichier est atteinte sur l'entrée standard, il ferme la connexion en
-écriture, transmettant ainsi une fin de fichier au serveur, et
-termine. Le processus père recopie sur la sortie standard les données
-lues sur la prise. Lorsqu'une fin de fichier est détectée sur la
-prise, il se synchronise avec le processus fils par \ml+wait+, et
-termine.
+After, a socket on the Internet domain is created with \quotes{stream} semantic
+end the default protocol and we connect it to the requested address.
 
-La fermeture de la connexion peut se faire à l'initiative du client ou
-du serveur.
+The process is then clone via a \ml+fork+ call. The son process copies the data
+on its standard in to the socket. Once the end of the data on the standard in is
+reached it closes the write side of the connection thus transmitting an
+\quotes{end of file} to the server and shuts down. The father process copies the
+data read on the socket to its standard out. Once the end of the file is reached
+on the socket it \ml+wait+s for the child process and exits.
+
+Closing the connection can be done at the client's or the server's initiative.
 \begin{itemize}
 
-\item 
-Le client reçoit une fin de fichier sur son entrée standard. Le client
-(fils) ferme alors la connexion dans le sens client vers serveur et
-termine. En retour, le serveur qui reçoit une fin de fichier sur son
-entrée standard devrait, éventuellement après un court traitement,
-fermer la connexion. Donc à l'autre bout de la prise \ml+sock+, le
-client (père) reçoit finalement une fin de fichier sur la connexion et
-termine normalement.
+\item
+The client receives the end of file on its standard in. The client (son) then
+closes the connection in the client/server direction and exits. The server upon
+receiving the end of file on the connection should, after a small amount of
+processing, close the connection. Finally on the other end of \ml+sock+ the
+client (father) receives end of file on the connection and terminates normally.
 
-\item 
-Le serveur ferme prématurément la connexion.  Le client (père) qui
-essaye d'écrire dans la prise \ml+sock+ fermée reçoit le signal
-\ml+sigpipe+ ce qui par défaut tue le client.  C'est la sémantique
-attendue. Toutefois, le client meurt immédiatement, sans pouvoir
-indiqué que la connexion a été coupée. Pour récupérer cette
-information, on peut ignorer le signal \ml+SIGPIPE+ avec pour effet
-d'envoyer au client l'erreur \ml+EPIPE+ qui sera alors traitée par le
-handler \ml+handle_unix_error+: il suffit d'ajouter la ligne suivante
-après la ligne~\ref{prog:add_signal_ignore}.
+\item
+The server closes prematurely the connection. The client (father) tries to write
+on the socket \ml+sock+ and receives the \ml+sigpipe+ signal which kills it. It
+is the expected semantic. However the client dies immediately without being able
+to indicate that the connection was interrupted. This information can be
+retrieved by ignoring the \ml+SIGPIPE+ signal thus returning the \ml+EPIPE+
+which will than be handled by the handler \ml+handle_unix_error+: one must
+insert the following code right after the line~\ref{prog:add_signal_ignore}.
 %
 \begin{lstlisting}
 ignore (signal sigpipe Signal_ignore)
 \end{lstlisting}
 %
 \end{itemize}
-Si le client, fils ou père, termine prématurément la prise sera fermée
-en écriture ou en lecture. Si le serveur détecte cette information, il
-ferme l'autre bout de la prise, ce que l'autre partie du client va
-détecter. Sinon, le serveur termine normalement en fermant la
-connexion. Dans les deux cas, on se retrouve également dans l'un des
-scénarios précédents.
+If the client, father or son, exits prematurely the socket will be closed in
+read or write mode. Upon receiving this information the server will close its
+side of the socket which will in turn be detected by the other part of the
+client. Otherwise the server exit normally and closes the connection. In both
+cases we end up in one of the previous scenarios.
 
 
-\section{Établissement d'un service}
+\section{Establishing a service}
 
-On vient de voir comment un client se connecte à un serveur; voici
-maintenant comment les choses se passent du côté du serveur. La
-première étape est d'associer une adresse à une prise, la rendant
-ainsi accessible depuis l'extérieur. C'est le rôle de l'appel
-\syscall{bind}:
+We have just seen how a client connects to a server, we shall now see how things
+works on the server side. The first step is to tie an address to a socket, thus
+making it reachable from the outside. It is the role of the system call
+\syscall{bind}: 
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{bind}$ : file_descr -> sockaddr -> unit
 \end{listingcodefile}
 %
-Le premier argument est le descripteur de la prise; le second,
-l'adresse à lui attribuer.  La commande \ml+bind+ peut aussi utiliser
-une adresse spéciale \ml+inet_addr_any+ représentant toutes les
-adresses internet possibles sur la machine (qui peut comporter
-plusieurs sous-réseaux).
+The first argument is the descriptor of the socket; the second is the address to
+attribute to it. The \ml+bind+ command can also use a special address
+\ml+inet_addr_any+ representing all the available Internet addresses on the
+machine (which can have several sub-networks).
 
-Dans un deuxième temps, on déclare que la prise peut accepter les
-connexions avec l'appel \syscall{listen}:
+We then declare that the socket can accept connections via the system call
+\syscall{listen}:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{listen}$ : file_descr -> int -> unit
 \end{listingcodefile}
 %
-Le premier argument est le descripteur de la prise. Le second indique
-combien de demandes de connexion incomplètes peuvent être mises en
-attente. Sa valeur, souvent de l'ordre de quelques dizaines peut aller
-jusqu'à quelques centaines pour des serveurs très sollicités.  Lorsque
-ce nombre est dépassé, les demandes de connexion excédentaires
-échouent.
+The first argument is the socket descriptor. The second indicates how many
+incomplete connections can be put on hold. This value, usually of the order
+several dozens can go up to several hundreds for very busy servers. When this
+number is exceeded additional connection request fail.
 
-Enfin, on reçoit les demandes de connexion par l'appel
+Connection requests are received via the system call
 \syscall{accept}:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{accept}$ : file_descr -> file_descr * sockaddr
 \end{listingcodefile}
-%
-L'argument est le descripteur de la prise. Le premier résultat est un
-descripteur sur une prise nouvellement créée, qui est reliée au
-client: tout ce qu'on écrit sur ce descripteur peut être lu sur la
-prise que le client a donné en argument à \ml+connect+, et
-réciproquement. Du côté du serveur, la prise donnée en argument à
-\ml+accept+ reste libre et peut accepter d'autres demandes de
-connexion.  Le second résultat est l'adresse du client qui se
-connecte. Il peut servir à vérifier que le client est bien autorisé à
-se connecter; c'est ce que fait le serveur \textsc{x} par exemple
-(\ml+xhost+ permettant d'ajouter de nouvelles autorisations) ou à
-établir une seconde connexion du serveur vers le client (comme le fait
-\ml+ftp+ pour chaque demande de transfert de fichier).
+% 
+The argument is the socket descriptor. The first part of result is a descriptor
+on a newly created socket connected to the client: everything written on this
+descriptor can be read on the socket that was given by the client as argument to
+\ml+connect+ and reciprocally. On the server side the socket passed as an
+argument to \ml+accept+ stays free and can accept more connection requests. The
+second part of the result is the client's address. It can be used to to check
+that the client is authorized to connect to this server (the \textsc{x} server
+for instance uses the clients address for authorization. \ml+xhost+ can be used
+to change this authorization) or to establish a second connection from the
+client to the server (\ml+ftp+ does this for each file demand).
 
-Le schéma général d'un serveur \textsc{tcp} est donc de la forme
-suivante (nous définissons ces fonctions dans la bibliothèque
-\ml+Misc+).
+The general scheme of a \textsc{tcp} is of the form (we define these functions
+in the \ml+Misc+ library).
+
 %
 \begin{codefile}{misc.mli}
 val install_tcp_server_socket : Unix.sockaddr -> Unix.file_descr
 (** [install_tcp_server_socket sockaddr] creates a socket in the internet
  domain,  binds it to the address [sockaddr], listens to it, and returns
-it. *) 
+it. *)
 
 val tcp_server :
  (file_descr -> file_descr * sockaddr -> 'a) -> sockaddr -> unit
-(** [tcp_server f addr] installs the tcp service [f] at the internet domain
+(** [tcp_server f addr] installs the tcp service [f] at the Internet domain
    address  [addr]. For each connection to the service, the
    function [f] receives the server's socket and the client's
-   socket-address pair as parametters. It is the responsability of  [f] to
-   close the client connection when done. *) 
+   socket-address pair as parameters. It is the responsibility of  [f] to
+   close the client connection when done. *)
 \end{codefile}
 %
 \begin{listingcodefile}[style=numbers]{misc.ml}
-let install_tcp_server_socket addr = 
+let install_tcp_server_socket addr =
   let s = socket PF_INET SOCK_STREAM 0 in $\label{prog:sock_stream}$
-  try  
+  try
     bind s addr; $\label{prog:bind}$
     listen s 10; $\label{prog:listen}$
     s
   with z -> close s; raise z;;
 
-let tcp_server treat_connection addr = 
+let tcp_server treat_connection addr =
   ignore (signal sigpipe Signal_ignore);
-  let server_sock = install_tcp_server_socket addr in 
+  let server_sock = install_tcp_server_socket addr in
   while true do
       let client = restart_on_EINTR accept server_sock in $\label{prog:accept}$
       treat_connection server_sock client $\label{prog:treat}$
   done;;
 \end{listingcodefile}
-La fonction \ml+install_tcp_server_socket+ commence par créer une
-prise dans le domaine Internet, avec la sémantique \quotes{stream} et
-le protocole par défaut (ligne~\ref{prog:sock_stream}), puis il la
-prépare à recevoir des demandes de connexion sur le \emph{port}
-indiqué sur la ligne de commande par les appels \ml+bind+ et
-\ml+listen+ des lignes~\ref{prog:bind} et~\ref{prog:listen}. Comme il
-s'agit d'une fonction de bibliothèque, nous refermons proprement la
-prise en cas d'erreur lors de l'opération \ml+bind+ ou \ml+listen+.
+The function \ml+install_tcp_server+ starts by creating a socket on the Internet
+domain with the \quotes{stream} semantic and the default protocol
+(line~\ref{prog:sock_stream}), it then prepares it to accept new connection
+requests on the \emph{port} passed as an argument on the command line by the
+\ml+bind+ and \ml+listen+ calls on the lines~\ref{prog:bind}
+and~\ref{prog:listen}. Given that this is a library function we close the socket
+cleanly in case of an error in the \ml+bind+ or \ml+listen+ operations.
 
-La fonction \ml+tcp_server+ crée la prise avec la fonction précédente,
-puis entre dans une boucle infinie, où elle attend une demande de
-connexion (\ml+accept+, ligne~\ref{prog:accept}) et traite celle-ci
-(ligne~\ref{prog:treat}).  Comme il s'agit d'une fonction de
-bibliothèque, nous avons pris soin de relancer l'appel système
-\ml+accept+ (bloquant) en cas d'interruption.  Notez qu'il appartient
-à la fonction \ml+treat_connection+ de fermer le descripteur
-\ml+client+ en fin de connexion y compris lorsque la connexion se
-termine de façon brutale. Nous ignorons le signal \ml+sigpipe+ afin
-qu'une déconnexion prématurée d'un client lève une exception
-\ml+EPIPE+ récupérable par \ml+treat_connection+ plutôt que de tuer le
-processus brutalement.
+The \ml+tcp_server+ function creates the socket with \ml+install_tcp_server+ and
+enter an infinite loop. In each iteration, it waits for a connection request
+(\ml+accept+, line ~\ref{prog:accept}) and handles it
+(line~\ref{prog:treat}). Since this is a library function we relaunch the
+(blocking) \ml+accept+ system call if it is interrupted. It is
+\ml+treat_connection+'s duty to close the \ml+client+ descriptor once the
+connection end (even when it is brutally interrupted). We ignore the
+\ml+sigpipe+ signal which could be triggered by an unexpected disconnection of
+the client. Such an event raises an \ml+EPIPE+ exception which can be caught by
+\ml+treat_connection+ rather than brutally killing the process.
 
-La fonction \ml+treat_connection+ reçoit également le descripteur du
-serveur car dans le cas d'un traitement par \ml+fork+ ou
-\ml+double_fork+, celui-ci devra être fermé par le fils.
 
-Le traitement d'une connexion peut se faire séquentiellement, \ie{} par
-le serveur lui même. Dans ce cas, \ml+treat_connection+ se contente
-d'appeler une fonction \ml+service+, entièrement dé\-pend\-ante de
-l'application, qui est le corps du serveur et qui exécute
-effectivement le service demandé et se termine par la fermeture de la
-connexion.
+The \ml+treat_connection+ function also takes the server descriptor as argument
+because in case of a \ml+fork+ or \ml+double_fork+ it will need to be closed by
+the forked child.
+
+Handling connections can be done sequentially. \ie{} by the server. In which
+case \ml+treat_connection+ just calls the \ml+service+ function. This function
+is specific to the application and represents the main loop of the server
+providing the requested service. It ends by closing the connection.
 %
 \begin{lstlisting}
-let service (client_sock, client_addr) = 
-  (* Communiquer avec le client sur le descripteur descr *)
-  (* Puis quand c'est fini: *)
+let service (client_sock, client_addr) =
+  (* Handle the client on the descriptor client_sock *)
+  (* And when we are done: *)
   close client_descr;;
 \end{lstlisting}
 %
-D'où la fonction auxiliaire (que nous ajoutons à la bibliothèque
-\ml+Misc+):
+We therefore add the following function to the \ml+Misc+ library:
 \begin{codefile}{misc.mli}
-val sequential_treatment : 
-file_descr -> (file_descr * sockaddr -> unit) -> 
+val sequential_treatment :
+file_descr -> (file_descr * sockaddr -> unit) ->
 file_descr * sockaddr -> unit
 (** [sequential_treatment server service client] runs [service] provided
       on server for one client. The server is given by its socket [socket]
@@ -683,27 +618,21 @@ file_descr * sockaddr -> unit
 \end{codefile}
 %
 \begin{listingcodefile}{misc.ml}
-let sequential_treatment server service client = service client 
+let sequential_treatment server service client = service client
 \end{listingcodefile}
-Comme pendant le traitement de la connexion le serveur ne peut pas
-traiter d'autres demandes, ce schéma est en général réservé à des
-services rapides, où la fonction \ml+service+ s'exécute toujours en un
-temps cours et borné (par exemple, un serveur de \ml+date+).
-% L'exception \ml+EPIPE+ peut être levée par un client qui ferme
-% prématurément la connexion, c'est au service de prendre cet aspect
-% en compte.  qu'il convient d'ignorer: la requête en cours est
-% simplement interrompue.  Les autres types d'erreurs devront être
-% rattrapées par la fonction \ml+service+.
 
-La plupart des serveurs sous-traitent le service à un processus fils:
-On appelle \ml+fork+ immédia\-te\-ment après le retour de
-\ml+accept+. Le processus fils traite la connexion. Le processus père
-recommence aussitôt à faire \ml+accept+.  Nous obtenons la fonction de
-bibliothèque suivante~:
+In this schema the server cannot handle any other requests while serving a
+client. It is usually reserved for quick services where the \ml+service+
+function always runs in a short bounded time. (for instance a \ml+date+ server).
+
+Most servers delegate the service to a child sub-process: \ml+fork+ is called
+immediately after \ml+accept+. The farther process starts calling \ml+accept+
+straight away. The son process handle the connection. We obtain the following
+library function~:
 %
 \begin{codefile}{misc.mli}
-val fork_treatment : 
- file_descr -> (file_descr * sockaddr -> unit) -> 
+val fork_treatment :
+ file_descr -> (file_descr * sockaddr -> unit) ->
  file_descr * sockaddr -> unit
 (** same as [sequential_treament] but the treatment is concurrently
  performed by a forked child process of the server. The parent process
@@ -711,148 +640,127 @@ val fork_treatment :
 \end{codefile}
 %
 \begin{listingcodefile}{misc.ml}
-let fork_treatment server service (client_descr, _ as client) =  
+let fork_treatment server service (client_descr, _ as client) =
   let treat () = match fork () with
     | 0 -> close server; service client; exit 0
-    | k -> () 
+    | k -> ()
   in
   try_finalize treat () close client_descr;;
 \end{listingcodefile}
 %
-Notez qu'il est essentiel de fermer le descripteur \ml+client_descr+
-du père, sinon sa fermeture par le fils ne suffira pas à terminer la
-connexion; de plus, le père va très vite se retrouver à court de
-descripteurs.  Cette fermeture doit avoir lieu dans le cas normal,
-mais aussi si pour une raison quelconque le fork échoue~---~le
-programme peut éventuellement décider que ce n'est pas une erreur
-fatale et maintenir éventuellement le serveur en service.
+The father must close the \ml+client_descr+ otherwise closing it in the child
+will not terminate the connection. Also the father will eventually out of
+descriptor. Closing the descriptor must happen even, fork fails~---~the program
+can eventually decide this error is not fatal and carry on.
 
-De façon symétrique, le fils ferme le descripteur \ml+sock+ sur lequel
-le service à été établi avant de réaliser le service. D'une part, il
-n'en a plus besoin. D'autre part, le père peut terminer d'être serveur
-alors que le fils n'a pas fini de traiter la connexion en cours. La
-commande \ml+exit 0+ est importante pour que le fils meurt après
-l'exécution du service et ne se mette pas à exécuter le code du
-serveur.
+Symmetrically the child must close the \ml+sock+ descriptor on which the
+connection request was received. For once it doesn't need it, furthermore the
+server might stop accepting connections before the child is done handling this
+connection. The child must stop running after it is done handling the current
+connection otherwise it will run the server code. This what the \ml+exit 0+ is
+here for.
 
-Nous avons ici ignoré pour l'instant la récupération des fils qui vont
-devenir zombis, ce qu'il faut bien entendu faire. Il y a deux
-approches.  L'approche simple est de faire traiter la connexion par un
-petit-fils en utilisant la technique du double fork.
+We have glossed over the collection of children processes that will become
+zombies. This must be done; and there are two ways to do so: the simple approach
+is to have a grand-child handle the connection with a double fork.
 %
 \begin{codefile}{misc.mli}
-val double_fork_treatment : 
-file_descr -> (file_descr * sockaddr -> unit) -> 
+val double_fork_treatment :
+file_descr -> (file_descr * sockaddr -> unit) ->
 file_descr * sockaddr -> unit
 (** same as [fork_treament] but the treatment is performed after a double
    fork. The forked process will be freed automatically on
-   completion. *)  
+   completion. *)
 \end{codefile}
 %
 \begin{listingcodefile}{misc.ml}
-let double_fork_treatment server service (client_descr, _ as client) = 
+let double_fork_treatment server service (client_descr, _ as client) =
   let treat () = match fork () with
-    | 0 -> 
+    | 0 ->
         if fork () <> 0 then exit 0;
         close server; service client; exit 0
-    | k ->  
-        ignore (restart_on_EINTR (waitpid []) k) 
+    | k ->
+        ignore (restart_on_EINTR (waitpid []) k)
   in
   try_finalize treat () close client_descr;;
 \end{listingcodefile}
 %
-Toutefois, cette approche fait perdre au serveur tout contrôle sur son
-petit-fils. En général, il est préférable que le processus qui traite
-un service appartienne au même groupe de processus que le serveur, ce
-qui permet de tuer tous les services en tuant les processus du même
-groupe que le serveur. Pour cela, les serveurs gardent en général le
-modèle précédent et ajoute une gestion des fils, par exemple en
-installant une procédure \ml+Misc.free_children+ sur le signal
-\ml+sigchld+.
+However this approach takes away all control of the grand-child from the
+server. In general it is best for the process handling a service to belong to
+the same process group as the server. This enables to kill all the services by
+killing the all the processes from that group. For this servers usually keep the
+same model as before and add handling of the clients for instance by installing
+a \ml+Misc.free_children+ handling to the \ml+sigchld+ signal.
 
 
-\section {Réglage des prises}
+\section {Sockets tuning}
 
-Les prises possèdent de nombreux paramètres internes qui peuvent être
-réglés: taille des tampons de transfert, taille minimale des
-transferts, comportement à la fermeture, \etc{} Ces paramètres sont de
-type booléen, entier, entier optionnel ou flottant. Pour des raisons
-de typage, il existe donc autant de primitives \ml+getsockopt+,
-\ml+getsockopt_int+, \ml+getsockopt_optint+, \ml+getsockopt_float+,
-qui permettent de consulter ces paramètres et autant de variantes pour
-\ml+setsockopt+. On pourra consulter la documentation de la fonction
-\ocaml~\libvalue{Unix}{getsockopt} et ses consoeurs pour avoir la
-liste détaillée des options et ainsi que la référence \textsc{posix}
-de \syscall{getsockopt} pour leur sens exact.
+Sockets have numerous internal parameters that can be tuned: the buffer's size,
+the minimum transfers' size, the behavior on closing, \etc{} These parameters
+are of types bool, int , int option, float. For typing reasons there are as many
+\ml+getsockopt+, \ml+getsockopt_optint+, \ml+getsockopt_float+, to read those
+parameters and as many variants of \ml+setsockopt+. One can read the
+documentation of the \ocaml\libvalue{Unix}{getsockopt}~function and its variants
+as well as the \textsc{posix} reference to the \syscall{getsockopt} system to
+have a detailed list of those option.
 
-A titre d'exemple, voici deux types de réglages, qui ne s'appliquent
-qu'à des prises dans le domaine \ml+INET+ de type \ml+SOCK_STREAM+.
-La déconnexion des prises au protocole \textsc{tcp} est négociée, ce
-qui peut prendre un certain temps.  Normalement l'appel
-\indexvalue{close} retourne immédiatement, alors que le système
-négocie la fermeture.
+For instance, here are two types of settings that only apply to sockets on the
+\ml+INET+ domain of the \ml+SOCK_STREAM+ type. The disconnection of sockets in
+the \textsc{tcp} protocol can take some time. Normally the \indexvalue{close}
+returns straight away while the system is shutting down the connection.
 %
 \begin{lstlisting}
 setsockopt_optint sock SO_LINGER (Some 5);;
 \end{lstlisting}
 %
-Cette option rend l'opération \indexvalue{close} bloquante sur la
-prise \ml+sock+ jusqu'à ce que les données déjà émises soient
-effectivement transmises ou qu'un délai de 5 secondes se soit écoulé.
+This option turns \indexvalue{close} in a blocking operation on the
+\ml+sock+. It blocks until all the data has been transmitted or until a 5 second
+timeout has expired.
 %
 \begin{lstlisting}
 setsockopt sock SO_REUSEADDR;;
 \end{lstlisting}
 %
-L'effet principal de l'option \ml+SO_REUSEADDR+ est de permettre à
-l'appel système \indexvalue{bind} de réallouer une prise à une adresse
-locale sur laquelle toutes les communications sont en cours de
-déconnexion. Le risque est alors qu'une nouvelle connexion capture les
-paquets destinés à l'ancienne connexion. Cette option permet entre
-autre d'arrêter un serveur et de le redémarrer immédiatement, très
-utile pour faire des tests.
+The main effect of the \ml+SO_REUSEADDR+ is to enable the \indexvalue{bind} to
+reallocate a socket on which the old connection is still being closed. There is
+a risk of unexpected data coming in for the old connection. On the flip side
+this option enables restarting a server in a short loop this is very useful to
+run tests.
 
+\section{Full example: the universal server}
 
-\section{Exemple complet: le serveur universel}
-
-On va maintenant définir une commande \ml+server+ telle que 
+We shall now define a \ml+server+ command such that:
 %
 \begin{lstlisting}
-./server port cmd arg1 ... argn 
+./server port cmd arg1 ... argn
 \end{lstlisting}
 %
-reçoit les demandes de connexion au
-numéro \ml+port+, et à chaque connexion lance la commande \ml+cmd+
-avec \ml+arg1 ... argn+ comme arguments, et la connexion comme entrée
-et sortie standard. Par exemple, si on lance
+Receives connection requests on the port \ml+port+ and, foreach of them,
+dispatches \ml+cmd+ with the arguments \ml+arg1 ... argn+ and the connection
+piped on its standard input and standard output. For instance if we type
 %
 \begin{lstlisting}
 ./server 8500 grep foo
 \end{lstlisting}
 %
-sur la machine \ml+pomerol+, on peut ensuite faire depuis n'importe
-quelle machine
+on the \ml+pomerol+ machine we can now call on any machine
 %
 \begin{lstlisting}
 ./client pomerol 8500 < /etc/passwd
 \end{lstlisting}
 %
-en utilisant la commande \ml+client+ écrite précédemment, et il
-s'affiche la même chose que si on avait fait
+with the aforementioned \ml+client+ command and the it displays the same result
+as if we had typed
 %
 \begin{lstlisting}
 ./grep foo < /etc/passwd
 \end{lstlisting}
 %
-sauf que \ml+grep+ est exécuté sur \ml+pomerol+, et non pas sur la
-machine locale.
+on \ml+pomerol+.
 
-La commande \ml+server+ constitue une application serveur
-\quotes{universel}, dans la mesure où elle regroupe le code
-d'établissement de service qui est commun à beaucoup de serveurs, tout
-en déléguant la partie implémentation du service et du protocole de
-communication, propre à chaque application ou programme lancé par
-\ml+server+.
+The \ml+server+ command is a universal server in as much as it factors in all
+the service establishment code common to many servers whilst dispatching the
+service and protocol specific part to the dispatched program.
 %
 \begin{listingcodefile}[style=numbers]{server.ml}
 open Sys;;
@@ -867,7 +775,7 @@ let server () =
   let args = Array.sub Sys.argv 2 (Array.length Sys.argv - 2) in
   let host = (gethostbyname(gethostname())).h_addr_list.(0) in $\label{prog:gethost}$
   let addr = ADDR_INET (host, port) in
-  let treat sock (client_sock, client_addr as client) = 
+  let treat sock (client_sock, client_addr as client) =
     (* log information *)
     begin match client_addr with
     | ADDR_INET(caller, _) ->
@@ -876,9 +784,9 @@ let server () =
         prerr_endline "Connection from the Unix domain (???)";
     end;
     (* connection treatment *)
-    let service (s, _) = 
+    let service (s, _) =
       dup2 s stdin; dup2 s stdout; dup2 s stderr; close s;
-      execvp args.(0) args 
+      execvp args.(0) args
     in
     Misc.double_fork_treatment sock service client in
   Misc.tcp_server treat addr;;
@@ -886,303 +794,254 @@ let server () =
 handle_unix_error server ();;
 \end{listingcodefile}
 %
-L'adresse fournie à \ml+tcp_server+ contient l'adresse Internet de la
-machine qui fait tourner le programme; la manière habituelle de
-l'obtenir (ligne~\ref{prog:gethost}) est de chercher le nom de la
-machine (renvoyé par l'appel \ml+gethostname+) dans la table
-\ml+/etc/hosts+.  En fait, il existe en général plusieurs adresses
-pour accéder à une machine. Par exemple, l'adresse de la machine
-pauillac est \ml+128.93.11.35+, mais on peut également y accéder en
-local (si l'on est déjà sur la machine pauillac) par l'adresse
-\ml+127.0.0.1+.  Pour offrir un service sur toutes les adresses
-désignant la machine, on peut utiliser l'adresse \ml+inet_addr_any+.
+The address given to \ml+tcp_server+ contains the Internet address of the
+machine running the program. The usual way to get it (line~\ref{prog:gethost})
+is to look for the machine (returned by the \ml+gethostname+ call) in the
+\ml+/etc/hosts+ table. There can be several addresses referencing the same
+machine. For instance the address of the pauillac machine is \ml+128.93.11.35+,
+but we can access it locally (provided we are running on this machine) via
+\ml+127.0.0.1+. To provide a service on all the addresses pointing to this
+machine we can use the \ml+inet_addr_any+ address.
 
-Le traitement du service se fera ici par un \quotes{double fork} après
-avoir émis quelques informations sur la connexion.  Le traitement du
-service consiste à rediriger l'entrée standard et les deux sorties
-standard vers la prise sur laquelle est effectuée la connexion puis
-d'exécuter la commande souhaitée.  (Notez ici que le traitement du
-service ne peut pas se faire de façon séquentielle.)
-
-Remarque: la fermeture de la connexion se fait sans intervention du
-programme \ml+serveur+. Premier cas: le client ferme la connexion dans
-le sens client vers serveur. La commande lancée par le serveur reçoit
-une fin de fichier sur son entrée standard. Elle finit ce qu'elle a à
-faire, puis appelle \ml+exit+. Ceci ferme ses sorties standard, qui
-sont les derniers descripteurs ouverts en écriture sur la connexion.
-(Le client recevra alors une fin de fichier sur la connexion.)
-Deuxième cas: le client termine prématurément et ferme la connexion
-dans le sens serveur vers client. Le serveur peut alors recevoir le
-signal \ml+sigpipe+ en essayant d'envoyer des données au client, ce
-qui peut provoquer la mort anticipée par signal \ml+SIGPIPE+ de la
-commande du côté serveur; ça convient parfaitement, vu que plus
-personne n'est là pour lire les sorties de cette commande.
-
-Enfin, la commande côté serveur peut terminer (de son plein gré ou par
-un signal) avant d'avoir reçu une fin de fichier. Le client recevra
-alors un fin de fichier lorsqu'il essayera de lire et un signal
-\ml+SIGPIPE+ (dans ce cas, le client meurt immédiatement) ou une
-exception \ml+EPIPE+ (si le signal est ignoré) lorsqu'il essayera
-d'écrire sur la connexion.
+The handling of the service will be done via a \quotes{double fork} after having
+a basic handshake. The handling of the service is done by redirecting the
+standard input and the two standard outputs to the socket on which the
+connection was established and run the desired command. (Note that the handling
+of the service cannot be done sequentially.)
 
 
-\subsection*{Précautions}
+The connection is closed without any intervention of the \ml+server+ program. In
+the first case the client closes its connection towards the server. The command
+dispatched by the server receives an end of file on its standard input. It
+resumes running and calls \ml+exit+ when it is done. This close the standard
+outputs which are the last descriptors open on the connection. The client will
+then receive the end of file on the connection. Second case: The client ends
+prematurely and closes the connection from the server. The server might the
+receive the \ml+sigpipe+ signal while trying to open to send data to the client
+which can them cause the death of the server side command. This is a perfectly
+good behavior since nothing is reading the output of the command.
 
-L'écriture d'un serveur est en général plus délicate que celle d'un
-client.  Alors que le client connaît le serveur sur lequel il se
-connecte, le serveur ignore tout de son client.  En particulier, pour
-des services publics, le client peut être \quotes{hostile}. Le serveur
-devra donc se protéger contre tous les cas pathologiques.
+Finally the server command can exit (either by itself or via a signal) before
+having read the end of file. The client receive a \ml+SIGPIPE+ signal (in which
+case the client will die immediately) or an \ml+EPIPE+ exception (if the signal
+is ignored) when it tries to read on the connection.
 
-Un attaque typique consiste à ouvrir des connexions puis les laisser
-ouvertes sans transmettre de requête: après avoir accepté la
-connexion, le serveur se retrouve donc bloqué en attente sur la prise
-et le restera tant que le client sera connecté. L'attaquant peut ainsi
-saturer le service en ouvrant un maximum de connexions.  Il est
-important que le serveur réagisse bien à ce genre d'attaque.  D'une
-part, il devra prévoir un nombre limite de connexions en parallèle et
-refuser les connexions au delà afin de ne pas épuiser les ressources
-du système. D'autre part, il devra interrompre les connexions restées
-longtemps inactives.
-%% Il devra aussi, pouvoir continuer à servir normalement les requêtes en cours
-%% indépendemment de l'attaque.
+\subsection*{Precautions}
 
-Un serveur séquentiel qui réalise le traitement lui même et sans le
-déléguer à un de ses fils est immédiatement exposé à cette situation
-de blocage: le serveur ne répond plus alors qu'il n'a rien à faire.
-Une solution sur un serveur séquentiel consiste à multiplexer les
-connexions, mais cela peut être complexe. La solution avec le serveur
-parallèle est plus élégante, mais il faudra tout de même prévoir des
-\quotes{timeout}, par exemple en programmant une alarme.
+Writing a server is generally more delicate than a client. Whilst the client
+knows the server to which it is connecting, the server ignores all from its
+client. For public services the client might be \quotes{hostile}. The server
+must guard itself against these pathological cases.
+
+A classical attack is done by opening connections and leaving them opened
+without transmitting any requests: after having accepted the connection the
+server is stuck waiting on the socket and will stay this way while the client
+stays connected. The attacker can then saturate the service by opening a lot of
+connections. It is important for the server to be robust against such
+attacks. On the one it must only accept a limited number of simultaneous
+connections and refuse connections beyond that. This is done to avoid exhausting
+system resources. It must also interrupt staled connections.
+
+A sequential server handling the connection without handing it to son processes
+is immediately exposed to this blocking issue: the server will be unresponsive
+although it is idle. One way around on a sequential server is to multiplex the
+connections but it is tricky to implement. The solution with parallel server is
+more elegant but still needs to have a timeout. Such a timeout can be
+implemented with an alarm.
 
 
-\section{Communication en mode déconnecté}
-\label{sec/mode-deconnecte}
-\subsection*{Les lectures/écritures en mode déconnecté}
+\section{Communication in disconnected mode}
+\label{sec/disconnected-mode}
+\subsection*{Read/write in disconnected mode}
 
-Le protocole \textsc{tcp} utilisé par la plupart des connexions de
-type \ml+SOCK_STREAM+ ne fonctionne qu'en mode connecté. Inversement,
-le protocole \textsc{udp} utilisé par la plupart des connexions de
-type \ml+SOCK_DGRAM+ fonctionne toujours de façon interne en mode
-déconnecté. C'est-à-dire qu'il n'y a pas de connexion établie entre
-les deux machines.
+The \textsc{tcp} protocol is used by most connections of \ml+SOCK_STREAM+ can
+only work in connected mode. Inversely the \textsc{udp} protocol used by most
+connections in \ml+SOCK_DGRAM+ mode always work in disconnected mode. This means
+there are now connections established between the two machines.
 
-Ce type de prise peut être utilisé sans établir de connexion au
-préalable. Pour cela on utilise les appels système \syscall{recvfrom} et 
-\syscall{sendto}. 
+This type of socket can be used without establishing preliminary collection.
+For this we use the \syscall{recvfrom} and \syscall{sendto} system call.
 %
 \begin{codefile}{tmpunix.mli}
 type msg_flag = Unix.msg_flag
 \end{codefile}
 %
 \begin{listingcodefile}{tmpunix.mli}
-val $\libvalue{Unix}{recvfrom}$ : 
+val $\libvalue{Unix}{recvfrom}$ :
   file_descr -> string -> int -> int -> msg_flag list -> int * sockaddr
 
-val $\libvalue{Unix}{sendto}$ : 
+val $\libvalue{Unix}{sendto}$ :
   file_descr -> string -> int -> int -> msg_flag list -> sockaddr -> int
 \end{listingcodefile}
 %
-Chacun des appels retourne la taille des données transférées. L'appel
-\ml+recvfrom+ retourne également l'adresse du correspondant.
+Each of these calls return the size of the transferred data. The call
+\ml+recvfrom+ also returns the address of the correspondent.
 
-Une prise de type \ml+SOCK_DGRAM+ peut également être branchée avec
-\indexvalue{connect}, mais il s'agit d'une illusion (on parle de
-pseudo-connexion). L'effet de la pseudo-connexion est purement local.
-L'adresse passée en argument est simplement mémorisée dans la prise et
-devient l'adresse utilisée pour l'émission et la réception (les
-messages venant d'une autre adresse sont ignorés).
+One can also call \indexvalue{connect} on a socket of type \ml+SOCK_DGRAM+. This
+has no effect out of the local machine (we call it a pseudo-connection). The
+local effect is to memorise the address passed as an argument and to restrict
+communications to this address (messages coming in from another address are
+ignored).
 
-Les prises de ce type peuvent être connectées plusieurs fois pour
-changer leur affectation et déconnectées en les reconnectant sur une
-adresse invalide, par exemple \ml+0+. (Par opposition, la reconnexion
-d'une prise de type \ml+SOCK_STREAM+ produit en général un erreur.)
+Socket of this type can be connected several times to change there target and
+disconnected by connecting them to an invalid address (e.g. \ml+0+). (on a
+socket of type \ml+SOCK_STREAM+ this would generally result in an error.
 
-\subsection*{Les lectures/écritures de bas niveau}
+\subsection*{Low level read and writes}
 
-Les appels systèmes \syscall{recv} et \syscall{send} généralisent les
-fonctions \indexvalue{read} et \indexvalue{write} respectivement (mais
-ne s'appliquent qu'aux descripteurs de type prise).
+The \syscall{recv} and \syscall{send} generalise the \indexvalue{read} and
+\indexvalue{write} system calls. They only work on socket descriptors.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{recv}$ : file_descr -> string -> int -> int -> msg_flag list -> int
 val $\libvalue{Unix}{send}$ : file_descr -> string -> int -> int -> msg_flag list -> int
 \end{listingcodefile}
 %
-Leur interface est similaire à \ml+read+ et \ml+write+mais elles
-prennent chacune en plus une liste de drapeaux dont la signification
-est la suivante:
+There interface is similar to \ml+read+ and \ml+write+ but they also take a list
+of flags with the following semantics:
 %
 \begin{mltypecases}
-\mltypecase{MSG\_OOB} permet d'envoyer une valeur exceptionnelle 
+\mltypecase{MSG\_OOB} to send exceptional values
 
-\mltypecase{MSG\_DONTROUTE} indique de court-circuiter les tables de
-routage par défaut 
+\mltypecase{MSG\_DONTROUTE} short circuit the default routing table
 
-\mltypecase{MSG\_PEEK} consulte les données sans les lire.
+\mltypecase{MSG\_PEEK} queries the data without reading it.
 \end{mltypecases}
 %
-Ces primitives peuvent être utilisées en mode connecté à la place de
-\ml+read+ et \ml+write+ ou en mode pseudo-connecté à la place de
-\ml+recvfrom+ et \ml+sendto+.
+Those primitives can be used in connected mode instead of \ml+read+ and
+\ml+write+ or in pseudo connected mode instead of \ml+recvfrom+ and \ml+sendto+.
+\section{High level primitives}
 
-\section{Primitives de haut niveau}
-
-L'exemple du client-serveur universel est suffisamment fréquent pour
-que le module \ml+Unix+ fournisse des fonctions de plus haut niveau
-permettant d'établir et d'utiliser un service de façon presque
-transparente.
+The example of the universal client-server is frequent enough that the \ml+Unix+
+modules provides high order functions to establish services in a nearky
+transparent way.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{open\_connection}$ : sockaddr -> in_channel * out_channel
 val $\indexlibvalue{Unix}{shutdown\_connection}$ : Pervasives.in_channel -> unit
 \end{listingcodefile}
 %
-La fonction \ml+open_connection+ ouvre une prise à l'adresse reçue en
-argument et crée une paire de tampons (du module \ml+Pervasives+)
-d'entrée-sortie sur cette prise. La communication avec le serveur se
-fait donc en écrivant les requêtes dans le tampon ouvert en écriture
-et en lisant les réponses dans celui ouvert en lecture.  Comme les
-écritures sont temporisées, il faut vider le tampon pour garantir
-qu'une requête est émise dans sa totalité.
+The \ml+open_connection+ function opens a socket at the given address and
+creates a pair of channels (from the \ml+Pervasives+ module) for the input and
+output on this socket. The communication with the server is done by writing
+requests on the \ml+out_channel+ and by reading answers on the
+\ml+in_channel+. Since channels are buffered we must flush the channels must in
+order to ensure a request has run fully.
 %
-Le client peut terminer la connexion brutalement en fermant l'un ou
-l'autre des deux canaux (ce qui fermera la prise) ou plus
-\quotes{poliment} par un appel à \ml+shutdown_connection+. (Si le
-serveur ferme la connexion, le client s'en apercevra lorsqu'il recevra
-une fin de fichier dans le tampon ouvert en lecture.)
+The client can shutdown the connection brutally by closing either of the channel
+(which will close the socket) or more \quotes{politely} by calling
+\ml+shutdown_connection+. If the server closes the connection the client will be
+notified when it will read end-of-file on the \ml+in_channel+.
 
-De façon symétrique, un service peut également être établi
-par la fonction \ml+establish_server+. 
+Symmetrically a service can be established with the \ml+establish_service+
+function.
 %
 \begin{listingcodefile}{tmpunix.mli}
-val $\indexlibvalue{Unix}{establish\_server}$ : (in_channel -> out_channel -> unit) -> sockaddr -> unit
+val $\indexlibvalue{Unix}{establish\_server}$ : 
+  (in_channel -> out_channel -> unit) -> sockaddr -> unit
 \end{listingcodefile}
 %
-Cette primitive prend en argument une fonction \ml+f+, responsable du
-traitement des requêtes, et l'adresse de la prise sur laquelle le
-service doit être établi.  Chaque connexion au serveur crée une
-nouvelle prise (comme le fait la fonction \ml+accept+); après avoir
-été cloné, le processus fils créé une paire de tampons d'entrée-sortie
-(de la bibliothèque \ml+Pervasives+) qu'il passe à la fonction \ml+f+
-pour traiter la connexion. La fonction \ml+f+ lit les requêtes dans
-dans le tampon ouvert en lecture et répond au client dans celui ouvert
-en écriture.  Lorsque le service est rendu (c'est-à-dire lorsque
-\ml+f+ a terminé), le processus fils ferme la prise et termine.  Si le
-client ferme la connexion gentiment, le fils recevra une fin de
-fichier sur le tampon ouvert en lecture.  Si le client le fait
-brutalement, le fils peut recevoir un \ml+SIGPIPE+ lorsqu'il essayera
-de d'écrire sur la prise fermée. Quant au père, il a déjà sans doute
-servi une autre requête !  La commande \ml+establish_server+ ne
-termine pas normalement, mais seulement en cas d'erreur (par exemple,
-du runtime {\ocaml} ou du système pendant l'établissement du service).
+This primitive takes a function \ml+f+, used to handle requests, and the address
+of the socket on which the service is to be established as arguments. Each
+connection to the server creates a new socket (as does the function
+\ml+accept+); after being clone the child process creates a pair of channels
+(from the \ml+Pervasives+ library) and passes them to the function \ml+f+ to
+handle connections. The function \ml+f+ reads the requests on the opened
+\ml+in_channel+ and answers on the \ml+out_channel+. Once the service has been
+provided (i.e. once \ml+f+ has returned), the child process closes the socket
+and exits. If the client closes the connection gently the child will get and end
+of file on the \ml+in_channel+. If the client does it brutally the child might
+receive a \ml+SIGPIPE+ while trying to write on the closed socket. The
+\ml+establish_server+ usually never returns. It might exit in case of an error
+(e.g. of the {\ocaml} runtime or while establishing the service).
 
 \section{Exemples de protocoles}
 
-Dans les cas simples (\ml+rsh+, \ml+rlogin+, \ldots), les données à
-transmettre entre le client et le serveur se présentent naturellement
-comme deux flux d'octets, l'un du client vers le serveur, l'autre du
-serveur vers le client. Dans ces cas-là, le protocole de communication
-est évident. Dans d'autres cas, les données à transmettre sont plus
-complexes, et nécessitent un codage avant de pouvoir être transmises
-sous forme de suite d'octets sur une prise. Il faut alors que le
-client et le serveur se mettent d'accord sur un protocole de
-transmission précis, qui spécifie le format des requêtes et des
-réponses échangées sur la prise. La plupart des protocoles employés
-par les commandes Unix sont décrits dans des documents appelés
-\quotes{\textsc{rfc}} (request for comments): au début simple
-propositions ouvertes à la discussion, ces documents acquièrent valeur
-de norme au cours du temps, au fur et à mesure que les utilisateurs
-adoptent le protocole décrit.\footnote{ Les \textsc{rfc} sont
-  disponibles par \textsc{ftp} anonyme sur de nombreux sites. En
-  France: \href{ftp:/ftp.inria.fr}{\texttt{ftp.inria.fr}}, dans le
-  répertoire \href{ftp://ftp.inria.fr/pub/rfc/}{\texttt{rfc}}.  Le
-  site de référence étant \url{http://www.faqs.org/rfcs/}.  }
+In the simple cases (\ml+rsh+, \ml+rlogin+, \ldots), the data transmitted
+between the client and the server are seen as byte streams, one from the client
+to the server and the other from the client to the server. In other cases the
+data to transmit is more complex and require to be coded before being
+transmitted as a byte stream on the socket. The client and the server must then
+agree on the transmission protocol. Most protocols used by Unix commands are
+specified in documents called \quotes{\textsc{rfc}} (request for comments):
+these documents start out as propositions open for discussion and become norms
+as time goes by, as user adopt the described protocol.\footnote{\textsc{rfc} are
+  available via anonymous \textsc{ftp} on numerous sites. In France:
+  \href{ftp://ftp.inria.fr}{\texttt{ftp.inria.fr}}, in the directory
+  \href{ftp://ftp.inria.fr/pub/rfc/}{\texttt{rfc}}. The reference site is
+  \url{http://www.faqs.org/rfcs/}. }
 
-\subsection*{Protocoles \quotes{binaires}}
 
-La première famille de protocoles vise à transmettre les données sous
-une forme compacte la plus proche possible de leur représentation en
-mémoire, afin de minimiser le travail de conversion nécessaire, et de
-tirer parti au mieux de la bande passante du réseau. Exemples typiques
-de protocoles de ce type: le protocole \textsc{x}-window, qui régit
-les échanges entre le serveur \textsc{x} et les applications
-\textsc{x}, et le protocole \textsc{nfs} (\rfc{1094}).
+\subsection*{\quotes{Binary} protocols}
 
-Les nombres entiers ou flottants sont généralement transmis comme les
-1, 2, 4 ou 8 octets qui constituent leur représentation binaire. Pour
-les chaînes de caractères, on envoie d'abord la longueur de la chaîne,
-sous forme d'un entier, puis les octets contenus dans la chaîne. Pour
-des objets structurés (n-uplets, records), on envoie leurs champs dans
-l'ordre, concaténant simplement leurs représentations. Pour des objets
-structurés de taille variable (tableaux), on envoie d'abord le nombre
-d'éléments qui suivent. Le récepteur peut alors facilement
-reconstituer en mémoire la structure transmise, à condition de
-connaître exactement son type. Lorsque plusieurs types de données sont
-susceptibles d'être échangés sur une prise, on convient souvent
-d'envoyer en premier lieu un entier indiquant le type des données qui
-va suivre.
+The first family of protocol aims at transmitting the data in a compact form as
+close as possible of there in memory representation in order to minimise the
+work converting and to make the best of the available network bandwidth. Typical
+examples of protocol of this type are: the \textsc{x}-window protocol which is
+used to between the \textsc{x} server and the \textsc{x} applications, and the
+\textsc{nfs} protocol (\rfc{1094}).
 
-\begin{example} 
-L'appel \ml+XFillPolygon+ de la bibliothèque \textsc{x}, qui dessine
-et colorie un polygone, provoque l'envoi au serveur \textsc{X} d'un
-message de la forme suivante:
+Integers or floating point numbers are usually transmitted as the 1,2,4 or 8
+bytes of there binary representation. For strings we send the length of the
+string first and then the byte content of the string. For structured objects
+(tuples,records), we send the fields in order by concatenating there
+representation. For objects of variable sizes (arrays) we send the number of
+elements beforehand. The client can easily recreate in memory the structure of
+the transmitted data provided it knows exactly the type of the transmitted
+data. When several types of data are liable to be exchanged on a socket it is
+often agreed to send an integer identifying the type of data following.
+
+\begin{example}
+The \ml+XFillPolygon+ call of the \textsc{x} library, which draws and colors the
+polygon, sends message to the \textsc{x} server of the following structure:
 \begin{itemize}
-\item l'octet 69 (le code de la commande \ml+FillPoly+)
-\item un octet quelconque de remplissage
-\item un entier sur deux octets indiquant le nombre de sommets $n$ du
-  polygone
-\item un entier sur quatre octets identifiant la fenêtre où tracer
-\item un entier sur quatre octets identifiant le \quotes{graphic context}
-\item un octet de \quotes{forme}, indiquant si le polygone est
-  convexe, etc.
-\item un octet indiquant si les coordonnées des sommets sont absolus
-  ou relatifs
-\item $4n$ octets codant les coordonnées des sommets du polygone, en
-  deux entiers de 16 bits pour chaque sommet.
+\item the byte 69 (the code of the \ml+FillPoly+ command)
+\item a byte for padding
+\item a 16 bit int: the number $n$ of vertices of the polygon
+\item a 32 bit integer identifying the window on which we will draw the
+  polygon.
+\item a 32 bit integer identifying the \quotes{graphic context}
+\item a \quotes{form} byte, identifying whether the polygon is convex etc.
+\item a byte indicating whether the coordinates of the vertices's are absolute or
+  relative.
+\item $4n$ bytes coding the coordinates of the polygon's vertices, two 16 bits
+  integer for each vertex
 \end{itemize}
 \end{example}
 
-Dans ce type de protocole, il faut prendre garde aux différences
-d'architecture entre les machines qui communiquent. En particulier,
-dans le cas d'entiers sur plusieurs octets, certaines machines mettent
-l'octet de poids fort en premier (c'est-à-dire, en mémoire, à
-l'adresse basse) (architectures dites \emph{big-endian}), et d'autres
-mettent l'octet de poids faible en premier (architectures dites \emph{
-  little-endian}). Par exemple, l'entier 16 bits $12345 = 48 \times
-256 + 57$ est représenté par l'octet 48 à l'adresse $n$ et l'octet
-$57$ à l'adresse $n+1$ sur une architecture big-endian, et par l'octet
-57 à l'adresse $n$ et l'octet $48$ à l'adresse $n+1$ sur une
-architecture little-endian. Le protocole doit donc spécifier que tous
-les entiers multi-octets sont transmis en mode big-endian, par
-exemple.  Une autre possibilité est de laisser l'émetteur choisir
-librement entre big-endian et little-endian, mais de signaler dans
-l'en-tête du message quelle convention il utilise par la suite.
+In this type of protocol one must be cautious of architecture differences
+between the communicating machines. One specific case to lookout for is multi
+byte integer: some machines put the most significant byte first (that is in the
+lower-address in memory) (these architecture are called \emph{big-endian}),
+others put the least significant byte first (we then talk about
+\emph{little-endian} architectures). For instance the 16 bits integer $12345 =
+48 \times 256 + 57$ is represented by the byte $48$ at the address $n$ and the
+byte $57$ at the address $n+1$ on a big-endian architecture and by the byte $57$
+at the address $n$ and the byte $48$ at the address $n+1$ on a little endian
+architecture. The protocol must specify the endianess (big or little) used to
+transmit integers. Another possibility is to let the emitter choose freely
+between big-endian and little-endian and have it specify in the header of the
+message which convention it will use.
 
-Le système {\ocaml} facilite grandement ce travail de mise en forme
-des données (travail souvent appelé \emph{marshaling} ou encore \emph
-{sérialisation} dans la littérature) en fournissant deux primitives
-générales de transformation d'une valeur {\ocaml} quelconque en suite
-d'octets, et réciproquement:
+The {\ocaml} system helps this data transformation (often call
+\emph{marshalling} or \emph{serialization}) by providing two primitives to
+convert an {\ocaml} value in of series of byte and conversely:
 %
 \begin{listingcodefile}{tmppervasives.mli}
 val $\indexlibvalue{Pervasives}{output\_value}$ : out_channel -> 'a -> unit
 val $\indexlibvalue{Pervasives}{input\_value}$ : in_channel -> 'a
 \end{listingcodefile}
 %
-Le but premier de ces deux primitives est de pouvoir sauvegarder
-n'importe quel objet structuré dans un fichier disque, puis de le
-recharger ensuite; mais elles s'appliquent également bien à la
-transmission de n'importe quel objet le long d'un tuyau ou d'une
-prise. Ces primitives savent faire face à tous les types de données
-{\ocaml} à l'exception des fonctions; elles préservent le partage et
-les circularités à l'intérieur des objets transmis; et elles savent
-communiquer entre des architectures d'\emph{endianness} différentes.
+The aim of those two primitives is to enable writing out any structured object
+to the disk and to read it back in. They also work well to transmit any objects
+through a pipe or a socket.These can handle any kind of {\ocaml} object except
+for functions. They preserve sharing and circularity inside transmitted objects
+and they work between architectures of different \emph{endianness}.
 
-\begin{example} 
-Si \textsc{x}-window était écrit en {\ocaml}, on aurait un type
-concret \ml+request+ des requêtes pouvant être envoyées au serveur, et
-un type concret \ml+reply+ des réponses éventuelles du serveur:
+\begin{example}
+If \textsc{x}-window were written in {\ocaml}, we would have a concrete type
+\ml+request+ representing requests that can be sent to the server and another
+concrete type \ml+reply+ of eventual answers:
 %
 \begin{lstlisting}
 type request =
@@ -1197,11 +1056,10 @@ and reply =
   | ...
 \end{lstlisting}
 %
-Le coeur du serveur serait une boucle de lecture et décodage des
-requêtes de la forme suivante:
+The core of the server would be a reading loop looking like:
 %
 \begin{lstlisting}
-(* Recueillir une demande de connexion sur le descripteur s *)
+(* Get a connection request on the descriptor s *)
 let requests = in_channel_of_descr s
 and replies  = out_channel_of_descr s in
 try
@@ -1215,14 +1073,13 @@ try
       | ...
   done
 with End_of_file ->
-  (* fin de la connexion *)
+  (* en of the connection *)
 \end{lstlisting}
 %
-La bibliothèque \textsc{x}, liée avec chaque application, serait de la
-forme:
+The \textsc{x} library, linked with each application would be like:
 %
 \begin{lstlisting}
-(* Établir une connexion avec le serveur sur le descripteur s *)
+(* Establish a connection with the server s *)
 let requests = out_channel_of_descr s
 and replies  = in_channel_of_descr s;;
 let fill_poly vertices drawable gc shape mode =
@@ -1236,28 +1093,25 @@ let get_atom_name atom =
 \end{lstlisting}
 \end{example}
 
-Il faut remarquer que le type de \ml+input_value+ donné ci-dessus est
-sémantiquement incorrect, car beaucoup trop général: il n'est pas vrai
-que le résultat de \ml+input_value+ a le type \ml+'a+ pour tout type
-\ml+'a+.  La valeur renvoyée par \ml+input_value+ appartient à un type
-bien précis, et non pas à tous les types possibles; mais le type de
-cette valeur ne peut pas être déterminé au moment de la compilation,
-puisqu'il dépend du contenu du fichier qui va être lu à
-l'exécution. Le typage correct de \ml+input_value+ nécessite une
-extension du langage ML connue sous le nom d'objets dynamiques: ce
-sont des valeurs appariées avec une représentation de leur type,
-permettant ainsi des vérifications de types à l'exécution. On se
-reportera à \cite{Dynamiques} pour une présentation plus détaillée.
+Note the type of \ml+input_value+ given above is semantically incorrect because
+it is too general: it is not true that the result of \ml+input_value+ is of type
+\ml+'a+ for every type \ml+'a+. The value returned by \ml+input_value+ belongs
+to a precise type, and not to all possible types, but the type of this value
+cannot be determined at compile time given it depends on the content of the file
+being read in. The correct typing of \ml+input_value+ requires an extension to
+the ML language known as dynamic objects: these are values paired with a
+representation of there type thus enabling run time type checking. Refer to
+\cite{Dynamic} for a more detailed presentation.
 
-\subsection*{Appel de procédure distant (Remote Procedure Call)}
+\subsection*{Remote Procedure Call}
 
 \begin{myfigure}
 \begin{myimage}[width="80\%"]
 \begin{tikzpicture}
 [box/.style={draw, rectangle, inner sep=2mm,rounded corners}]
 
-\node (Sys1) at (0,0) [box, minimum width=30mm] {Système};
-\node (Rpc1) at (0,1.5) [box] {Serveur RPC};
+\node (Sys1) at (0,0) [box, minimum width=30mm] {System};
+\node (Rpc1) at (0,1.5) [box] {RPC Server};
 \node (User1) at (1,2.75) [box] {User 1};
 \node (User2) at (-1,3.5) [box] {User 2};
 \node (M1label) at (0,4.5) {Machine A};
@@ -1266,8 +1120,8 @@ reportera à \cite{Dynamiques} pour une présentation plus détaillée.
 \draw [<->] (Rpc1) to (User1);
 \draw [<->] (Rpc1) to (User2);
 
-\node (Sys2) at (5.5,0) [box, minimum width=30mm] {Système};
-\node (Rpc2) at (5.5,1.5) [box] {Serveur RPC};
+\node (Sys2) at (5.5,0) [box, minimum width=30mm] {System};
+\node (Rpc2) at (5.5,1.5) [box] {RPC Server};
 \node (Callf) at (4.5,2.75) [box] {Call f};
 \node (Callg) at (6.5,3.5) [box] {Call g};
 \node (M2label) at (5.5,4.5) {Machine B};
@@ -1287,85 +1141,75 @@ reportera à \cite{Dynamiques} pour une présentation plus détaillée.
 \label{fig/rpc}
 \end{myfigure}
 
-Une autre application typique de ce type de protocole est l'appel de
-procédure distant, courramment appelé \textsc{rpc} (pour
-\quotes{Remote Procedure Call}).  Un utilisateur sur une Machine A
-veut exécuter un programme \ml+f+ sur une machine B. Ce n'est
-évidemment pas possible directement. Ce pourrait être programmé au cas
-par cas, en passant par le système pour ouvrir une connexion vers la
-machine B exécuter l'appel, relayer la réponse vers la machine A puis
-l'utilisateur.
+Another typical application of this type of protocol is remote procedure call
+(\textsc{rpc}). A program on machine A wants to run a function \ml+f+ on a
+machine B. This, obviously, is not directly possible. This could be programmed
+on a case by case basis using a the system to open a connection towards the
+machine B, run the call, relay the answer to the machine A and the user.
 
-En fait, comme c'est une situation typique, il existe un service
-\textsc{rpc} qui fait cela. C'est un client-serveur (client sur la
-machine A, serveur sur la machine B, dans notre exemple) qui reçoit
-des requêtes d'exécution sur une machine distante (B) de la part d'un
-utilisateur, se connecte au serveur \textsc{rpc} sur la machine
-distante B qui exécute l'appel f et retourne la réponse au client
-\textsc{rpc} A qui a son tour la renvoie à l'utilisateur.  L'intérêt
-est qu'un autre utilisateur peut appeler un autre programme sur la
-machine B (ou une autre) en passant par le même serveur
-\textsc{rpc}. Le travail a donc été partagé par le service
-\textsc{rpc} installé sur les machines A et B.
+In practice, since this is a common case, there is an \textsc{rpc} service that
+does that. It is a client-server (client on the machine A, server on the machine
+B in our example) which receives execution requests the distant machine (B) from
+user connects to the \textsc{rpc} server on the remote machine B which calls f
+and sends the returned value back to the \textsc{rcpc} client A which in turn
+hands it to the user. The point is that another program can call another
+function on the machine B (or another machine) by going through the same
+server. The work has been shared by the \textsc{rpc} service installed on the
+machines A and B.
 
-Du point de vue du programme utilisateur, tout se passe virtuellement
-comme s'il faisait un simple appel de fonction (flèches hachurées).
+As far as the user program is concerned all is happening virtually as if they
+were doing a simple function call (crosshatched arrow).
 
-\subsection*{Protocoles \quotes{texte}}
+\subsection*{\quotes{text} protocols}
 
-Les services réseaux où l'efficacité du protocole n'est pas cruciale
-utilisent souvent un autre type de protocoles: les protocoles
-\quotes{texte}, qui sont en fait un petit langage de commandes. Les
-requêtes sont exprimées sous forme de lignes de commandes, avec le
-premier mot identifiant le type de requête, et les mots suivants les
-arguments éventuels. Les réponses sont elles aussi sous forme d'une ou
-plusieurs lignes de texte, commençant souvent par un code numérique,
-pour faciliter le décodage de la réponse. Quelques protocoles de ce
-type:
+Network services where the efficiency of protocol is not crucial often use
+another type of protocol: \quotes{text} protocols. Text protocols are in fact
+small domain specific command languages. The requests are expressed are command
+lines, with the first word identifying the type of the request and the remaining
+words the eventual arguments. The answers are also send out as one ore several
+lines of text often starting with a numerical code to ease there reading
+in. Some protocols of this type:
 \begin{center}
 \begin{tabular}{lll}
-\textsc{smtp} (Simple Mail Transfert Protocol)  
-&\rfc{821} 
-&courrier électronique
+\textsc{smtp} (Simple Mail Transfert Protocol)
+&\rfc{821}
+&Electronic mail
 \\
-\textsc{ftp} 
+\textsc{ftp}
 (File Transfert Protocol)
-&\rfc{959} 
-&transferts de fichiers
+&\rfc{959}
+&File transfer
 \\
-\textsc{nttp} 
+\textsc{nttp}
 (Network News Transfert Protocol)
-&\rfc{977} 
-&lecture des News 
+&\rfc{977}
+&News reading
 \\
 \http-1.0 (HyperText Transfert Protocol)
-& \rfc{1945} 
-&navigation sur la toile
+& \rfc{1945}
+&Web navigation
 \\
 \http-1.1 (HyperText Transfert Protocol)
-& \rfc{2068} 
-&navigation sur la toile\\
+& \rfc{2068}
+&Web navigation\\
 \end{tabular}
 \end{center}
-Le grand avantage de ce type de protocoles est que les échanges entre
-le client et le serveur sont immédiatement lisibles par un être
-humain. En particulier, on peut utiliser \ml+telnet+ pour dialoguer
-\quotes{en direct} avec un serveur de ce type\footnote{ Il suffit de
-  lancer \ml+telnet machine service+, où \ml+machine+ est le nom de la
-  machine sur laquelle tourne le serveur, et \ml+service+ est le nom
-  du service (\ml+smtp+, \ml+nntp+, etc.).  }: on tape les requêtes
-comme le ferait un client, et on voit s'afficher les réponses. Ceci
-facilite grandement la mise au point.  Bien sûr, le travail de codage
-et de décodage des requêtes et des réponses est plus important que
-dans le cas des protocoles binaires; la taille des messages est
-également un peu plus grande; d'où une moins bonne efficacité.
+The great advantage of those protocols is that the exchanges between the server
+and the client are immediately readable by a human being. In particular one can
+use \ml+telnet+ to talk to \quotes{directly} to a server of this type\footnote{
+  One just needs to run \ml+telnet machine service+, where \ml+machine+ is the
+  name of the machine on which the server is running and \ml+service+ is the
+  name of the service (\ml+smtp+, \ml+nntp+, etc.).}: the user types the
+requests as a client would and the machine displays the responses. This is very
+useful while debugging an application. Of course the work involved in coding and
+decoding the messages is also more important thus resulting in more resource
+usage.
 
-\begin{example} 
-Voici un exemple de dialogue interactif avec un serveur
-\textsc{smtp}. Les lignes précédées par~\ifhtmlelse{>>}{$\rightarrow$}
-vont du client vers le serveur, et sont donc tapées par l'utilisateur.
-Les lignes précédées par~\ifhtmlelse{<<}{$\leftarrow$} vont du serveur
-vers le client.
+\begin{example}
+Here is an example of an interactive dialog with the \textsc{smtp} server. The
+lines preceded by~\ifhtmlelse{>>}{$\rightarrow$} go from the client to the
+server and are typed in by the user. The lines preceded
+by~\ifhtmlelse{<<}{$\leftarrow$} go from the server to the client.
 {\ifnothtml{%
    \lstset{language={},literate={{<<}{{$\leftarrow$}}2 {>>}{{$\rightarrow$}}2}}}
 \begin{lstlisting}
@@ -1384,79 +1228,68 @@ vers le client.
 <<  354 Enter mail, end with "." on a line by itself
 >>  From: god@heavens.sky.com (Himself)
 >>  To: xleroy@margaux.inria.fr
->>  Subject: salut!
->>  
->>  Ca se passe bien, en bas?
+>>  Subject: Hello!
+>>
+>>  Is everything ok down there?
 >>  .
 <<  250 Ok
 >>  QUIT
 <<  221 margaux.inria.fr closing connection
     Connection closed by foreign host.
 \end{lstlisting}}
-Les commandes \ml+HELO+, \ml+MAIL+ et \ml+RCPT+ transmettent le nom de la
-machine expéditrice, l'adresse de l'expéditeur, et l'adresse du
-destinataire.  La commande \ml+DATA+ permet d'envoyer le texte du message
-proprement dit. Elle est suivie par un certain nombre de lignes (le
-texte du message), terminées par une ligne contenant le seul caractère
-\quotes{point}. Pour éviter l'ambiguïté, toutes les lignes du message qui
-commencent par un point sont transmises en doublant le point initial;
-le point supplémentaire est supprimé par le serveur.
+The commands \ml+HELO+, \ml+MAIL+ and \ml+RCPT+ send the name of the sending
+machine, the address of the sender and the address of the recipient. The
+\ml+DATA+ command sends the texts. It is followed by a certain number of lines
+(the text of the message), finished by a line containing the single character
+\quotes{dot}. To avoid ambiguities all the lines of the message beginning by a
+dot are transmitted by doubling the initial dot. The additional dot is
+suppressed by the server.
 
-Les réponses sont toutes de la forme \quotes{un code numérique en trois
-chiffres plus un commentaire}. Quand le client est un programme, il
-interprète uniquement le code numérique; le commentaire est à l'usage
-de la personne qui met au point le système de courrier.  Les réponses
-en \ml+5xx+ indiquent une erreur; celles en \ml+2xx+, que tout s'est bien
-passé.
+The answer are all of the form \quotes{a 3 digits numerical code and a
+  comment}. When the client is a program it only takes in account the numeric
+code; the comment is strictly for human consumption. The answers in \ml+5xx+
+indicate an error; the one in \ml+2xx+ that everything is fine.
 \end{example}
 
-\section {Exemple complet: requêtes \http}
+\section {Full example: \http requests}
 
-Le protocole {\http} (HyperText Transfert Protocol) est utilisé
-essentiellement pour lire des documents sur la fameuse \quotes{toile}.
-Ce domaine est une niche d'exemples client-serveur: entre la lecture
-des pages sur la toile ou l'écriture de serveurs, les relais se
-placent en intermédiaires, serveurs virtuels pour le vrai client et
-clients par délégation pour le vrai serveur, offrant souvent au
-passage un service additionnel tel que l'ajout de caches, de filtres,
-\etc.
+The {\http} protocol (HyperText Transfer Protocol) is essentially used to read
+documents over the \quotes{web}. This domain is an endless source of
+client-server examples: web page clients or servers, relays acting as
+intermediates, virtual servers for clients and delegated clients for servers
+often layering in an additional service such as caching filtering \etc.
 
-Il existe plusieurs versions du protocole {\http}.  Pour aller plus
-rapidement à l'essentiel, à savoir l'architecture d'un client ou d'un
-relais, nous utilisons le protocole simplifié, hérité des toutes
-premières versions du protocole. Même s'il fait un peu poussiéreux, il
-reste compris par la plupart des serveurs.  Nous décrivons à la fin
-une version plus moderne et plus expressive mais aussi plus complexe,
-qui est indispensable pour réaliser de vrais outils pour explorer la
-toile.  Cependant, nous laisserons la traduction des exemples en
-exercices.
+There are several versions of the {\http} protocol. In order to keep the example
+focused on the essential (that is the architecture of clients or relays) we
+shall use the simplified protocol inherited of the very first versions of the
+protocol. Even though it is a bit dusty it is still understood by most
+servers. We shall outline at the end a more modern and expressive version. This
+version is more complex but also necessary to do real tools that work on the
+web. We will leave the translation of the examples as an exercise for the
+reader.
 
-La version 1.0 du protocole {http} décrite dans la norme \rfc{1945}
-permet les requêtes simplifiées de la forme:
+Version 1.0 of the {http} protocol is specified in the \rfc{1945} norm enable
+simplified requests of the form:
+
 \begin{lstlisting}
 GET $\textit{sp}$ $\textit{uri}$ $\textit{crlf}$
 \end{lstlisting}
-où \textit{\ml+sp+} représente une espace et \textit{\ml+crlf+} la
-chaîne de caractères \ml+"\r\n"+ (\quotes{return} suivi de
-\quotes{linefeed}).  La réponse à une requête simplifiée est également
-simplifiée: le contenu de l'url est envoyé directement, sans entête,
-et la fin de la réponse est signalée par la fin de fichier, qui
-termine donc la connexion.  Cette forme de requête, héritée du
-protocole 0.9, limite de fait la connexion à la seule requête en
-cours.
+where \textit{\ml+sp+} represents a whitespace and \textit{\ml+crlf+} the string
+\ml+"\r\n"+ (\quotes{return} followed by \quotes{linefeed}). The response to a
+simplified request is also simplified: the content of the url is sent directly
+without any headers and the end of the request is signaled by the end of file
+which closes the connection. This style of request, inherit from the version 0.9
+of the protocol, limits the connection to the on-going request.
 
-\subsection*{Récupération d'une url}
+\subsection*{Fetching an url}
 
-Nous proposons d'écrire une commande \ml+geturl+ qui prend un seul
-argument, une {\URL}, recherche sur la toile le document qu'elle
-désigne et l'affiche.
+We'll write a \ml+geturl+ program that takes an {\URL} as argument finds it on
+the web downloads the resource it points to and prints its content out.
 
-La première tâche consiste à analyser l'{\URL} pour en extraire le nom
-du protocole (ici nécessai\-re\-ment \ml+"http"+) l'adresse du serveur,
-le port optionnel et le chemin absolu du document sur le serveur.
-Pour ce faire nous utilisons la bibliothèque d'expressions régulières
-\ml+Str+.  Nous passons rapidement sur cette partie du code peu
-intéressante, mais indispensable.
+The first task is to analyze the {\URL} to extract the name of the protocol (the
+protocol accepted here is \ml+"http"+), the address of the server, the optional
+port and the path of the document on the server. We shall use the \ml+Str+
+regular expression library for this analysis.
 %
 \begin{listingcodefile}{url.ml}
 open Unix;;
@@ -1469,22 +1302,22 @@ let default_port = "80";;
 
 type regexp = { regexp : Str.regexp; fields : (int * string option) list; }
 
-let regexp_match r string = 
-  let get (pos, default) = 
-    try Str.matched_group pos string 
+let regexp_match r string =
+  let get (pos, default) =
+    try Str.matched_group pos string
     with Not_found ->
       match default with Some s -> s | _ -> raise Not_found in
   try
-    if Str.string_match r.regexp string 0 then 
+    if Str.string_match r.regexp string 0 then
       Some (List.map get r.fields)
     else None
   with Not_found -> None;;
 
-let host_regexp = 
+let host_regexp =
   { regexp = Str.regexp "\\([^/:]*\\)\\(:\\([0-9]+\\)\\)?";
     fields = [ 1, None; 3, Some default_port; ] };;
 
-let url_regexp = 
+let url_regexp =
   { regexp = Str.regexp "http://\\([^/:]*\\(:[0-9]+\\)?\\)\\(/.*\\)";
     fields = [ 1, None; 3, None ] };;
 
@@ -1497,52 +1330,48 @@ let parse_url url = match regexp_match url_regexp url with
   | _ -> error url "Ill formed url";;
 \end{listingcodefile}
 %
-Nous pouvons maintenant nous attaquer à l'envoi de la requête qui,
-dans le protocole simplifié, est une trivialité.
+We can now tackle the sending of the request. In the simplified protocol this is
+a trivial task.
 %
 \begin{listingcodefile}{url.ml}
-let send_get url sock = 
+let send_get url sock =
   let s = Printf.sprintf "GET %s\r\n" url in
   ignore (write sock s 0 (String.length s));;
 \end{listingcodefile}
 %
-Remarquons que l'{\URL} peut ne contenir que le chemin sur le serveur, ou
-bien être complète, incluant également le port et l'adresse du
-serveur.
+Note that the {\URL} can be anything from the address of the server to the
+address of the server, the port and path on that server.
 
-La lecture de la réponse est encore plus facile, puisque le document
-est simplement envoyé comme réponse, sans autre forme de politesse.
-Lorsque la requête est erronée, un message d'erreur est encodé dans un
-document \textsc{html}. Nous nous contentons ici de faire suivre la
-réponse sans distinguer si elle indique une erreur ou correspond au
-document recherché. La transmission utilise la fonction de
-bibliothèque \ml+Misc.retransmit+.  Le c{\oe}ur du programme établit
-la connexion avec le serveur.
+Reading the answers is even easier given that the document is simply sent as the
+answer without any additional trimming. When the request is wrong the error
+message is encoded in a \textsc{html} document. We will just print out the
+answer without sorting out the errors from the successful answers. The
+transmission is done through the library call \ml+Misc.retransmit+. The heart
+of the program establishes the connection with the server.
 %
 \begin{listingcodefile}{url.ml}
-let get_url proxy url fdout = 
-  let (hostname, port), path = match proxy with 
-    | None -> parse_url url 
-    | Some host -> parse_host host, url 
-  in  
+let get_url proxy url fdout =
+  let (hostname, port), path = match proxy with
+    | None -> parse_url url
+    | Some host -> parse_host host, url
+  in
   let hostaddr =
     try inet_addr_of_string hostname
-    with Failure _ -> 
-      try (gethostbyname hostname).h_addr_list.(0) 
-      with Not_found -> error hostname "Host not found" 
+    with Failure _ ->
+      try (gethostbyname hostname).h_addr_list.(0)
+      with Not_found -> error hostname "Host not found"
   in
   let sock = socket PF_INET SOCK_STREAM 0 in
-  Misc.try_finalize 
+  Misc.try_finalize
     begin function () ->
       connect sock (ADDR_INET (hostaddr, port));
       send_get path sock;
-      Misc.retransmit sock fdout 
+      Misc.retransmit sock fdout
     end ()
     close sock;;
 \end{listingcodefile}
 %
-Nous terminons, comme d'habitude, par l'analyse de la ligne de
-commande.
+We wrap this up by analyzing the command line arguments.
 %
 \begin{codefile}{geturl.ml}
 open Unix
@@ -1550,21 +1379,21 @@ open Url
 \end{codefile}
 %
 \begin{listingcodefile}{geturl.ml}
-let geturl () = 
-  let len =  Array.length Sys.argv in 
+let geturl () =
+  let len =  Array.length Sys.argv in
   if len < 2 then
     error "Usage:" (Sys.argv.(0) ^ " [ proxy [:<port>] ] <url>")
-  else 
-    let proxy, url = 
-      if len > 2 then Some Sys.argv.(1), Sys.argv.(2) else 
-      None, Sys.argv.(1) 
+  else
+    let proxy, url =
+      if len > 2 then Some Sys.argv.(1), Sys.argv.(2) else
+      None, Sys.argv.(1)
     in
     get_url proxy url stdout;;
 
 handle_unix_error (handle_error geturl) ();;
 \end{listingcodefile}
 
-\subsection*{Relais \http}
+\subsection*{\http relay}
 
 \begin{myfigure}
 \begin{myimage}[width="70\%"]
@@ -1574,10 +1403,10 @@ handle_unix_error (handle_error geturl) ();;
 \node (Pauillac) at (0,2.5) [server] {pauillac.inria.fr};
 \node (Inria) at (0,0) [server] {www.inria.fr};
 \node (Kelen) at (5,3) [server] {kelen.polytechnique.fr};
-\node (Relay) at (2.5,1) [server] {Relais};
+\node (Relay) at (2.5,1) [server] {Relay};
 
-\node (Client1) at (5.5,0) [client] {Navigateur};
-\node (Client2) at (6,1.5) [client] {Autre client};
+\node (Client1) at (5.5,0) [client] {Browser};
+\node (Client2) at (6,1.5) [client] {Other client};
 
 \draw [<->] (Pauillac) to (Relay);
 \draw [<->] (Inria) to (Relay);
@@ -1586,82 +1415,77 @@ handle_unix_error (handle_error geturl) ();;
 \draw [<->] (Client2) to (Relay);
 \end{tikzpicture}
 \end{myimage}
-\caption{Relais \http}
+\caption{\http relay}
 \label{fig/relais}
 \end{myfigure}
 
-Nous nous proposons maintenant d'écrire un relais {\http}
-(\emph{proxy} en anglais), c'est-à-dire un serveur de requêtes {\http}
-qui permet de traiter toutes les requêtes {\http} en les redirigeant
-vers la machine destinataire (ou un autre relais...) et fait suivre
-les réponses vers la machine appelante.
+We will now will now write an {\http} relay (\emph{proxy}). It is a {\http}
+server that treats all {\http} requests by redirecting them to the destination
+machine (or another relay...) and forwards the answers back to the calling
+machine.
 %
-Nous avons schématisé le rôle d'un relais dans la figure
-\ref{fig/relais}.  Lorsqu'un client {\http} utilise un relais, il
-adresse ses requêtes au relais plutôt que de les adresser directement
-aux différents serveurs {\http} localisés un peu partout dans le
-monde. L'avantage du relais est multiple.
-%
-Un relais peut mémoriser les requêtes les plus récentes ou les plus
-fréquentes au passage pour les resservir ultérieurement sans
-interroger le serveur, soit pour ne pas le surcharger, soit en
-l'absence de connexion réseau.  Un relais peut aussi filtrer certaines
-pages (retirer la publicité ou les images, \etc).  L'utilisation d'un
-relais peut aussi simplifier l'écriture d'une application en lui
-permettant de ne plus voir qu'un seul serveur pour toutes les pages du
-monde.
+We have drawn out the role of a relay in the \ref{fig/relais} figure. When an
+{\http} client uses the relay it addresses its requests to the relay rather than
+addressing them directly to the various {\http} servers around the world. The
+relay has multiple advantages.
 
-La commande \ml+proxy+ lance le serveur sur le port passé en argument,
-ou s'il est omis, sur le port par défaut du service {\http}.  Nous
-récupérons bien entendu le code réalisé par la fonction \ml+get_url+
-(nous supposons que les fonctions ci-dessus, hormis le lancement de la
-commande, sont disponibles dans un module \ml+Url+).  Il ne reste qu'à
-écrire l'analyse des requêtes et mettre en place le serveur.
+A relay can cash the most recent requests or the most frequent requests to
+bypass querying the remote server in subsequent requests. This can be used to
+avoid overloading the remote server or as a fallback when the connection
+fails. A relay can also act as a filter on some pages (remove the adds or the
+images \etc). Using a relay can also simplify writing applications by allowing
+to interact with a single server for all the web pages in the world.
+
+The \ml+proxy+ command launches the server on the port passed as an argument,
+or, if none specified the default {\http} port. We shall re-use the code of the
+\ml+get_url+ function (we suppose that the above functions are available in an
+\ml+Url+ module). We still have to write the code to analyze the requests and
+set up the server.
 %
 \begin{listingcodefile}{proxy.ml}
 open Unix
 open Url
 
-let get_regexp = 
-  { regexp = Str.regexp "^[Gg][Ee][Tt][ \t]+\\(.*[^ \t]\\)[ \t]*\r"; 
+let get_regexp =
+  { regexp = Str.regexp "^[Gg][Ee][Tt][ \t]+\\(.*[^ \t]\\)[ \t]*\r";
     fields = [ 1, None ] }
 
 let parse_request line = match regexp_match get_regexp line with
   | Some (url :: _) -> url
-  | _ -> error line "Ill formed request" 
+  | _ -> error line "Ill formed request"
 \end{listingcodefile}
-%
-Nous allons établir le service avec la commande \ml+establish_server+.
-Il suffit donc de définir le traitement d'une connexion.
+% 
+The service will be established the server with the \ml+establish_server+
+function. We still have to code the handling of connections.
 %
 \begin{listingcodefile}{proxy.ml}
-let proxy_service (client_sock, _) = 
-  let service () = 
+let proxy_service (client_sock, _) =
+  let service () =
     try
       let in_chan = in_channel_of_descr client_sock in
       let line = input_line in_chan in
       let url = parse_request line in
       get_url None url client_sock
-    with End_of_file -> 
-      error "Ill formed request" "End_of_file encountered" 
+    with End_of_file ->
+      error "Ill formed request" "End_of_file encountered"
   in
-  Misc.try_finalize 
+  Misc.try_finalize
     (handle_error service) ()
     close client_sock
 \end{listingcodefile}
 \label{page/get_url}
 %
-Le reste du programme n'a plus qu'à établir le service. 
+The program still needs to establish the service.
 %
 \begin{listingcodefile}{proxy.ml}
 let proxy () =
-  let http_port = 
-    if Array.length Sys.argv > 1 then 
+  let http_port =
+    if Array.length Sys.argv > 1 then
       try int_of_string Sys.argv.(1)
-      with Failure _ -> error Sys.argv.(1) "Incorrect port" 
+      with Failure _ -> error Sys.argv.(1) "Incorrect port"
     else
-      try (getservbyname "http" "tcp").s_port 
-      with Not_found -> error "http" "Unknown service" 
+      try (getservbyname "http" "tcp").s_port
+      with Not_found -> error "http" "Unknown service"
   in
   let treat_connection s = Misc.double_fork_treatment s proxy_service in
   let addr = ADDR_INET(inet_addr_any, http_port) in
@@ -1670,77 +1494,69 @@ let proxy () =
 handle_unix_error (handle_error proxy) ();;
 \end{listingcodefile}
 
-\subsection*{Le Protocole {\normalfont \http/1.1}}
+\subsection*{The {\normalfont \http/1.1} protocol}
 
-Les requêtes simplifiées obligent à créer une connexion par requête,
-ce qui est inefficace, car il est fréquent que plusieurs requêtes se
-suivent sur le même serveur (par exemple, le chargement d'une page web
-qui contient des images va entraîner dans la foulée le chargement des
-images correspondantes). Le temps d'établissement de la connexion peut
-facilement dépasser le temps passé à traiter la requête proprement
-dite.  Nous verrons dans le chapitre~\ref{sec/coprocessus} comment
-réduire celui-ci en faisant traiter les connexions par des coprocessus
-plutôt que par des processus.
+Simplified requests force to create a connection per request. The simplified
+requests force to create one connection per request. This is can be very
+inefficient because it is frequent to have several consecutive requests on the
+same server (for instance when loading a web page the browser also loads all the
+images in the page). The time it takes to establish the connection can easily
+exceed the time spend handling the request per se. We shall see in the
+\ref{sec/coprocessus}~chapter how to reduce this time by dispatching the
+handling of the requests to co-processes rather than child processes.
 %
-Nous proposons dans les exercices ci-dessous l'utilisation du
-protocole \http/1.1~(\rfc{2068}) qui utilise des requêtes complexes
-permettant de servir plusieurs requêtes par connexion\footnote {Le
-  protocole \http/1.0 permet déjà ce type de requêtes en plus des
-  requêtes simplifiées, mais nous préférons décrire le protocole
-  \http/1.1 qui traite exclusivement des requêtes complexes.}.
+In the following exercises we shall use the protocol
+\http/1.1~(\rfc{2068})~protocol which uses complex requests allowing to serve
+several requests per connection\footnote{The \http/1.0 protocol already allows
+  this type of request on top of simplified requests, but we prefer using the
+  \http/1.1 protocol which deals exclusively with complex requests.}
 
-Dans les requêtes complexes, le serveur précède chaque réponse par une
-entête indiquant le format de la réponse et le cas échéant la taille
-du document transmis. La fin du document n'est plus indiquée par une
-fin de fichier, puisqu'elle peut être déduite de la taille. La
-connexion peut ainsi rester ouverte pour servir d'autres
-requêtes. Celles-ci sont de la forme suivante:
+When answering complex requests the server precedes every answer by a header
+describing the format of the answer and, short of that, the size of the
+transmitted document. The end of the document is no longer signaled by an
+end-of-file since it can be deduced by its size. The connection can stay open to
+handle more requests. These requests are of the following form:
 %
 \begin{lstlisting}
-GET $\textit{sp}$ $\textit{uri}$ $\textit{sp}$ HTTP/1.1 $\textit{crlf}$ 
+GET $\textit{sp}$ $\textit{uri}$ $\textit{sp}$ HTTP/1.1 $\textit{crlf}$
 $\textit{header}$ $\textit{crlf}$
 \end{lstlisting}
 %
-L'entête \textit{\ml+header+} définit une suite de paires champ-valeur
-avec la syntaxe suivante:
+The \textit{\ml+header+} defines a list of key-value fields of the following
+syntax:
 %
 \begin{lstlisting}
 $\textit{field}$ : $\textit{value}$ $\textit{crlf}$
 \end{lstlisting}
 %
-Des espaces superflus sont également permis autour du séparateur
-\ml+':'+. En fait, un espace \textit{\ml+sp+} peut toujours être
-remplacé par une tabulation ou une suite d'espaces.  Les champs de
-l'entête peuvent également s'étendre sur plusieurs lignes: dans ce cas
-et dans ce cas uniquement le lexème de fin de ligne \textit{\ml+crlf+}
-est immédiatement suivi d'un espace \textit{\ml+sp+}.  Enfin,
-majuscules et minuscules sont équivalentes dans les mots-clés des
-champs, ainsi que dans les valeurs de certains champs composés de
-listes de mots-clé.
+Superfluous whitespaces are also allowed around of the \ml+':'+ separator. In
+fact a whitespace can always be replaced by a tab or a list of whitespaces. The
+header fields can also span several lines: in this sole and only case the
+\textit {\ml+crlf+} end-of-line lexeme is immediately followed by a whitespace
+\textit{\ml+sp+}. Field keys are not case sensitive as well as values in fields
+composed of keywords.
 
-Selon le type de requête, certains champs sont obligatoires, d'autres
-sont optionnels.  Par exemple, une requête \ml+GET+ comporte forcément
-un champ qui indique la machine destinataire:
+Depending on the type of requests some fields are mandatory others are
+optional. For instance a \ml+GET+ request must a field indicated the recipient:
 %
 \begin{lstlisting}
 Host : $\textit{hostname}$ $\textit{crlf}$
 \end{lstlisting}
 %
-Pour ce type requête, on peut aussi demander, en utilisant le champ
-optionnel \texttt{If-Modified} que le document ne soit retourné que s'il a
-été modifié depuis une certaine date.
+For this kind of requests the client can specify by using the optional field
+\texttt{If-Modified} that the document must only be returned if it has been
+modified after a given date.
 %
 \begin{lstlisting}
 If-Modified : $\textit{date}$ $\textit{crlf}$
 \end{lstlisting}
 %
-Le nombre de champs du \textit{\ml+header+} n'est donc pas fixé par
-avance mais indiqué par la fin de l'entête qui consiste en une ligne
-réduite aux seuls caractères \textit{\ml+crlf+}.
+The number of fields in the \textit{\ml+header+} is not prefixed but indicated
+by the end of the header. The end of the header is marked by an empty
+line (ended by \textit{\ml+crlf+} characters.)
 
-Voici une requête complète (toutes les lignes se terminant par le
-caractère \ml+\n+ laissé implicite et qui suit immédiatement le
-\ml+\r+):
+Here is a full request (every line is finished by an implicit \ml+\n+ coming
+straight after the \ml+r+ character):
 %
 \begin{lstlisting}
 GET /~remy/ HTTP/1.1\r
@@ -1748,49 +1564,46 @@ Host:pauillac.inria.fr\r
 \r
 \end{lstlisting}
 %
-Une réponse à une requête complexe est également une réponse complète.
-Elle comporte une ligne de statut, une entête, puis le corps de la
-réponse, le cas échéant.
+A response to a complex request is also a complete answer. It is constituted of
+a status line, a header and the body of the response.
 %
 \begin{lstlisting}
 HTTP/1.0 $\textit{sp}$ $\textit{status}$ $\textit{sp}$ $\textit{message}$ $\textit{crlf}$
-$\textit{header}$ $\textit{crlf}$ 
+$\textit{header}$ $\textit{crlf}$
 $\textit{body}$
 \end{lstlisting}
 %
-Les champs de l'entête d'une réponse ont une syntaxe analogue à celle
-d'une requête mais les champs permis et obligatoires sont différents
-(ils dépendent du type de la requête ou du statut de la
-réponse~---~voir la documentation complète du protocole).
+The fields of a response header have a the same syntax as the request but the
+required and optional fields are different. (They depend on the status of the
+response~---~refer to the documentation for a full description of the protocol).
 
-Le corps de la réponse \textit{\ml{body}} peut-être vide, transmis en
-un seul bloc, ou par tranches.  Dans le second cas, l'entête comporte
-un champ \ml+Content-Length+ indiquant le nombre d'octets en notation
-décimale \textsc{ascii}.  Dans le troisième cas, l'entête comporte une
-champ \ml+Transfer-Encoding+ avec la valeur \ml+chunked+.  Le corps
-est alors un ensemble de tranches et se termine par une tranche
-vide. Une tranche est de la forme:
+The \textit{\ml{body}} of the answer can be empty, transmitted as a single bloc
+or sliced up. In the second case the header has a \ml+Content-Length+
+specifying the number of lines as decimal number written out in plain
+\textsc{ascii}. In the third case the header has a \ml+Transfer-Encoding+ field
+containing the value \ml+chunked+. In this case the body is a set chunks the
+last one of these being empty. A chunk is of the form:
 %
 \begin{lstlisting}
 $\textit{size}$ $\textit{[ ; \textit{arg} ]}$ $\textit{crlf}$
 $\textit{chunk}$ $\textit{crlf}$
 \end{lstlisting}
 %
-où \textit{\ml+size+} est la taille de la tranche en notation
-hexadécimale (la partie entre \textit{\ml+[+} et \textit{\ml+]+} est
-optionnelle et peut être ignorée ici) et \textit{\ml+chunk+} est une
-partie du corps de la réponse de la taille indiquée.  La dernière
-tranche de taille nulle est toujours de la forme suivante:
+where \textit{\ml+size+} is the size of the chunk in hexadecimal notation. The
+part between the square brackets (\textit{\ml+[+} and \textit{\ml+]+}) is
+optional and can safely be ignored and \textit{\ml+chunk+} is a slice of the
+full answer of the given size. The last zero sized chunk is always of the
+following form:
 %
 \begin{lstlisting}
-0 $\textit{crlf}$ 
+0 $\textit{crlf}$
 $\textit{header}$ $\textit{crlf}$ $\textit{crlf}$
 \end{lstlisting}
 %
-Enfin, le corps de la réponse \textit{\ml+body+} est vide lorsque la
-réponse n'est pas tranchée et ne contient pas de champ
-\ml+Content-Length+ (par exemple, une requête de type \ml+HEAD+ ne
-répond que par une entête). Voici un exemple de réponse:
+Finally if the \textit{\ml+body+} of the response is empty if the response is
+not chunked and does not contain a field \ml+Content-Length+ (for instance a
+response to request of type \ml+HEAD+ only contains a header). Here is an
+example of an answer:
 \begin{lstlisting}
 HTTP/1.1 200 OK\r
 Date: Sun, 10 Nov 2002 09:14:09 GMT\r
@@ -1805,44 +1618,40 @@ Content-Type: text/html\r
 ...
 </html>
 \end{lstlisting}
-Le statut \ml+200+ indique que la requête a réussi.  Un statut
-\ml+301+ ou \ml+302+ signifie que l'URL a été redirigée vers une autre
-URL définie dans le champ \ml+Location+ de la réponse.  Les statuts de
-la forme \ml+400+, \ml+401+, \etc. indique des erreurs dans la forme
-ou l'aboutissement de la requête et ceux de la forme \ml+500+,
-\ml+501+, \etc{} des erreurs, plus grave, dans le traitement de la
-requête.
+The status \ml+200+ indicates that a requests was successful. A \ml+301+ or
+\ml+401+ means the URL was redirected to another URL defined in the
+\ml+Location+ field of the response. The \ml+400+, \ml+401+ \etc{} statuses
+indicate errors in the syntax of the request or in its fulfillment whilst the
+\ml+500+, \ml+501+, \etc{} statuses errors on the server side while processing
+the request.
 
 \begin{exercise}[noanswer]
 \label {ex/proxy-1.1}
-Écrire un relais qui fonctionne avec le protocole \http/1.1.
+Write a relay working with \http/1.1 protocol.
 \end{exercise}
 
 \begin{exercise}[noanswer]
-Ajouter un cache au relais: les pages sont sauvegardées sur le
-disque. Lorsqu'une page demandée est disponible dans le cache, la page
-du cache est servie, sauf si elle est trop ancienne, auquel cas le
-serveur est interrogé (et le cache est mis à jour).
+Add a cache to the relay: the pages are saved on the hard drive. When a
+requested page is available in the cache it is served excepted if it is too old
+(in which case the server is queried and the cache is updated).
 \end{exercise}
 
 \begin{exercise}[noanswer]
 \label {ex/wget}
-Écrire un programme \ml+wget+ telle que \ml+wget u1 ... un+ effectue
-les requêtes \ml+u1+ et sauve les réponses dans des fichiers
-\ml+./mi/pi+ où \ml+mi+ et \ml+pi+ sont respectivement le nom de la
-machine et le chemin absolu de la requête \ml+ui+.  On profitera du
-protocole complet pour n'effectuer qu'une seule connexion sur la
-machine \ml+m+ lorsque celle-ci est la même pour plusieurs requêtes
-consécutives.  De plus, on suivra une {\URL} lorsque celle-ci est une
-redirection temporaire ou définitive.
+Write a program \ml+wget+ such that \ml+wget u1 .. un+runs the requests \ml+u1+
+...\ml+un+ and saves the responses in the files \ml+./m1/p1+ ... \ml+./mn/pn+
+where \ml+mi+ and \ml+pi+ are the name of the server and absolute path of the
+request \ml+ui+. We shall take advantage of the protocol to establish only one
+connection on the machine \ml+m+ when it is the same for consecutive
+requests. Further we shall follow {\URL} in case of a redirection.
 %
-On pourra ajouter les options suivantes: 
+The following options can be added:
 \begin{mltypecases}
-\mltypecase{-N} pour ne récupérer l'{\URL} que si le fichier
-  \ml+./mi/ui+ n'existe pas ou est plus ancien que l'{\URL}.
+\mltypecase{-N} to download the {\URL} only the file \ml+./mi/ui+ doesn't exists
+or is older than the {\URL}.
 
-\mltypecase{-r} pour récupérer récursivement toutes les {\URL}s
-  contenues dans les réponses qui sont des documents au format HTML.
+\mltypecase{-r} to download recursively all the {\URL}s embedded in the
+responses which are HTML documents.
 \end{mltypecases}
 \end{exercise}
 
@@ -1858,7 +1667,7 @@ On pourra ajouter les options suivantes:
 %% des réponses à un format \quotes{standard} alors que le protocole
 %% permet plus de flexibilité.
 
-%% Le formattage des requêtes quant à lui est immédiat. 
+%% Le formattage des requêtes quant à lui est immédiat.
 %% %
 %% \begin{listingcodefile}{wgetlib.ml}
 %% open Unix
@@ -1868,8 +1677,8 @@ On pourra ajouter les options suivantes:
 %%   let send_line line =
 %%     output_string chan (String.concat " " line);
 %%     output_string chan "\r\n" in
-%%   List.iter send_line header; 
-%%   output_string chan "\r\n"; 
+%%   List.iter send_line header;
+%%   output_string chan "\r\n";
 %%   flush chan;;
 
 %% let send_get chan hostname path =
@@ -1901,20 +1710,20 @@ On pourra ajouter les options suivantes:
 %% \begin{listingcodefile}{wgetlib.ml}
 %% open Http;;
 
-%% type connection = 
-%%   { in_chan : in_channel; out_chan : out_channel; 
+%% type connection =
+%%   { in_chan : in_channel; out_chan : out_channel;
 %%     mutable on : bool; host : string; }
 
-%% type header = 
-%%   { status : int; message : string; fields : (string * string) list } 
+%% type header =
+%%   { status : int; message : string; fields : (string * string) list }
 
-%% type response = 
+%% type response =
 %%   { connection : connection; header : header };;
 
-%% let read_response connection = 
+%% let read_response connection =
 %%   let (c, mes), lines = parse_response connection.in_chan in
-%%   { connection = connection; 
-%%     header = { status = c; message = mes; fields = lines; }; 
+%%   { connection = connection;
+%%     header = { status = c; message = mes; fields = lines; };
 %%   };;
 %% \end{listingcodefile}
 %% %
@@ -1922,20 +1731,20 @@ On pourra ajouter les options suivantes:
 %% la taille et non plus sur la fin de fichier.
 %% %
 %% \begin{listingcodefile}{wgetlib.ml}
-%% let print_header chan header = 
-%%   let pr (x, y) = 
-%%     output_string chan (String.capitalize x); prerr_string ": "; 
+%% let print_header chan header =
+%%   let pr (x, y) =
+%%     output_string chan (String.capitalize x); prerr_string ": ";
 %%     output_string chan y;
 %%     output_string chan "\r\n" in
 %%   List.iter pr header;;
-%% let error_report err mes reply = 
+%% let error_report err mes reply =
 %%   prerr_newline();
-%%   print_header Pervasives.stderr [err, mes]; prerr_newline(); 
-%%   print_header Pervasives.stderr reply.header.fields; 
+%%   print_header Pervasives.stderr [err, mes]; prerr_newline();
+%%   print_header Pervasives.stderr reply.header.fields;
 %%   error err mes;;
-%% let print_chunk chan len = 
+%% let print_chunk chan len =
 %%   Printf.fprintf chan "%x\r\n" len;;
-%% let print_status chan code mes = 
+%% let print_status chan code mes =
 %%   Printf.fprintf chan "%s %d %s\r\n" http_version code mes;;
 %% \end{listingcodefile}
 %% %
@@ -1944,65 +1753,65 @@ On pourra ajouter les options suivantes:
 %% let response_OK = 200;;
 %% let temp_redirect = 301;;
 %% let perm_redirect = 302;;
-%% let field name reply = 
+%% let field name reply =
 %%   try Some (List.assoc name reply.header.fields) with Not_found -> None
-%% let content_length reply : int option = 
-%%   match field "content-length" reply with 
+%% let content_length reply : int option =
+%%   match field "content-length" reply with
 %%     None -> None
-%%   | Some s -> 
+%%   | Some s ->
 %%       try Some (int_of_string s)
 %%       with x -> error "Ill-formed field" "content-length";;
 
-%% let moved reply =  
-%%   let s = reply.header.status in 
+%% let moved reply =
+%%   let s = reply.header.status in
 %%   s = temp_redirect || s = perm_redirect;;
-%% let location reply = 
+%% let location reply =
 %%   field "location" reply;;
-%% let chunked reply = 
+%% let chunked reply =
 %%   match field "transfer-encoding" reply with
 %%   | Some arg -> List.mem "chunked" (tokenize arg)
 %%   | _ -> false;;
 
 %% let buffer_size = 2048;;
 %% let buffer = String.create buffer_size;;
-%% let rec copy_region echo chan_in chan_out len = 
+%% let rec copy_region echo chan_in chan_out len =
 %%   if len > 0 then
 %%     let n = input chan_in buffer 0 (min len buffer_size) in
 %%     if echo <> Nothing then output chan_out buffer 0 n;
 %%     if n > 0 then copy_region echo chan_in chan_out (len -n)
 %%     else error "End_of_file" "encountered prematurately";;
 
-%% let rec copy_chunked echo chan_in chan_out = 
+%% let rec copy_chunked echo chan_in chan_out =
 %%   let len = parse_chunk chan_in in
 %%   if echo = Everything then print_chunk chan_out len;
-%%   if len > 0 then begin 
+%%   if len > 0 then begin
 %%     copy_region echo chan_in chan_out len;
 %%     parse_crlf chan_in;
 %%     if echo = Everything then output_string chan_out "\r\n";
 %%     copy_chunked echo chan_in chan_out
-%%   end else 
-%%     let h = parse_header chan_in in 
+%%   end else
+%%     let h = parse_header chan_in in
 %%     if echo = Everything then print_header chan_out h;;
 
-%% let transfer echo reply out = 
+%% let transfer echo reply out =
 %%   match content_length reply with
-%%     Some len -> 
+%%     Some len ->
 %%       copy_region echo reply.connection.in_chan out len
-%%   | None when chunked reply -> 
+%%   | None when chunked reply ->
 %%       copy_chunked echo reply.connection.in_chan out
 %%   | None -> ();;
 
 %% let dir_mode = 0o777;;
-%% open Filename 
+%% open Filename
 %% let mkpath p =
 %%   let normal_path =
 %%     if basename p = "" then dirname p else p in
-%%   let path_to_dir = dirname normal_path in 
-%%   let rec make p = 
+%%   let path_to_dir = dirname normal_path in
+%%   let rec make p =
 %%     try ignore (stat p)
 %%     with Unix_error (ENOENT, _, _) ->
 %%       if p = current_dir_name then ()
-%%       else if p = parent_dir_name then 
+%%       else if p = parent_dir_name then
 %%         error "Ill formed path" "contains \"..\""
 %%       else begin
 %%         make (dirname p);
@@ -2016,8 +1825,8 @@ On pourra ajouter les options suivantes:
 %% let directory path =
 %%   try (stat path).st_kind = S_DIR with Not_found -> false;;
 
-%% let transfer_to_file connection file = 
-%%   let file = 
+%% let transfer_to_file connection file =
+%%   let file =
 %%     if basename file = "" then concat file "index.html" else file in
 %%   mkpath file;
 %%   Printf.fprintf Pervasives.stderr " ==> %s\n" file;
@@ -2025,50 +1834,50 @@ On pourra ajouter les options suivantes:
 %%   unwind_protect (transfer Body connection) chan_out
 %%     close_out chan_out;;
 
-%% let close_connection c = 
+%% let close_connection c =
 %%   if c.on then begin shutdown_connection c.in_chan; c.on <- false end;;
 
 %% let rec wget_url connection url =
-%%   Printf.fprintf Pervasives.stderr "%s" url; flush Pervasives.stderr; 
+%%   Printf.fprintf Pervasives.stderr "%s" url; flush Pervasives.stderr;
 %%   let (hostname, port), path = parse_url url in
-%%   let connection = 
-%%     match connection with 
+%%   let connection =
+%%     match connection with
 %%       Some c when c.on && c.host = hostname -> c
 %%     | Some c when close_connection c; false -> assert false
-%%     | _ -> 
+%%     | _ ->
 %%         let hostaddr =
 %%           try inet_addr_of_string hostname
 %%           with Failure _ -> (gethostbyname hostname).h_addr_list.(0) in
 %%         let reply, request = open_connection (ADDR_INET (hostaddr, port)) in
-%%         { in_chan = reply; out_chan = request; 
-%%           on = true; host = hostname; } 
+%%         { in_chan = reply; out_chan = request;
+%%           on = true; host = hostname; }
 %%   in
-%%   let get file = 
+%%   let get file =
 %%     send_get connection.out_chan hostname file;
 %%     let reply = read_response connection in
-%%     if reply.header.status = response_OK then 
+%%     if reply.header.status = response_OK then
 %%       begin
-%%         transfer_to_file reply (hostname ^ file); 
-%%         Some connection 
+%%         transfer_to_file reply (hostname ^ file);
+%%         Some connection
 %%       end
-%%     else if moved reply then 
-%%       match location reply with 
-%%         Some new_url -> 
+%%     else if moved reply then
+%%       match location reply with
+%%         Some new_url ->
 %%           transfer Nothing reply Pervasives.stdout;
 %%           Printf.fprintf Pervasives.stderr " --> %s\n" new_url;
 %%           wget_url (Some connection) new_url
-%%       | None -> 
+%%       | None ->
 %%           error_report "Ill formed answer" "missing location" reply
 %%     else error_report (string_of_int reply.header.status)
 %%         reply.header.message reply in
-%%   handle_syntax_error get path;; 
+%%   handle_syntax_error get path;;
 %% \end{listingcodefile}
 %% \begin{listingcodefile}{wget.ml}
-%% open Sys 
-%% open Unix 
+%% open Sys
+%% open Unix
 %% open Url
 %% open Wgetlib
-%% let wget () = 
+%% let wget () =
 %%   let argn = Array.length Sys.argv in
 %%   if argn > 1 then
 %%     let argv = Array.sub Sys.argv 1 (argn - 1) in
@@ -2076,6 +1885,6 @@ On pourra ajouter les options suivantes:
 %%       Some c -> close_connection c
 %%     | None -> ();;
 
-%% handle_unix_error (handle_error wget) ();;    
+%% handle_unix_error (handle_error wget) ();;
 %% \end{listingcodefile}
 %% \end{answer}
