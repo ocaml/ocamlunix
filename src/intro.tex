@@ -14,12 +14,12 @@
 \cutname{intro.html}
 
 These course notes originate from a system programming course Xavier
-Leroy teached in 1994 to the first year students of the master in
+Leroy taught in 1994 to the first year students of the Master's program in
 fundamentals and applied mathematics and computer science at the École
 Normale Supérieure. This earliest version used the
 Caml-Light~\cite{Caml-Light} language.
 %
-For a master course in computer science at the École Polytechnique
+For a Master's course in computer science at the École Polytechnique
 teached from 2003 to 2006, Didier Rémy adapted the notes to use the
 {\ocaml} language. During these years, Gilles Roussel, Fabrice Le
 Fessant and Maxence Guesdon helped to teach the course and also
@@ -54,16 +54,16 @@ A second goal of this exposition of system programming is to show
 theorem proving, compilation and symbolic computation. The outcome of
 the experiment is rather positive, thanks to {\ocaml}'s solid
 imperative kernel and its other novel aspects like parametric
-polymorphism, higher-horder functions and exceptions. It also shows
-that instead of mutally excluding applicative and imperative
-programming, their combination makes it possible to integrate in the
+polymorphism, higher-order functions and exceptions. It also shows
+that instead of applicative and imperative programming being mutually
+exclusive, their combination makes it possible to integrate in the
 same program complex symbolic computations and a good interface with
 the operating system.
 
-These notes assume the reader is familiar with {\ocaml} and unix shell
+These notes assume the reader is familiar with {\ocaml} and Unix shell
 commands. For any question about the language, consult the Objective
 Caml System documentation~\cite{OCaml} and for questions about Unix,
-read section~1 of the Unix \texttt{man}ual or Unix introductory books
+read section~1 of the Unix \texttt{man}ual or introductory books on Unix
 like~\cite{KP,R1}.
 
 
@@ -71,9 +71,9 @@ This document describes only the programmatic interface to the Unix
 system. It presents neither its implementation, neither its internal
 architecture. The internal architecture of \textsc{bsd}~4.3 is
 described in~\cite{BSD} and of System~\textsc{v}
-in~\cite{Bach}. Tanenbaum's books~\cite{T1,T2} give an overal view of
+in~\cite{Bach}. Tanenbaum's books~\cite{T1,T2} give an overall view of
 network and operating system architecture.
 
-The Unix interface presented in this document is part from the
+The Unix interface presented in this document is part of the
 Objective Caml System available as free software at
 \url{http://caml.inria.fr/ocaml/}.
