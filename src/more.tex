@@ -17,10 +17,10 @@ We have shown how \ocaml's \libmodule{Sys}, \libmodule{Unix}, and
 \libmodule{Threads} modules can be used to program applications that
 interact with the operating system.
 
-These modules allow to invoke the most important Unix system calls
-directly from OCaml. Some of these calls were replaced by higher-level
+These modules allow the invocation of the most important Unix system calls
+directly from {\ocaml}. Some of these calls were replaced by higher-level
 functions, either to facilitate programming or to maintain invariants
-needed by {\ocaml}'s runtime system. In any case, this higer-level
+needed by {\ocaml}'s runtime system. In any case, this higher-level
 access to the Unix system streamlines the development of applications.
 
 Not every feature of the Unix system is available through these
@@ -29,7 +29,7 @@ writing C bindings.
 
 Another useful library is Cash~\cite{Cash} which focuses on writing
 scripts directly in {\ocaml}. This library completes the \ml+Unix+
-module in two different ways. First, regardless of a few helper
+module in two different ways. First, in addition to a few helper
 functions to write scripts, it provides, on top of the \ml+Unix+
 module, a few system call variations to assist the programmer in
 process and pipe management. Second, it offers additional entry points
