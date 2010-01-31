@@ -5,110 +5,96 @@
 % attribution-non-commercial-share alike 2.0 France license.
 % http://creativecommons.org/licenses/by-nc-sa/2.0/fr/
 %
-% Translation by
+% Translation by Eric Cooper <ecc@cmu.edu>
 %------------------------------------------------------------------------------
 
-\chapter{Les coprocessus}
+\chapter{Threads}
 \label{sec/coprocessus}
 \cutname{threads.html}
 
-Un \emph{coprocessus}, aussi appelé \emph{processus léger} et
-\emph{thread} en anglais, est un fil d'exécution d'un programme
-pouvant s'exécuter en parallèle avec d'autres coprocessus du même
-programme.
+A \emph{thread}, also called a \emph{lightweight process}, is a flow
+of control that can execute in parallel with other threads in the same
+program.
 
-Ce chapitre décrit les appels systèmes Unix permettant à un programme
-de créer des coprocessus et de les synchroniser à l'aide de verrous,
-de conditions ou d'événements.  Il s'appuie sur le module {\ocaml}
-\ml+Thread+ et les modules \ml+Mutex+, \ml+Condition+.  Il présente
-également la communication par événements synchrones fournie par le
-module \ml+Event+.
+This chapter describes the functions that allow a program to create
+threads (\ml+Thread+ module) and synchronize by means of locks
+(\ml+Mutex+ module), conditions (\ml+Condition+ module), and
+synchronous events (\ml+Event+ module).
 
-\section{Généralités}
+\section{Introduction}
 
-La création d'un coprocessus est très différente de l'opération
-\indexvalue{fork} qui crée une copie du processus courant (donc une
-copie du programme): les espaces mémoire du père et du fils sont
-totalement disjoints après l'exécution de \ml+fork+ et les processus
-ne peuvent communiquer que par un appel système (comme écrire ou lire
-dans un fichier ou dans un tuyau).
+The creation of a thread is very different from the \indexvalue{fork}
+operation that creates a copy of the current process (and therefore a
+copy of the program). After a fork, the address spaces of the parent
+and child are totally disjoint, and the two processes can communicate
+only through system calls (like reading or writing a file or a pipe).
 
-Au contraire, tous les coprocessus d'un même programme partagent le
-même espace d'adressage. Les seules données qui les différencient et
-qui ne sont pas partagées sont leur identité et leur pile d'exécution,
-ainsi que quelques informations pour le système (masque des signaux,
-état des verrous et conditions, \etc.). De ce point de vue, les
-coprocessus ressemblent aux coroutines.  Les coprocessus d'un même
-programme forment un groupe: ils sont tous traités de la même façon,
-sauf un, le coprocessus principal, qui a été créé au démarrage du
-programme et dont la terminaison entraîne l'arrêt de tous les autres
-coprocessus et l'arrêt du programme.  Lorsque nous parlons de
-plusieurs coprocessus, nous considérons implicitement qu'ils s'agit
-des coprocessus d'un même programme.
+In contrast, all the threads within a program share the same address
+space. The only information that is not shared, and differentiates one
+thread from another, is the thread's identity and its execution stack
+(along with certain system information such as the signal mask, the
+state of locks and conditions, \etc) From this viewpoint, threads
+resemble coroutines. The threads within a given program are all
+treated in the same fashion, except for the initial thread that was
+created when the program started. When this thread terminates, so do
+all the other threads and therefore the program as a whole. (Whenever
+we speak of multiple threads, we will implicitly mean threads within a
+given program.)
 
-À la différence des coroutines, qui ne peuvent pas s'exécuter en
-parallèle~---~l'une devant passer explicitement la main avant que
-l'autre ne puisse s'exécuter à son tour~---~les coprocessus s'exécutent
-en parallèle ou du moins tout se passe comme s'ils le faisaient, car
-ils peuvent être interrompus de façon préemptive par le système pour
-donner la main à d'autres coprocessus. De ce point de vue, les
-coprocessus ressemblent aux processus.
+But unlike coroutines, which pass control explicitly from one to another
+and cannot execute in parallel, threads can execute in parallel and
+can be scheduled preemptively by the system. From this viewpoint,
+threads resemble processes.
 
-Le partage de l'espace mémoire permet aux coprocessus de communiquer
-directement entre eux par leur mémoire commune.  Bien qu'en principe,
-deux processus n'aient pas besoin pour cela de passer par le système
-d'exploitation, le fait qu'ils s'exécutent en parallèle les oblige à
-se synchroniser au moment de la communication (l'un devant finir
-d'écrire avant que l'autre ne commence à lire), ce qui nécessite, en
-général, de passer par le système d'exploitation. La synchronisation
-entre coprocessus, quasiment indispensable pour toute communication,
-reste souvent une partie difficile de la programmation avec des
-coprocessus.  Elle peut se faire à l'aide de verrous et de conditions,
-ou bien de façon plus évoluée, en communiquant par des événements.
+The common address space permits threads to communicate directly among
+themselves using shared memory. The fact that threads can execute in
+parallel means that they must synchronize their access to shared data,
+so that one finishes writing before the other begins reading.
+Although not necessary in principle, in practice this requires going
+through the operating system. Synchronization is often a difficult
+part of programming with threads. It can be done with locks and
+conditions, or in a higher-level fashion with events.
 
-Le gain à l'utilisation des coprocessus par rapport aux processus
-reste le coût moindre à leur création et la possibilité d'échanger de
-grosses structures de données sans recopie, simplement en s'échangeant
-un pointeur.  Inversement, l'utilisation des coprocessus a un coût qui
-est de devoir bien gérer la synchronisation entre eux, y compris en
-cas d'erreur fatale dans l'un d'eux. En particulier un coprocesseur
-doit bien faire attention de libérer ses verrous et de préserver ses
-invariant avant de s'arrêter. Aussi, on pourra préférer les processus
-aux coprocessus lorsqu'on ne profite pas réellement des avantages de
-ces derniers.
+The advantages of threads over processes are the lower cost of
+creation and the ability to exchange large data structures simply by
+passing pointers rather than copying.
 
-\paragraph{Mise en {\oe}uvre en {\ocaml}}
+On the other hand, using threads incurs the cost of managing the
+synchronization among them, including the case of a fatal error in one
+of the threads. In particular, a thread must be careful to release its
+locks and preserve its invariant before stopping. Processes may also
+be preferable to threads when we cannot really benefit from the
+latter's advantages.
 
-Pour compiler une application utilisant des coprocessus natifs il faut faire:
+\paragraph{Implementation in {\ocaml}}
+
+To compile an application using native threads, use the following:
 \begin{lstlisting}
 ocamlc -thread unix.cma threads.cma -o prog mod1.ml mod2.ml mod3.ml
 
 ocamlopt -thread unix.cmxa threads.cmxa -o prog mod1.ml mod2.ml mod3.ml
 \end{lstlisting}
-Si l'outil de compilation \ml+ocamlbuild+ est utilisé il suffit
-simplement d'ajouter la ligne suivante dans le fichier \ml+_tags+~:
-%
+If the \ml+ocamlbuild+ tool is used, all that is needed is to add the
+following to the \ml+_tags+ file:
 \begin{lstlisting}
 <mod{1,2,3}.ml> : thread
 <prog.{native,byte}> : use_unix, thread
 \end{lstlisting}
-Si votre installation ne supporte pas les coprocessus natifs, vous
-pouvez voir à la section~\ref{sec/thread-implementation} ou dans le
-manuel comment utiliser les coprocessus simulés.  Le discours et les
-exemples de ce chapitre supposent des coprocessus natifs et ne
-s'applique pas, en général, aux coprocessus simulés.
+%
+If your installation does not support native threads, you can refer to
+section~\ref{sec/thread-implementation} or the manual for instructions
+how to use simulated (``VM-level'') threads.  The text and examples in
+this chapter assume native threads and do not apply, in general, to
+VM-level threads.
 
+\section{Creation and termination of threads}
 
-\section{Création et terminaison des coprocessus}
+The functions described in this section are defined in the
+\libmodule{Thread} module.\medskip
 
-Les fonctions décrites dans cette section sont définies dans le module
-\libmodule{Thread}.\medskip
-
-L'appel système \pthreadcall{create} \ml+f v+ crée un nouveau
-coprocessus dans lequel l'application de fonction \ml+f v+ est
-exécutée.  La création d'un coprocessus retourne à l'appelant une
-poignée sur le coprocessus fraîchement créé qui peut être utilisée
-pour son contrôle.
+The function \pthreadcall{create} \ml+f v+ creates a new thread that
+executes the function application \ml+f v+, and returns a handle that
+the caller can use to control the newly-created thread.
 %
 \begin{codefile}{tmpthread.mli}
 type t
@@ -118,49 +104,46 @@ type t
 val $\libvalue{Thread}{create}$ : ('a -> 'b) -> 'a -> t
 \end{listingcodefile}
 %
-Le calcul s'exécute de façon concurrente avec les calculs effectués
-par les autres coprocessus du programme.  Le coprocessus termine
-lorsque l'application \ml+f v+ termine.  Le résultat du calcul est
-simplement ignoré.  Si le coprocessus termine par une exception non
-rattrapée, celle-ci n'est pas propagée dans le coprocessus appelant ou
-principal mais simplement ignorée après affichage d'un message dans la
-sortie d'erreur. (Les autres coprocessus ont a priori évolué
-indépendemment et ne seraient pas en mesure de recevoir l'exception.)
+The calculation executes concurrently with the other threads in the
+program.  The thread terminates when the application \ml+f v+
+terminates, and the result of the calculation is simply ignored.  If
+the thread terminates with an uncaught exception, the exception is not
+propagated to any other thread: a message is printed on the standard
+error output and the exception is otherwise ignored.  (The other
+threads have proceeded independently and would not be able to
+receive the exception.)
 
-Un coprocessus peut aussi se terminer prématurément en appelant la
-fonction \ml+exit+ (du module \ml+Thread+), à ne pas confondre avec la
-fonction de même nom du module \ml+Pervasives+ qui termine le
-programme tout entier, {\ie} tous ses coprocessus.  L'appel système
-\pthreadcall{self} retourne la propre poignée d'un coprocessus.
+A thread can also terminate prematurely by calling the \ml+exit+
+function (in the \ml+Thread+ module), not to be confused with the
+function of the same name in the \ml+Pervasives+ module that
+terminates the entire program, {\ie} all its threads.  The
+\pthreadcall{self} function returns the handle of the calling thread.
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\indexlibvalue{Thread}{exit}$ : unit -> unit
 val $\libvalue{Thread}{self}$ : unit -> t
 \end{listingcodefile}
 %
-Le coprocessus principal d'un programme, qui est celui qui a lancé le
-premier d'autres coprocessus, exécute implicitement la fonction
-\ml+Pervasives.exit+ lorsqu'il termine.
+The initial thread of a program implicitly calls the
+\ml+Pervasives.exit+ function when it terminates.
 
-Si un coprocessus termine avant le coprocessus principal, alors il est
-désalloué immédiatement, et ne devient pas un fantôme comme dans le
-cas d'un processus Unix créé par \ml+fork+.  La bibliothèque {\ocaml}
-se charge de cette gestion.
+When another thread terminates before the initial thread, it is
+deallocated immediately by the {\ocaml} runtime library.  It does not
+become a zombie as in the case of a Unix process created by \ml+fork+.
 
-Nous en savons déjà assez pour proposer une alternative au modèle du
-serveur concurrent par \quotes{fork} (ou \quotes{double fork}) vu dans
-le cours précédent en faisant effectuer le traitement par un
-coprocessus plutôt que par un processus fils. Pour établir un tel
-serveur, il nous suffit de proposer une variante
-\ml+Misc.co_treatment+ de la fonction \ml+Misc.fork_treatment+ définie
-dans le chapitre~\ref{sec/sockets}.
+We already know enough to propose an alternative to the preceding
+model for the concurrent server that used \quotes{fork} (or
+\quotes{double fork})---by using a thread rather than a child process.
+To establish such a server, we introduce a variant
+\ml+Misc.co_treatment+ of the function \ml+Misc.fork_treatment+
+defined in Chapter~\ref{sec/sockets}.
 %
 \begin{codefile}{misc.mli}
 val co_treatment : 
 file_descr -> (file_descr * sockaddr -> unit) -> 
 file_descr * sockaddr -> unit
-(** same as [sequential_treament] but the treatment is concurrently
- performed by another thread. It is the responsability of the treatment 
+(** same as [sequential_treatment] but the treatment is concurrently
+ performed by another thread. It is the responsibility of the treatment 
  to close file_descr when completed. *)
 \end{codefile}
 %
@@ -170,68 +153,68 @@ let co_treatment server_sock service (client_descr, _ as client) =
   with exn -> close client_descr; raise exn;;
 \end{listingcodefile}
 %
-Si le coprocessus a pu être créé, le traitement est entièrement pris
-en compte par la fonction \ml+service+ y compris la fermeture de
-\ml+client_descr+.  Sinon, on ferme le descripteur \ml+client_descr+
-(le client est abandonné), et on laisse le programme principal traiter
-l'erreur.
+If the thread was successfully created, the treatment is handled
+entirely by the \ml+service+ function, including closing
+\ml+client_descr+.  Otherwise, we close the \ml+client_descr+
+descriptor, the client is abandoned, and we let the main program
+handle the error.
 
-Attention, toute la difficulté du coserveur est cachée dans la
-fonction \ml+service+ qui doit traiter la connexion avec robustesse et
-jusqu'à la déconnexion. Dans le cas du serveur concurrent où le
-service est exécuté par un autre processus, une erreur fatale pendant
-le service conduisant à la mort prématurée du service produit par
-défaut le bon comportement qui est de fermer la connexion, car le
-système ferme les descripteurs à la mort d'un processus.  Il n'en est
-plus de même dans le cas où le service est exécuté par un coprocessus,
-car les descripteurs entre les différents coprocessus sont par défaut
-partagés et ne sont pas fermés à la mort du coprocessus. C'est donc au
-coprocessus de fermer ses descripteurs avant de mourir. De plus, un
-coprocessus ne peut pas appeler \ml+Pervasives.exit+ dans le cas d'une
-erreur fatale dans le traitement d'un service, car celle-ci arrêterait
-non seulement le service mais aussi le serveur.  Appelé
-\ml+Thread.exit+ n'est souvent pas non plus une solution, car on
-risque de ne pas avoir bien désalloué les ressources ouvertes, et en
-particulier la connexion.  Une solution consiste à lever une exception
-signifiant un arrêt fatal (par exemple une exception \ml+Exit+)
-provoquant l'exécution du code de finalisation à sa remontée.  Pour
-des raisons analogues, il est essentiel que le signal \ml+sigpipe+
-soit dans un traitement du service par coprocessus, remplaçant l'arrêt
-immédiat du coprocessus par la levée d'une exception \ml+EPIPE+.
+Note that all the difficulty of the co-server is hidden in the
+\ml+service+ function, which must handle the connection robustly until
+disconnection.  In the case of a concurrent server where the service
+is executed by another process, premature termination of the service
+due to a fatal error produces by default the desired behavior---closing
+the connection---because the system closes the file descriptors when a
+process exits.  But in the case where the service is executed by a
+thread, the descriptors of the different threads are shared by default
+and not closed at the termination of the thread.  It is therefore up
+to the thread to close its descriptors before exiting.  In addition, a
+thread cannot call \ml+Pervasives.exit+ in the case of a fatal error
+during the handling of a service, because it would stop not only the
+service but also the entire server.  Calling \ml+Thread.exit+ is often
+not a solution either, because we risk not having properly
+deallocated the thread's open resources, and in particular the
+connection.
 
-\section{Mise en attente}
+One solution consists of raising an exception to signify a fatal stop
+(for example an \ml+Exit+ exception), causing finalization code to be
+executed as it is handled.  For similar reasons, it is essential to
+block the \ml+SIGPIPE+ signal during the handling of a service by a
+thread, replacing the immediate termination of the thread by the
+raising of an \ml+EPIPE+ exception.
 
-Les fonctions décrites dans cette section sont définies dans le module
-\libmodule{Thread}.\medskip
+\section{Waiting}
 
-L'appel système \pthreadcall{join} permet à un coprocessus d'en attendre un
-autre.  
+The functions described in this section are defined in the
+\libmodule{Thread} module.\medskip
+
+The \pthreadcall{join} function allows one thread to wait for another
+to finish.
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\libvalue{Thread}{join}$ : t -> unit
 \end{listingcodefile}
 %
-Le coprocessus appelant est alors suspendu jusqu'à ce que celui dont
-l'identité est passée en argument ait terminé son exécution.  Cet
-appel peut également être utilisé par le coprocessus principal pour
-attendre que tous les autres aient retourné avant de terminer lui-même
-et de terminer le programme (le comportement par défaut étant de tuer
-les autres coprocessus sans attendre leur terminaison).
+The calling thread is suspended until the thread with the given
+identity has terminated its execution. This function can also be used
+by the principal thread to wait for all the other threads to finish
+before terminating itself and the program. (The default behavior is to
+kill the other threads without waiting for them to terminate.)
 
-Bien que cet appel soit bloquant donc du type \quotes{long}, il est
-relancé automatiquement à la réception d'un signal: il est
-effectivement interrompu par un signal, le handler est traité, puis
-l'appel est relancé.  On ne revient donc de l'appel que quand le
-coprocessus à réellement terminé et l'appel ne doit jamais lever
-l'exception \ml+EINTR+. Du point de vue du programmeur OCaml, cela se
-comporte comme si le signal était reçu au moment où l'appel retourne.
+Although this call is blocking and therefore the \quotes{long} kind, it
+is restarted automatically when a signal is received: it is
+effectively interrupted by a signal, the handler is invoked, then the
+call is restarted.  The call therefore does not return until the
+thread has really terminated, and the call never raises the \ml+EINTR+
+exception.  From the viewpoint of the OCaml programmer, it behaves as
+if the signal was received at the moment when the call returns.
 
-Un coprocessus ne retourne pas, car il s'exécute de façon asynchrone.
-Mais son action peut être observée~---~heureusement~!~---~par ses
-effets de bords.  Par exemple, un coprocessus peut placer le résultat
-d'un calcul dans une référence qu'un autre coprocessus ira consulter
-après s'être assuré de la terminaison du calcul.  Nous illustrons cela
-dans l'exemple suivant.
+A thread does not return, since it is executed asynchronously.  But
+its action can be observed---luckily!---by its side effects.  For
+example, one thread can place the result of a computation in a
+reference that another thread will consult after making sure that the
+calculation has finished.  We will illustrate this in the following
+example.
 %
 \begin{codefile}{tmpthread.ml}
 open Thread;;
@@ -251,34 +234,31 @@ let coexec (f : 'a -> 'b) (x : 'a) : unit -> 'b =
 let v1 = coexec succ 4 and v2 = coexec succ 5 in v1()+v2();;
 \end{listingcodefile}
 
-Le système peut suspendre un coprocessus pour donner temporairement la
-main à un autre ou parce qu'il est en attente d'une ressource utilisée
-par un de ses coprocessus (verrous et conditions, par exemple) ou par
-un autre processus (descripteur de fichier, par exemple). Un
-coprocessus peut également se suspendre de sa propre initiative.  La
-fonction \ml+yield+ permet à un coprocessus de redonner la main
-prématurément (sans attendre la préemption par le système).
+The system can suspend one thread in order to give control temporarily
+to another, or because it is waiting for a resource being used by
+another thread (locks and conditions, for example) or by another
+process (file descriptors, for example).  A thread can also suspend
+itself voluntarily.  The \ml+yield+ function allows a thread to give
+up control explicitly (without waiting for preemption by the system).
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\indexlibvalue{Thread}{yield}$ : unit -> unit
 \end{listingcodefile}
 %
-C'est une indication pour le gestionnaire de coprocessus, mais son
-effet peut être nul, par exemple, si aucun coprocessus ne peut
-s'exécuter immédiatement. Le système peut donc décider de redonner la
-main au même coprocessus.
+It is a hint for the thread scheduler, but it may have no effect, for
+example if no other thread can execute immediately.  The system can
+therefore decide to give control back to the same thread.
 
-Inversement, il n'est pas nécessaire d'exécuter \ml+yield+ pour
-permettre à d'autres coprocessus de s'exécuter, car le système se
-réserve le droit d'exécuter lui-même la commande \ml+yield+ à tout
-moment. En fait, il exerce ce droit à intervalles de temps
-suffisamment rapprochés pour permettre à d'autres coprocessus de
-s'exécuter et donner l'illusion à l'utilisateur que les coprocessus
-s'exécutent en parallèle, même sur une machine mono-processeur.
+Conversely, it is not necessary to execute \ml+yield+ to permit other
+threads to execute, because the system reserves the right to execute
+the \ml+yield+ command itself at any moment.  In fact, it exercises
+this right sufficiently often to permit other threads to execute and
+to give the illusion that the threads are running in parallel, even on
+a uniprocessor machine.
 
 \begin{example}
-On peut reprendre et modifier l'exemple~\ref{ex/forksearch} 
-pour utiliser des coprocessus plutôt que des processus. 
+We can revisit example~\ref{ex/forksearch} and modify it to use
+threads rather than processes.
 %
 \begin{codefile}{thpsearch.ml}
 open Forksearch
@@ -303,53 +283,51 @@ let arr = Array.sub Sys.argv 2 (Array.length Sys.argv - 2) in
 Pervasives.exit (if psearch 1 ((=) Sys.argv.(1)) arr then  0 else 1);;
 \end{codefile}
 %
-La fonction \ml+psearch k f v+ recherche avec \ml+k+ coprocessus en
-parallèle une occurrence dans le tableau satisfaisant la fonction
-\ml+f+.  La fonction \ml+pcond+ permet d'interrompre la recherche en
-cours dès qu'une réponse a été trouvée. Tous les coprocessus partagent
-la même référence \ml+found+: ils peuvent donc y accéder de façon
-concurrente.  Il n'y a pas de section critique entre les différents
-coprocessus car s'ils écrivent en parallèle dans cette ressource, ils
-écrivent la même valeur.  Il est important que les coprocessus
-n'écrivent pas le résultat de la recherche quand celui-ci est faux!
-par exemple le remplacement de la ligne~\ref{prog:search} par
+The function \ml+psearch k f v+ searches with \ml+k+ threads in
+parallel for an array element satisfying the function \ml+f+.
+The function \ml+pcond+ allows the search to be interrupted when an
+answer has been found.  All the threads share the same reference
+\ml+found+: they can therefore access it concurrently.  No critical
+section is required, because if different threads write to this resource
+in parallel, they write the same value.  It is important that the
+threads do not write the result of the search when it is false!
+For example, replacing line~\ref{prog:search} by
 %
 \begin{lstlisting}
 let search v = found := !found && simple_search pcond v
 \end{lstlisting}
 %
-ou même:
+or even:
 %
 \begin{lstlisting}
 let search v = let r = simple_search pcond v in found := !found && r 
 \end{lstlisting}
 %
-serait incorrect.
+would be incorrect.
 \end{example}
 
-La recherche en parallèle est intéressante même sur une machine
-mono-processeur si la comparaison des éléments peut être bloquée
-temporairement (par exemple par des accès disques ou, mieux, des
-connexions réseau). Dans ce cas, le coprocessus qui effectue la
-recherche passe la main à un autre et la machine peut donc continuer
-le calcul sur une autre partie du tableau et revenir au coprocessus
-bloqué lorsque sa ressource sera libérée.
+The parallel search is interesting even on a uniprocessor machine if
+the comparison of elements could be blocked temporarily (for example by
+disk accesses or network connections).  In this case, the thread
+performing the search passes control to another and the machine can
+therefore continue the computation on another part of the array and
+return to the blocked thread when its resource is free.
 
-L'accès à certains éléments peut avoir une latence importante, de
-l'ordre de la seconde s'il faut récupérer de l'information sur le
-réseau. Dans ce cas, la différence de comportement entre une recherche
-séquentielle et une recherche en parallèle devient flagrante.
+Access to certain elements can have significant latency, on the order
+of a second if information must be retrieved over the network.  In
+this case, the difference in behavior between a sequential search and
+a parallel search becomes obvious.
 
 \begin{exercise}
 \label{ex/qsort}
-Paralléliser le tri rapide (quicksort) sur des tableaux. 
+Parallelize quicksort on arrays.
 \end{exercise}
 \begin{answer}
-Le tri rapide se prête bien à une parallélisation, car le tri se fait
-récursivement sur des sous-tableaux indépendants et peut être délégué
-à des coprocessus avec pour seule synchronisation d'attendre que tous
-les coprocessus aient terminé leur tri pour affirmer que le
-sous-tableau est trié.
+Quicksort lends itself well to parallelization, because the sorting is
+done recursively on independent sub-arrays.  This can be delegated to
+threads whose only synchronization is to wait for all the threads to
+finish their sorting, in order for the sub-array to be sorted.
+
 \begin{codefile}{thsort.ml}
 let swap arr i j =
   let tmp = arr.(i) in
@@ -389,51 +367,48 @@ qsort (<=) arr;
 Array.iter print_endline arr;;
 \end{codefile}
 %
-Il serait correct, mais inintéressant d'intervertir les lignes 20 et
-21. En effet, cela aurait pour conséquence d'attendre que la partie
-base du tableau soit triée pour lancer le tri de la partie haute.  On
-obtiendrait alors le comportement d'un programme séquentiel, plus le
-coût des coprocessus sans en retirer aucun bénéfice.
+It would be correct, but uninteresting, to exchange lines 20 and 21.
+In effect, that would wait for the lower portion of the array to be
+sorted before starting the sort of the upper portion.  We would thus
+obtain the behavior of a sequential program, with the additional cost
+of threads but without obtaining any benefit.
 
-En pratique, on devrait limiter la parallélisation à un facteur
-raisonnable et continuer de façon séquentielles au delà.
+In practice, we should limit parallelization to a reasonable factor
+and continue sequentially after that.
 \end{answer}
 
-Les autres formes de suspension sont liées à des ressources du système
-d'exploitation. Un coprocessus peut se suspendre pendant un certain
-temps en appelant \ml+delay s+. Une fois \ml+s+ secondes écoulées, il
-pourra être relancé.
+The other forms of suspension are tied to operating system resources.
+A thread can be suspended for a certain time by calling \ml+delay s+.
+Once \ml+s+ seconds elapse, it can be restarted.
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\indexlibvalue{Thread}{delay}$ : float -> unit
 \end{listingcodefile}
 %
-Cette primitive est fournie pour des raisons de portabilité avec les
-coprocessus simulés, mais \ml+delay s+ est simplement une abréviation
-pour \ml+ignore (Unix.select [] [] [] s)+. Cet appel, contrairement à
-\ml+join+, n'est pas relancé lorsqu'il est interrompu par un signal.
+This primitive is provided for portability with simulated threads, but
+\ml+delay s+ is simply an abbreviation for
+\ml+ignore (Unix.select [] [] [] s)+. This call, unlike \ml+join+, is
+not restarted when it is interrupted by a signal.
 
 %% Un processus peut attendre sur un signal. 
 %% \begin{lstlisting}
 %% val $\indexlibvalue{Thread}{wait_signal} : int -> int * process_status
 %% \end{lstlisting}
 
-Pour synchroniser un coprocessus avec une opération externe, on peut
-utiliser la commande \indexvalue{select}. Bien entendu, celle-ci ne
-bloquera que le coprocessus appelant et non le programme tout entier.
-(Le module \ml+Thread+ redéfinit cette fonction, car dans le cas des
-coprocessus simulés, elle ne doit pas appeler directement cette du
-module \ml+Unix+, ce qui bloquerait le programme tout entier, donc
-tous les coprocessus. Il faut donc utiliser
-\indexlibvalue{Thread}{select} du module \ml+Thread+ et non
-\ml+Unix.select+, même si les deux sont équivalents dans le cas des
-coprocessus natifs.)
+To synchronize a thread with an external operation, we can use the
+\indexvalue{select} command. Note that this will block only the
+calling thread and not the entire program.  (The \ml+Thread+ module
+redefines this function, because in the case of simulated threads
+calling the one in the \ml+Unix+ module would block the whole program
+and therefore all the threads.  It is therefore necessary to use
+\indexlibvalue{Thread}{select} from the \ml+Thread+ module and not
+\ml+Unix.select+, even if the two are equivalent in the case of native
+threads.)
 
 \begin{example}
 \label{ex/crible-copro}
-Pour faire fonctionnner le crible d'Ératosthène avec des coprocessus
-plutôt que par duplication de processus Unix, il suffit de remplacer
-les lignes {30--41} par
+To make the Sieve of Eratosthenes work with threads instead of by
+duplication of Unix processes, it suffices to replace lines {30--41} by
 %
 \begin{codefile}{thcrible.ed}
 f th/crible.ml
@@ -455,7 +430,7 @@ r finalcrible.ml
       Thread.join p
 \end{listingcodefile}
 %
-et les lignes {46--52} par
+and lines {46--52} by
 %
 \begin{codefile}{thcrible.ed}
 .
@@ -475,8 +450,8 @@ et les lignes {46--52} par
 wq
 \end{codefile}
 %
-Toutefois, il ne faut espérer aucun gain significatif sur cet exemple
-qui utilise peu de processus par rapport au temps de calcul.
+However, we cannot expect any significant gain from this example,
+which uses few processes relative to computation time.
 \end{example}
 
 %% Pour attendre sur un seul descripteur de fichier (en écriture ou en
@@ -494,55 +469,54 @@ qui utilise peu de processus par rapport au temps de calcul.
 %% Expliquer la différence entre la primitive \ml+wait\_pid+ et
 %% \ml+Unix.waitpid+. 
 
-\section{Synchronisation entre coprocessus: les verrous}
-Les fonctions de cette section sont définies dans le module
-\libmodule{Mutex} (pour \ml+Mut+ual \ml+ex+clusion, en anglais).\medskip
+\section{Synchronization among threads: locks}
+The functions in this section are defined in the
+\libmodule{Mutex} module (as in \ml+Mut+ual \ml+ex+clusion).\medskip
 
-Nous avons évoqué ci-dessus un problème d'accès concurrent aux ressources
-mutables. En particulier, le scénario suivant illustre le problème d'accès
-aux ressources partagées. Considérons un compteur $c$ et deux processus $p$
-et $q$, chacun incrémentant en parallèle le même compteur~$c$.
+We mentioned above a problem of concurrent access to mutable
+resources. In particular, the following scenario illustrates the
+problem of access to shared resources.  Consider a counter $c$ and two
+processes $p$ and $q$, each incrementing the counter in parallel.
 %
 \begin{myfigure}
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
-\node at (-1,0.75) {Coprocessus $p$};
-\node at (-1,0) {Coprocessus $q$};
-\node at (-1,-1){Valeur de $c$};
+\node at (-1,0.75) {Thread $p$};
+\node at (-1,0) {Thread $q$};
+\node at (-1,-1){Value of $c$};
 
-\node at (1,0.75) {lit $k$};
+\node at (1,0.75) {read $k$};
 \node at (1,-1) {$k$};
 
-\node at (2.5,0.0) {lit $k$};
+\node at (2.5,0.0) {read $k$};
 \node at (2.5,-1) {$k$};
 
-\node at (4.5,0) {écrit $k+1$};
+\node at (4.5,0) {write $k+1$};
 \node at (4.5,-1) {$k+1$};
 
-\node at (6.5,0.75) {écrit $k+1$};
+\node at (6.5,0.75) {write $k+1$};
 \node at (6.5,-1) {$k+1$};
 
 \draw[->] (-2.5, -0.5) -- (8.3, -0.5);
 
-\node at (8.5, -0.5) [anchor=west]{temps};
+\node at (8.5, -0.5) [anchor=west]{time};
 \end{tikzpicture}
 \end{myimage}
-\caption {Compétition pour l'accès à une ressource partagée.}
+\caption {Competition for access to a shared resource.}
 \label{fig/competition}
 \end{myfigure}
 %
-Supposons le scénario décrit dans la Figure~\ref {fig/competition}.
-Le coprocessus $p$ lit la valeur du compteur $c$, puis donne la main à
-$q$.  À son tour, $q$ lit la valeur de $c$ puis écrit la valeur $k+1$
-dans $c$. Le processus $p$ reprend la main et écrit la valeur $k+1$
-dans $c$. La valeur finale de $c$ est donc $k+1$ au lieu de $k+2$.
+Assume the scenario described in figure~\ref {fig/competition}.
+Thread $p$ reads the value of counter $c$, then gives control to $q$.
+In its turn, $q$ reads the value of $c$, then writes the value $k+1$
+to $c$.  The thread $p$ resumes control and writes the value $k+1$ to
+$c$. The final value of $c$ is therefore $k+1$ instead of $k+2$.
 
-Ce problème classique peut être résolu en utilisant des verrous qui
-empêchent l'entrelacement arbitraire de $p$ et $q$.
+This classic problem can be resolved by using locks that
+prevent arbitrary interleaving of $p$ and $q$.
 
-Les verrous sont des objets partagés par l'ensemble des coprocessus
-d'un même programme qui ne peuvent être possédés que par un seul
-coprocessus à la fois. Un verrou est créé par la fonction
+Locks are shared objects that can be held by at most a single thread
+within a program at a time. A lock is created by the function
 \pthreadcall[mutex]{create}.
 %
 \begin{codefile}{tmpmutex.mli}
@@ -553,50 +527,46 @@ coprocessus à la fois. Un verrou est créé par la fonction
 val $\libvalue{Mutex}{create}$ : unit -> t
 \end{listingcodefile}
 %
-Cette opération ne fait que construire le verrou mais ne le bloque
-pas. Pour prendre un verrou déjà existant, il faut appeler la fonction
-\pthreadcall[mutex]{lock} en lui passant le verrou en argument. Si le
-verrou est possédé par un autre processus, alors l'exécution du
-processus appelant est gelée jusqu'à ce que le verrou soit
-libéré. Sinon le verrou est libre et l'exécution continue en empêchant
-tout autre processus d'acquérir le verrou jusqu'à ce que celui-ci soit
-libéré. La libération d'un verrou doit se faire explicitement par le
-processus qui le possède, en appelant \pthreadcall[mutex]{unlock}.
+This operation a constructs a new lock, initially not held by any thread.
+To acquire an existing lock, it is necessary to call the function
+\pthreadcall[mutex]{lock} with the lock as argument. If the lock is
+held by another thread, the caller is frozen until the lock is released.
+A lock must be released explicitly by the thread that holds it, by
+calling \pthreadcall[mutex]{unlock}.
 %
 \begin{listingcodefile}{tmpmutex.mli}
 val $\libvalue{Mutex}{lock}$ : t -> unit
 val $\libvalue{Mutex}{unlock}$ : t -> unit
 \end{listingcodefile}
 %
-L'appel système \ml+lock+ se comporte comme \ml+Thread.join+ vis-à-vis
-des signaux: si le coprocessus reçoit un signal pendant qu'il exécute
-\ml+lock+, le signal sera pris en compte ({\ie} le runtime {\ocaml}
-informé du déclanchement du signal), mais le coprocessus se remet en
-attente de telle façon que \ml+lock+ ne retourne effectivement que
-lorsque le verrou a effectivement été acquis et bien sûr \ml+lock+ ne
-levera pas l'exception \ml+EINTR+. Le traitement réel du signal par
-{\ocaml} se fera seulement au retour de \ml+lock+.
+The \ml+lock+ call behaves like \ml+Thread.join+ with respect to
+signals: if the thread receives a signal while executing \ml+lock+,
+the signal will be noted ({\ie} the {\ocaml} runtime will be notified
+that the signal has arrived), but the thread will continue to wait so
+that \ml+lock+ effectively returns only when the lock has been
+acquired, and never raises the \ml+EINTR+ exception.  The real
+treatment of the signal by {\ocaml} will happen only upon the return
+from \ml+lock+.
 
-On peut également tenter de prendre un verrou sans bloquer en appelant
+We can also try to acquire a lock without blocking by calling
 \pthreadcall[mutex]{trylock}
 %
 \begin{listingcodefile}{tmpmutex.mli}
 val $\libvalue{Mutex}{try\_lock}$ : t -> bool
 \end{listingcodefile}
 %
-Cette fonction retourne \ml+true+ si le verrou a pu être pris (il
-était donc libre) et \ml+false+ sinon. Dans ce dernier cas,
-l'exécution n'est pas suspendue, puisque le verrou n'est pas pris. Le
-coprocessus peut donc faire autre chose et éventuellement revenir
-tenter sa chance plus tard.
+This function returns \ml+true+ if the lock has been acquired and
+\ml+false+ otherwise.  In the latter case, execution is not suspended
+since the lock is not acquired. The thread can therefore do something
+else and eventually return and try its luck later.
 
 \begin{example}
-Incrémenter un compteur global utilisé par plusieurs coprocessus pose
-un problème de synchronisation: les instants entre la lecture de la
-valeur du compteur et l'écriture de la valeur incrémentée sont dans
-une région critique, {\ie} deux coprocessus ne doivent pas être en
-même temps dans cette région.  La synchronisation peut facilement être
-gérée par un verrou.
+
+Incrementing a global counter used by several threads poses a
+synchronization problem: the instants between reading the value of the
+counter and writing the incremented value are in a critical region,
+{\ie} two threads cannot be in this region at the same time. The
+synchronization can easily be managed with a lock.
 %
 \begin{listingcodefile}{cthread.ml}
 type counter = { lock : Mutex.t; mutable counter : int }
@@ -607,16 +577,16 @@ let addtocounter c k =
   Mutex.unlock c.lock;;
 \end{listingcodefile}
 %
-La seule consultation du compteur ne pose pas de problème.  Elle peut
-être effectuée en parallèle avec une modification du compteur, le
-résultat sera simplement la valeur du compteur juste avant ou juste
-après sa modification, les deux réponses étant cohérentes.
+The sole read operation on the counter poses no problem. It can be
+performed in parallel with a modification of the counter: the result
+will simply be the value of the counter just before or just after the
+modification, both results being consistent.
 \end{example}
 
-Un motif fréquent est la prise de verrou temporaire pendant un appel
-de fonction. Il faut bien sûr prendre soin de le relâcher à la fin de
-l'appel que l'appel ait réussi ou échoué. On peut abstraire ce
-comportement dans une fonction de bibliothèque:
+A common pattern is to hold a lock temporarily during a function call.
+It is of course necessary to make sure to release the lock at the end
+of the call, whether the call succeeded or failed. We can abstract
+this behavior in a library function:
 \begin{codefile}{misc.mli}
 val run_with_lock : Mutex.t -> ('a -> 'b) -> 'a -> 'b
 \end{codefile}
@@ -624,7 +594,7 @@ val run_with_lock : Mutex.t -> ('a -> 'b) -> 'a -> 'b
 let run_with_lock l f x = 
   Mutex.lock l; try_finalize f x Mutex.unlock l
 \end{listingcodefile}
-Dans l'exemple précédent, on aurait ainsi pu écrire: 
+In the preceding example, we could also have written:
 \begin{codefile}{cthread.ml}
 open Misc;;
 \end{codefile}
@@ -634,9 +604,8 @@ let addtocounter c =
 \end{listingcodefile}
 
 \begin{example}
-Une alternative au modèle du serveur avec coprocessus est de lancer un
-nombre de coprocessus à l'avance qui traitent les requêtes en
-parallèle.
+An alternative to the model of the server with threads is to start a
+number of threads in advance which handle requests in parallel.
 %
 \begin{codefile}{farm.mli}
 open Unix
@@ -647,13 +616,12 @@ val tcp_farm_server :
   int -> (file_descr -> file_descr * sockaddr -> 'a) -> sockaddr -> unit
 \end{listingcodefile}
 %
-La fonction \ml+tcp_farm_server+ se comporte comme \ml+tcp_server+
-mais prend un argument supplé\-men\-taire qui est le nombre de
-coprocessus à lancer qui vont chacun devenir serveurs sur la même
-adresse.  L'intérêt d'une ferme de coprocessus est de réduire le temps
-de traitement de chaque connexion en éliminant le temps de création
-d'un coprocessus pour ce traitement, puisque ceux-ci sont créés une
-fois pour toute.
+The \ml+tcp_farm_server+ function behaves like \ml+tcp_server+ but
+takes an additional argument which is the number of threads to start,
+each of which will become a server at the same address. The advantage
+of a pool of threads is to reduce the time to handle each connection
+by eliminating the cost of creating a thread for it, since they are
+created once and for all.
 %
 \begin{codefile}{farm.ml}
 open Sys;;
@@ -673,81 +641,76 @@ let tcp_farm_server n treat_connection addr =
   for i = 1 to n-1 do ignore (Thread.create serve ()) done;
   serve ();;
 \end{listingcodefile}
-La seule précaution à prendre est d'assurer l'exclusion mutuelle
-autour de \ml+accept+ afin qu'un seul des coprocessus n'accepte une
-connexion au même moment. L'idée est que la fonction
-\ml+treat_connection+ fasse un traitement séquentiel, mais ce n'est
-pas une obligation et on peut effectivement combiner une ferme de
-processus avec la création de nouveaux coprocessus, ce qui peut
-s'ajuster dynamiquement selon la charge du service.
+The only precaution to take is to ensure mutual exclusion around the
+\ml+accept+ so that only one of the threads accepts a connection at a
+time. The idea is that the \ml+treat_connection+ function performs a
+sequential treatment, but it is not a requirement---we can
+effectively combine a pool of threads with the creation of new
+threads, which can be dynamically adjusted depending on the load.
 \end{example}
 
-La prise et le relâchement d'un verrou est une opération peu coûteuse
-lorsqu'elle réussit sans bloquer. Elle est en général implémentée par
-une seule instruction \quotes{test-and-set} que possèdent tous les
-processeurs modernes (plus d'autres petits coûts induits éventuels
-tels que la mise à jour des caches). Par contre, lorsque le verrou
-n'est pas disponible, le processus doit être suspendu et reprogrammé
-plus tard, ce qui induit alors un coût supplémentaire significatif. Il
-faut donc retenir que c'est la suspension réelle d'un processus pour
-donner la main à un autre et non sa suspension potentielle lors de la
-prise d'un verrou qui est pénalisante. En conséquence, on aura presque
-toujours intérêt à relâcher un verrou dès que possible pour le
-reprendre plus tard si nécessaire plutôt que d'éviter ces deux
-opérations, ce qui aurait pour effet d'agrandir la région critique et
-donc la fréquence avec laquelle un autre coprocessus se trouvera
-effectivement en compétition pour le verrou et dans l'obligation de se
-suspendre.
+Acquisition of a lock is an inexpensive operation when it succeeds
+without blocking. It is generally implemented with a single
+\quotes{test-and-set} instruction provided by all modern processors
+(plus other small costs that are involved, such as updating caches).
+However, when the lock is not available, the process must be suspended
+and rescheduled later, which involves a significant additional cost.
+We must therefore incur this penalty only for a real suspension of a
+process in order to give control to another, and not for its potential
+suspension during the acquisition of a lock.  Consequently, we will
+almost always want to release a lock as soon as possible and take it
+back later if necessary, rather than simply holding onto the lock.
+Avoiding these two operations would have the effect of enlarging the
+critical region and therefore the frequency with which another thread
+finds itself effectively in competition for the lock and in need of
+suspension.
 
-Les verrous réduisent l'entrelacement. En contrepartie, ils risquent
-de provoquer des situations d'interblocage. Par exemple, il y a
-interblocage si le coprocessus $p$ attend un verrou $v$ possédé par le
-coprocessus $q$ qui lui-même attend un verrou $u$ possédé par
-$p$. (Dans le pire des cas, un processus attend un verrou qu'il
-possède lui-même...)  La programmation concurrente est difficile, et
-se prémunir contre les situations d'interblocage n'est pas toujours
-facile. Une façon simple et souvent possible d'éviter cette situation
-consiste à définir une hiérarchie entre les verrous et de s'assurer
-que l'ordre dans lequel on prendra dynamiquement les verrous respecte
-la hiérarchie: on ne prend jamais un verrou qui n'est pas dominé par
-tous les verrous que l'on possède déjà.
+Locks reduce interleaving.  In return, they increase the risk of
+deadlock.  For example, there is a deadlock if a thread $p$ waits for
+a lock $v$ held by a thread $q$ which itself waits for a lock $u$ held
+by $p$.  (In the worst case, a thread waits for a lock that it holds
+itself.)  Concurrent programming is difficult, and guarding against
+deadlock is not always easy.  A simple way of avoiding this situation
+that is often possible consists of defining a hierarchy among the
+locks and ensuring that the order in which the locks are acquired
+dynamically respects the hierarchy: a thread never acquires a lock
+unless that lock is dominated by all the other locks that the thread
+already holds.
 
-\section{Exemple complet: relais {\http}}
+\section{Complete example: {\http} relay}
 \label{ex/th-relais}
 
-On se propose de reprendre le relais {\http} développé dans le
-chapitre précédent pour servir les requêtes par des coprocessus.
+We will modify the {\http} relay developed in the preceding chapter
+so that it services requests using threads.
 
-Intuitivement, il suffit de remplacer la fonction
-\ml+establish_server+ qui crée un processus clone par une fonction qui
-crée un coprocessus. Il faut cependant prendre quelques précautions...
-En effet, la contrepartie des coprocessus est qu'ils partagent tous le
-même espace mémoire.  Il faut donc s'assurer que les coprocessus ne
-vont pas se \quotes{marcher sur les pieds} l'un écrasant ce que vient
-juste de faire l'autre.  Cela se produit typiquement lorsque deux
-coprocessus modifient en parallèle une même structure mutable.
+Intuitively, it suffices to replace the \ml+establish_server+ function
+that that creates a process clone with a function that creates a
+thread.  We must however take certain precautions.  The challenge
+with threads is that they share the entire memory space.  We must
+therefore ensure that the threads are not \quotes{stepping on each
+other's toes} with one undoing what was just done by another.
+That typically happens when two threads modify the same mutable
+structure in parallel.
 
-Dans le cas du serveur {\http}, il y a quelques changements à
-effectuer. Commençons par régler les problèmes d'accès aux ressources.
-La fonction \ml+proxy_service+ qui effectue le traitement de la
-connexion et décrite à la section~\ref{page/get_url} appelle, par
-l'intermédiaire des fonctions \ml+parse_host+, \ml+parse_url+ et
-\ml+parse_request+, la fonction \ml+regexp_match+ qui utilise la
-bibliothèque \ml+Str+. Or, cette bibliothèque n'est pas ré-entrante
-(le résultat de la dernière recherche est mémorisé dans une variable
-globale).  Cet exemple montre qu'il faut également se méfier des
-appels de fonctions qui sous un air bien innocent cachent des
-collisions potentielles. Dans ce cas, nous n'allons pas réécrire la
-bibliothèque \ml+Str+ mais simplement séquentialiser son utilisation.
-Il suffit (et il n'y a pas vraiment d'autres choix) de protéger les
-appels à cette bibliothèque par des verrous. Il faut quand même
-prendre la précaution de bien libérer le verrou au retour de la
-fonction, pour un retour anormal par une levée d'exception.
+In the case of the {\http} server, there are several changes to make.
+Let us start by resolving problems with access to resources.  The
+\ml+proxy_service+ function, described in section~\ref{page/get_url},
+handles the treatment of connections.  Via the intermediary functions
+\ml+parse_host+, \ml+parse_url+ and \ml+parse_request+, it calls the
+\ml+regexp_match+ function which uses the \ml+Str+ library.  However,
+this library is not re-entrant (the result of the last search is
+stored in a global variable). This example shows that we must beware
+of calls to innocent-looking functions that hide potential collisions.
+In this case we will not rewrite the \ml+Str+ library but simply
+sequentialize its use.  It suffices to protect calls to this library
+with locks (and there is really no other choice). We must still take
+the precaution of releasing the lock when returning from the function
+abnormally due to an exception.
 
-Pour modifier au minimum le code existant, il suffit de renommer la
-définition de \ml+regexp_match+ du module \ml+Url+ en
-\ml+unsafe_regexp_match+ puis de définir \ml+regexp_match+ comme une
-version protégée de \ml+unsafe_regexp_match+.
+To modify the existing code as little as possible, we can just rename
+the definition of \ml+regexp_match+ in the \ml+Url+ module as
+\ml+unsafe_regexp_match+ and then define \ml+regexp_match+ as a
+protected version of \ml+unsafe_regexp_match+.
 %
 \begin{codefile}{thurl.ed}
 f th/url.ml
@@ -762,42 +725,40 @@ let strlock = Mutex.create();;
 let regexp_match r string =
   Misc.run_with_lock strlock (unsafe_regexp_match r) string;;
 \end{listingcodefile}
-%
-La modification à l'air minime. Il faut toutefois remarquer que la
-fonction \ml+regexp_match+ regroupe à la fois le filtrage de
-l'expression et l'extraction de la chaîne filtrée. Il eût bien sûr été
-incorrect de protéger individuellement les fonctions
-\ml+Str.string_match+ et \ml+Str.matched_group+.
 
-Une autre solution serait de réécrire les fonctions d'analyse sans
-utiliser la bibliothèque \ml+Str+.  Mais il n'y a pas de raison pour
-un tel choix tant que la synchronisation des primitives de la
-bibliothèque reste simplement réalisable et ne s'avère pas être une
-source d'inefficacité.  Évidemment, une meilleure solution serait que
-la bibliothèque \ml+Str+ soit ré-entrante en premier lieu.
+The change is rather minimal.  It should be noted that the
+\ml+regexp_match+ function includes both the expression matching and
+the extraction of the matched groups.  It would definitely have been
+incorrect to protect the \ml+Str.string_match+ and
+\ml+Str.matched_group+ functions individually.
 
-Les autres fonctions appelées sont bien réentrantes, notamment la
-fonction \ml+Misc.retransmit+ qui alloue des tampons différents pour
-chaque appel.
+Another solution would be to rewrite the analysis functions without using
+the \ml+Str+ library.  But there is no reason for such a choice, since
+synchronizing the library primitives is easy to do and does not turn
+out to be a source of inefficiency.  Obviously, a better solution
+would be for the \ml+Str+ library to be re-entrant in the first place.
 
-Cependant, il reste encore quelques précautions à prendre vis à vis du
-traitement des erreurs.  Le traitement d'une connexion par coprocessus
-doit être robuste comme expliqué ci-dessus. En particulier, en cas
-d'erreur, il ne faut pas que les autres processus soit affectés,
-c'est-à-dire que le coprocessus doit terminer \quotes{normalement} en
-fermant proprement la connexion en cause et se remettre en attente
-d'autres connexions. Nous devons d'abord remplacer l'appel à \ml+exit+
-dans \ml+handle_error+ car il ne faut surtout pas tuer le processus en
-cours. Un appel à \ml+Thread.exit+ ne serait pas correct non plus, car
-la mort d'un coprocessus ne ferme pas ses descripteurs (partagés),
-comme le ferait le système à la mort d'un processus. Une erreur dans
-le traitement d'une connexion laisserait alors la connexion ouverte.
-La solution consiste à lever une exception \ml+Exit+ qui permet au
-code de finalisation de faire ce qu'il faut.  Nous devons maintenant
-protéger \ml+treat_connection+ pour rattraper toutes les erreurs:
-notamment \ml+Exit+ mais aussi \ml+EPIPE+ qui peut être levée si le
-client ferme prématurément sa connexion. Nous ferons effectuer ce
-traitement par une fonction de protection.
+The other functions that are called are already re-entrant, in particular
+the \ml+Misc.retransmit+ function that allocates different buffers for
+each call.
+
+However, there are still some precautions to take regarding error
+handling.  The handling of a connection by a thread must be robust, as
+explained above. In particular, in case of error, the other threads
+must not be affected. In other words, the thread must terminate
+\quotes{normally}, properly closing the connection in question and
+going back to accepting other pending connections.  We must first of
+all replace the call to \ml+exit+ in \ml+handle_error+ because it is
+essential not to kill the whole process.  A call to \ml+Thread.exit+
+would not be correct either, because thread termination does not close
+its (shared) descriptors, the way the system does for process
+termination.  An error in the handling of a connection would leave the
+connection open.  The solution consists of raising an \ml+Exit+
+exception that allows the finalization code to do what is required.
+We must now protect \ml+treat_connection+ by catching all errors, in
+particular \ml+Exit+ but also \ml+EPIPE+, which can be raised if the
+client closes the connection prematurely.  We will take care of this
+by using a protected function.
 %
 \begin{codefile}{thurl.ed}
 .
@@ -836,48 +797,42 @@ wq
 \end{codefile}
 
 \begin{exercise}[noanswer]
-Réécrire la version du proxy pour le protocole {\http}/1.1 à l'aide de
-coprocessus.
+Rewrite the proxy for the {\http}/1.1 protocol using threads.
 \end{exercise}
 
 \begin{exercise}[noanswer]
-Les coroutines peuvent être vues comme un cas très particulier des
-coprocessus où l'on force chaque processus à rendre la main
-explicitement avant qu'un autre puisse s'exécuter.  Donner une
-implémentation des coroutines à l'aide des coprocessus.
+Coroutines can be seen as a very particular kind of threads where each
+process must surrender control explicitly before another can execute.
+Give an implementation of coroutines using threads.
 \end{exercise}
 
-\section{Les conditions}
+\section{Conditions}
 
-Les fonctions décrites dans cette section sont définies dans le module
-\libmodule{Condition}.
+The functions described in this section are defined in the
+\libmodule{Condition} module.
 
-Le mécanisme de synchronisation par verrous est très simple, mais il
-n'est pas suffisant: les verrous permettent d'attendre qu'une donnée
-partagée soit libre, mais il ne permettent pas d'attendre la forme
-d'une donnée.  Remplaçons l'exemple du compteur par une file d'attente
-(premier entré/premier sorti) partagée entre plusieurs coprocessus.
-L'ajout d'une valeur dans la queue peut être synchronisé en utilisant
-un verrou comme ci-dessus, car quelque soit la forme de la queue, on
-peut toujours y ajouter un élément. Mais qu'en est-il du retrait d'une
-valeur de la queue?  Que faut-il faire lorsque la queue est vide? On
-ne peut pas garder le verrou en attendant que la queue se remplisse,
-car cela empêcherait justement un autre coprocessus de remplir la
-queue.  Il faut donc le rendre. Mais comment savoir quand la queue ne
-sera plus vide, sinon qu'en testant à nouveau périodiquement?  Cette
-solution appelée \quotes{attente active} n'est bien sûr pas
-satisfaisante. Ou bien elle consomme du temps de calcul inutilement
-(période trop courte) ou bien elle n'est pas assez réactive (période
-trop longue).
+Synchronization with locks is very simple, but it is not sufficient:
+locks allow waiting for shared data to be free, but do not allow
+waiting for the data to have a particular state.  Let us replace the
+example of a counter by a (first-in/first-out) queue shared among
+several threads.  Adding a value to the queue can be synchronized by
+using a lock as above, since no matter what the state of the queue,
+we can always add an element.  But what about removing an element
+from the queue?  What should be done when the queue is empty?  We
+cannot hold the lock while waiting for the queue to be filled, because
+that would completely prevent another thread from filling the queue.
+So it must be released.  But how can we know when the queue is no
+longer empty, except by testing it periodically?  This solution,
+called \quotes{busy-waiting}, is definitely not satisfactory.  Either
+it consumes computing cycles unnecessarily (period too short) or else
+it it is not reactive enough (period too long).
 
-Les \emph{conditions} permettent de résoudre ce problème.  Les
-conditions sont des objets sur lequel un coprocessus qui possède un
-verrou peut se mettre en attente jusqu'à ce qu'un autre coprocessus
-envoie un signal sur cette condition.
-
-Comme les verrous, les conditions sont des structures passives qui
-peuvent être manipulées par des fonctions de synchronisation. On peut
-les créer par la fonction \pthreadcall[cond]{create}.
+\emph{Conditions} provide a solution to this problem.  A thread that
+holds a lock can wait for a condition object until another thread
+sends a signal on that condition.  As with locks, conditions are
+passive structures that can be manipulated by synchronization
+functions.  They can be created by the \pthreadcall[cond]{create}
+function.
 %
 \begin{codefile}{tmpcondition.mli}
 type t
@@ -887,42 +842,41 @@ type t
 val $\libvalue{Condition}{create}$ : unit -> t
 \end{listingcodefile}
 %
-Un processus $p$ qui \emph{possède} déjà un verrou \ml+v+ peut se
-mettre en attente sur une condition \ml+c+ et le verrou \ml+v+ en
-appelant \pthreadcall[cond]{wait}.  Le processus $p$ informe le
-système qu'il est en attente sur la condition \ml+c+ et le verrou
-\ml+v+ puis libère le verrou \ml+v+ et s'endort.  Il ne sera réveillé
-par le système que lorsqu'un autre processus $q$ aura signalé un
-changement sur la condition \ml+c+ et lorsque le verrou \ml+v+ sera
-disponible; le processus $p$ tient alors à nouveau le verrou \ml+v+.
+A process $p$ that \emph{already holds} a lock \ml+v+ can wait on a
+condition \ml+c+ and the \ml+v+ by calling \pthreadcall[cond]{wait}.
+The process $p$ informs the system that it is waiting on the condition
+\ml+c+ and the lock \ml+v+, then releases the lock \ml+v+ and goes to
+sleep.  It will not be woken up by the system until another thread $q$
+signals a change on the condition \ml+c+ and the lock \ml+v+ is
+available; the process $p$ will then hold the lock \ml+v+ again.
 %
 \begin{listingcodefile}{tmpcondition.mli}
 val $\libvalue{Condition}{wait}$ : t -> Mutex.t -> unit
 \end{listingcodefile}
 %
-Attention! c'est une erreur d'appeler \ml+wait c v+ sans être en
-possession du verrou \ml+v+.  Le comportement de \ml+wait+ vis à vis
-des signaux est le même que pour \ml+Mutex.lock+.
+Note: it is an error to call \ml+wait c v+ without holding the lock
+\ml+v+.  The behavior of \ml+wait c v+ with respect to signals is the
+same as for \ml+Mutex.lock+.
 
-Lorsqu'un coprocessus signale un changement sur une condition, il peut
-demander ou bien que tous les coprocessus en attente sur cette
-condition soient réveillés (\pthreadcall[cond]{broadcast}), ou bien
-qu'un seul parmi ceux-ci soit réveillés (\pthreadcall[cond]{signal}).
+When a thread signals a change on a condition, it can either ask for
+all threads waiting on that condition to be woken up
+(\pthreadcall[cond]{broadcast}), or else for just one of them to be
+woken up (\pthreadcall[cond]{signal}).
 %
 \begin{listingcodefile}{tmpcondition.mli}
 val $\libvalue{Condition}{signal}$ : t -> unit
 val $\libvalue{Condition}{broadcast}$ : t -> unit
 \end{listingcodefile}
 %
-L'envoi d'un signal ou d'un broadcast sur une condition ne nécessite
-pas d'être en possession d'un verrou (à la différence de l'attente),
-dans le sens où cela ne déclenchera pas une erreur \quotes{système}.
+Sending a signal or a broadcast on a condition does not require
+holding a lock (unlike waiting), in the sense that it will not trigger
+a \quotes{system} error.
 %%
 %% Est-ce vrai? c'est à celui qui se met en attente à avoir pris le verrou
 %% avant de tester, puis fait wait. Il est donc sûr que la condition n'est
 %% pas vrai à ce moment là. 
 %% 
-Cependant, cela peut parfois être une erreur de programmation. 
+However, it can sometimes be a programming error.
 %% En effet, émettre un signal sans posséder le verrou sur
 %% lequel les récepteurs de ce signal sont en attente signifie que
 %% l'émission du signal n'est pas synchronisée avec la mise en attente et
@@ -930,45 +884,42 @@ Cependant, cela peut parfois être une erreur de programmation.
 %% interrompre: le signal sera alors ignoré et l'attente jamais
 %% interrompue (voir l'exemple des queues ci-dessous).  
 
-Le choix entre le réveil d'un coprocessus ou de tous les coprocessus
-dépend du problème.  Pour reprendre l'exemple de la file d'attente, si
-un coprocessus ajoute un élément dans une queue vide, il n'a pas
-besoin de réveiller tous les autres puisqu'un seul pourra
-effectivement retirer cet élément.  Par contre, s'il ajoute un nombre
-d'éléments qui n'est pas connu statiquement ou bien qui est très
-grand, il doit demander le réveil de tous les coprocessus. Attention!
-si l'ajout d'un élément dans une queue non vide n'envoie pas de
-signal, alors l'ajout d'un élément dans une queue vide doit envoyer un
-broadcast, car il pourrait être immédiatement suivi d'un autre ajout
-(sans signal) donc se comporter comme un ajout multiple. En résumé,
-soit chaque ajout envoie un signal, soit seul l'ajout dans une queue
-non vide envoie un broadcast. Le choix entre ces deux stratégies est
-un pari sur le fait que la queue est généralement vide (première
-solution) ou généralement non vide (deuxième solution).
+The choice between waking up one thread or all the threads depends on
+the problem.  To consider the example of the queue again, if a thread
+adds an element to an empty queue, there is no need to wake up all the
+others, since only one will effectively be able to remove that
+element.  On the other hand, if it adds a number of elements that is
+either not statically known or very large, it must wake up all the
+threads.  Note that if adding an element to a non-empty queue does not
+send a signal, then adding an element to an empty queue must send a
+broadcast, since it could be followed immediately by another addition
+(without a signal) and therefore behave like a multiple addition.
+% Note that the original says ``non vide'' (non-empty)
+% in the following sentence, which in incorrect.
+In summary, either send a signal on every addition, or send a
+broadcast only when adding to an empty queue.
+The choice between these two strategies is a bet on whether the queue
+is usually empty (first solution) or usually non-empty (second
+solution).
 
-Il est fréquent qu'un coprocessus n'ait qu'une approximation de la
-raison pour laquelle un autre peut être en attente sur une
-condition. Il va donc signaler sur cette condition par excès
-simplement lorsque la situation \emph{peut} avoir évolué pour un
-coprocessus en attente.  Un processus réveillé ne doit donc pas
-supposer que la situation a évolué pour lui et que la condition pour
-laquelle il est mis en attente est maintenant remplie. Il doit en
-général (presque impérativement) tester à nouveau la configuration, et
-si nécessaire se remettre en attente sur la condition.  Il ne s'agit
-plus cette fois-ci d'une attente active, car cela ne peut se passer
-que si un coprocessus à émis un signal sur la condition.
+Often, one thread knows only an approximation of the reason why
+another thread is waiting on a condition.  It will therefore signal
+the condition whenever the situation \emph{might} be what the other
+thread is waiting for.  An awakened thread, therefore, cannot assume
+that the condition it was waiting is now satisfied.  It must, in
+general, re-test the state of its shared data, and if necessary wait
+on the condition again.  This does not consitute busy-waiting, because
+it only happens when another thread signals the condition.
 
-Voici une autre raison qui justifie cette discipline: lorsqu'un
-coprocessus vient de fournir une ressource en abondance et réveille
-tous les autres par un \ml+broadcast+, rien n'empêche le premier
-réveillé d'être très gourmand et d'épuiser la ressource en totalité.
-Le second réveillé devra se rendormir en espérant être plus chanceux
-la prochaine fois.
+Here is another justification for this approach: when a thread has
+just produced a lot of some resource and wakes all the others using a
+\ml+broadcast+, nothing prevents the first one that wakes up from
+being greedy and exhausting the entire resource.  The second one to
+wake up must go back to sleep, hoping to be luckier next time.
 
-Nous pouvons maintenant donner une solution concrète pour les queues
-partagées. La structure de \ml+queue+ définie dans le module
-\ml+Queue+ est enrichie avec un verrou et une condition
-\ml+non_empty+.
+We can now give a concrete solution for shared queues.  The \ml+queue+
+structure defined in the \ml+Queue+ module is extended with a lock and
+a \ml+non_empty+ condition.
 %
 \begin{listingcodefile}[style=numbers]{thcheck.ml}
 type 'a t = 
@@ -991,39 +942,40 @@ let take q =
   Mutex.unlock q.lock; x;;
 \end{listingcodefile}
 %
-L'ajout n'est jamais bloquant, mais il ne faut pas oublier de signaler
-la condition \ml+non_empty+ lorsque la liste était vide avant ajout,
-car il est possible que quelqu'un soit en attente sur la condition.
+Addition never blocks, but we must not forget to signal
+the \ml+non_empty+ condition when the list is empty beforehand,
+because it is possible that someone is waiting on the condition.
 
-Le retrait est un tout petit peu plus compliqué: Après avoir acquis le
-verrou, on peut essayer de retirer l'élément de la queue. Si la queue
-est vide, il faut se mettre en attente sur la condition
-\ml+non_empty+. Au réveil, on essayer à nouveau, sachant qu'on a déjà
-le verrou.
+Removal is a little more complicated: after acquiring the lock, we
+must try to remove an element from the queue. If the queue is empty,
+we must wait on the \ml+non_empty+ condition.  When awakened, we try
+again, knowing that we already have the lock.
 
-Comme expliqué ci-dessus, le signal \ml+broadcast q.non_empty+
-(ligne~\ref{prog:broadcast}) est exécuté par un coprocessus $p$ en
-étant en possession du verrou \ml+q.lock+. Cela implique qu'un
-coprocessus lecteur $q$ exécutant la fonction \ml+take+ ne peut pas se
-trouver entre la ligne~\ref{prog:lock} et~\ref{prog:slock} où il
-serait prêt à s'endormir après avoir vérifié que la queue est vide
-mais ne l'aurait pas encore fait: dans ce cas, le signal émis par $p$
-serait inopérant et ignoré, le coprocessus $q$ n'étant pas encore
-endormi et $q$ s'endormirait et ne serait pas réveillé par $p$ ayant
-déjà émis son signal. Le verrou assure donc que soit $p$ est déjà
-endormi ou n'a pas encore tester l'état de la queue.
+As explained above, the \ml+broadcast q.non_empty+ signal
+(line~\ref{prog:broadcast}) is executed by a thread $p$ already in
+possession of the lock \ml+q.lock+.
+This implies that a reader thread $q$ executing the \ml+take+ function
+cannot be between line~\ref{prog:lock} and~\ref{prog:slock}
+% shoudn't prog:slock refer to the following line (the Condition.wait)?
+where it would have verified that the queue is empty but not yet have
+gone to sleep.  In this case, the signal sent by $p$ would be
+ineffective and ignored, since $q$ has not gone to sleep yet; but $q$
+would then go to sleep and not be woken up, because $p$ has already
+sent its signal.
+% The original says $p$ in the following, but I think that's incorrect.
+The lock therefore guarantees that either $q$ is already asleep or
+else has not yet tested the state of the queue.
 
 \begin{exercise}
-Implémenter une variante dans laquelle la queue est bornée: l'ajout
-dans la queue devient bloquant lorsque la taille de la queue a atteint
-une valeur fixée à l'avance. (Dans un monde concurrent, on peut avoir
-besoin de ce schéma pour éviter qu'un producteur produise sans fin
-pendant que le consommateur est bloqué.
+Implement a variant in which the queue is bounded: addition to the
+queue becomes blocking when the size of the queue reaches a fixed
+value. (In a concurrent world, we might need this scheme to avoid
+having a producer that produces endlessly while the consumer is
+blocked.)
 \end{exercise}
 \begin{answer}
-Il faut introduire une condition supplémentaire \ml+non_full+.  On
-ajoute également un champ \ml+size+ pour permettre des queues de
-différentes tailles.
+We must introduce an additional \ml+non_full+ condition.
+We also add a \ml+size+ field to allow queues of different sizes.
 %
 \begin{listingcodefile}{thtqueue.ml}
 type 'a t = 
@@ -1037,8 +989,8 @@ let create k =
   else failwith "Tqueue.create: empty size";;
 \end{listingcodefile}
 %
-L'ajout est une combinaison des versions précédentes des fonctions
-\ml+add+ et \ml+take+ ci-dessus.
+Addition is a combination of the preceding versions of the
+\ml+add+ and \ml+take+ functions above.
 %
 \begin{listingcodefile}{thtqueue.ml}
 let add x q = 
@@ -1050,9 +1002,8 @@ let add x q =
   Mutex.unlock q.lock;;
 \end{listingcodefile}
 %
-Le retrait est symétrique à l'ajout (et doit maintenant signaler
-\ml+non_full+ lorsque la queue est pleine avant le retrait) et est
-laissé au lecteur.
+Removal is symmetric to addition (and must now signal \ml+non_full+
+when the queue is full beforehand), and is left to the reader.
 %
 \begin{codefile}{thtqueue.ml}
 let take q = 
@@ -1064,39 +1015,37 @@ let take q =
   Mutex.unlock q.lock; x;;
 \end{codefile}
 %
-On retrouve le comportement des queues non bornées en choisissant
-\ml+max_int+ pour \ml+size+.
+We get the behavior of unbounded queues by choosing \ml+max_int+ for
+\ml+size+.
 \end{answer}
 
 
 
-\section{Communication synchrone entre coprocessus par événements}
+\section{Event-based synchronous communication}
 
-Les fonctions décrites dans cette section sont définies dans le module
-\libmodule{Event}.
+The functions described in this section are defined in the
+\libmodule{Event} module.
 
-Verrous et conditions permettent ensemble d'exprimer toutes les formes
-de synchronisation. Toutefois, leur mise en {\oe}uvre n'est pas
-toujours aisée comme le montre l'exemple a priori simple des files
-d'attente dont le code de synchronisation s'avère a posteriori
-délicat.
+Locks and conditions together allow all forms of synchronization to be
+expressed.  However, their implementation is not always easy, as shown
+by the example of the initially simple queue whose synchronization
+code subsequently turned out to be subtle.
 
-La communication synchrone entre coprocessus par événements est un
-ensemble de primitives de communication de plus haut niveau qui tend à
-faciliter la programmation concurrente.  L'ensemble des primitives du
-module \ml+Event+ a été initialement développé par John Reppy pour le
-langage \emph{Standard ML}, appelé \emph{Concurrent ML}~\cite{CML}.
-En {\ocaml}, ces primitives sont implantées au dessus de la
-synchronisation plus élémentaire par verrous et conditions.
+Event-based synchronous communication is a collection of higher-level
+communication primitives that tend to facilitate concurrent
+programming.  The primitives in the \ml+Event+ module were initially
+developed by John Reppy as an extension of the \emph{Standard ML}
+language called \emph{Concurrent ML}~\cite{CML}.  In {\ocaml}, these
+primitives are located above the more elementary synchronization of
+locks and conditions.
 
-La communication se fait en envoyant des \emph{événements} au travers
-de \emph{canaux}.  Les canaux sont en quelque sorte des \quotes{tuyaux
-  légers}: ils permettent de communiquer entre les coprocessus d'un
-même programme en gérant eux-mêmes la synchronisation entre
-producteurs et consommateurs.  Un canal transportant des valeurs de
-type \ml+'a+ est de type \ml+'a Event.channel+. Les canaux sont
-homogènes et transportent donc toujours des valeurs du même type. Un
-canal est créé avec la primitive \ml+new_channel+.
+Communication occurs by sending \emph{events} along \emph{channels}.
+Channels are like \quotes{lightweight pipes}: they allow communication
+among threads in the same program and take care of synchronization
+between producers and consumers.  A channel carrying values of type
+\ml+'a+ has the type \ml+'a Event.channel+.  Channels are homogeneous
+and therefore always carry values of the same type.  A channel is
+created with the \ml+new_channel+ primitive.
 %
 \begin{codefile}{tmpevent.mli}
 type 'a channel
@@ -1107,105 +1056,100 @@ type +'a event
 val $\indexlibvalue{Event}{new\_channel}$ : unit -> 'a channel
 \end{listingcodefile}
 %
-L'envoi ou la réception d'un message ne se fait pas directement, mais
-par l'intermédiaire d'un événement. Un événement élémentaire est
-\quotes{envoyer un message} ou \quotes{recevoir un message}. On les
-construit à l'aide des primitives suivantes:
+Sending or receiving a message is not done directly, but through the
+intermediary of an event.  An elementary event is \quotes{sending a
+message} or \quotes{receiving a message}.  They are constructed by
+means of the following primitives:
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{send}$ : 'a channel -> 'a -> unit event
 val $\indexlibvalue{Event}{receive}$ : 'a channel -> 'a event
 \end{listingcodefile}
 %
-Le construction d'un message n'a pas d'effet immédiat et se limite à
-la création d'une structure de donnée décrivant l'action à effectuer.
-Pour réaliser un événement, le coprocessus doit se synchroniser avec
-un autre coprocessus souhaitant réaliser l'événement complémentaire.
-La primitive \ml+sync+ permet la synchronisation du coprocessus pour
-réaliser l'événement passé en argument.
+Construction of a message does not have an immediate effect: it just
+creates a data structure describing the action to be done.  To make an
+event happen, the thread must synchronize with another thread wishing
+to make the complementary event happen.  The \ml+sync+ primitive
+allows a thread to wait for the occurrence of the event passed
+as argument.
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{sync}$ : 'a event -> 'a
 \end{listingcodefile}
 %
-Ainsi pour envoyer une valeur \ml+v+ sur le canal \ml+c+, on pourra
-exécuter \ml+sync (send c v)+.  Le coprocessus est suspendu jusqu'à ce
-que l'événement se réalise, c'est-à-dire jusqu'à ce qu'un autre
-coprocessus soit prêt à recevoir de une valeur sur le canal \ml+c+.
-De façon symétrique, un processus peut se mettre en attente d'un
-message sur le canal \ml+c+ en effectuant \ml+sync (receive c)+.
+Thus, to send a value \ml+v+ on the channel \ml+c+, one can execute
+\ml+sync (send c v)+.  The thread is suspended until the event occurs,
+that is to say until another thread is ready to receive a value on the
+channel \ml+c+.  In a symmetric fashion, a thread can wait for a
+message on channel \ml+c+ by performing \ml+sync (receive c)+.
 
-Il y a compétitions entre tous les producteurs d'une part et tous les
-consommateurs d'autre part. Par exemple, si plusieurs coprocessus
-essayent d'émettre un message sur un canal alors qu'un seul est prêt à
-le lire, il est un clair qu'un seul producteur réalisera
-l'événement. Les autres resteront suspendus, sans même s'apercevoir
-qu'un autre a été \quotes{servi} avant eux.
+There is a competition among all the producers on one hand and all the
+consumers on the other.  For example, if several threads try to send a
+message on a channel but only one is ready to read it, it is clear
+that only one producer will make the event occur.  The others will
+remain suspended, without even noticing that another was
+\quotes{served} ahead of them.
 
-La compétition peut également se produire au sein d'un même coprocessus. 
-Deux événements peuvent être combinés par la primitive \ml+choose+
+The competition can also occur within the same thread.
+Multiple events can be combined by the \ml+choose+ primitive.
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{choose}$ : 'a event list -> 'a event
 \end{listingcodefile}
 %
-L'événement résultant est une offre en parallèle des événements passés
-en arguments qui se réalisera lorsque qu'un exactement de ceux-ci se
-réalisera.  Il bien faut distinguer là l'offre d'un événement de sa
-réalisation.  L'appel \ml+sync (choose e1 e2)+ se synchronise en
-offrant au choix deux événements \ml+e1+ et \ml+e2+, mais un seul des
-deux événements sera effectivement réalisé (l'offre de l'autre
-événement sera simultanément annulée).  La primitive \ml+wrap_abort+
-permet à un événement d'agir lorsqu'il est ainsi annulé.
+The resulting event is an offer, in parallel, of the events passed as
+arguments, and occurs when exactly one of them occurs.  We distinguish
+between the offer of an event and its occurrence.  The call
+\ml+sync (choose [e1; e2])+ synchronizes by offering a choice of two events
+\ml+e1+ and \ml+e2+, but only one of the two events will effectively
+occur (the offer of the other event will be simultaneously cancelled).
+The \ml+wrap_abort+ primitive allows an event to handle being
+cancelled.
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{wrap\_abort}$ : 'a event -> (unit -> unit) -> 'a event
 \end{listingcodefile}
 %
-L'appel \ml+wrap_abort e f+ construit un événement \ml+e'+ équivalent
-à \ml+e+ mais tel que si \ml+e+ n'est pas réalisé après sa
-synchronisation alors la fonction \ml+f+ est exécutée (cela n'a
-d'intérêt que si \ml+e'+ fait parti d'un événement complexe).
+The call \ml+wrap_abort e f+ creates an event that is equivalent to
+\ml+e+, but if it is not chosen during synchronization, then the
+function \ml+f+ is executed.  (This is only interesting when it is
+part of a complex event.)
 
-Un coprocessus peut proposer de réaliser un événement sans se bloquer
-(un peu à la manière de \ml+Mutex.try_lock+) avec \ml+poll+.
+A thread can try to synchronize on an event without blocking (somewhat
+like \ml+Mutex.try_lock+) with \ml+poll+.
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{poll}$ : 'a event -> 'a option
 \end{listingcodefile}
 %
-L'appel \ml+poll e+ va offrir l'événement \ml+e+ mais si celui-ci ne
-peut pas être immédiatement réalisé, il retire l'offre au lieu de se
-bloquer et tout se passera comme s'il n'avait rien fait (ou plus
-exactement comme si l'expression \ml+pool e+ avait été remplacée par
-la valeur \ml+None+).  Par contre, si l'événement peut se réaliser
-immédiatement, alors tout se passera comme si le coprocessus avec
-effectué \ml+sync e+, sauf que c'est la valeur \ml+Some v+ plutôt que
-\ml+v+ qui est retournée.
+The call \ml+poll e+ offers the event \ml+e+ but if it cannot occur
+immediately, it cancels the offer rather than blocking and has no
+effect (or more exactly, behaves as if the expression \ml+poll e+ had
+been replaced by the value \ml+None+).  By contrast, if the event can
+happen immediately, then it behaves as if the thread had done
+\ml+sync e+, except that the value \ml+Some v+ is returned
+rather than \ml+v+.
 
 \begin{example}
-Dans l'exemple~\ref {ex/crible-copro} du crible d'Ératosthène la
-communication entre les différents coprocessus s'effectue par des
-tuyaux comme dans le programme d'origine, donc en utilisant la mémoire
-du système (le tuyau) comme intermédiaire. On peut penser qu'il serait
-plus efficace de communiquer directement en utilisant la mémoire du
-processus. Une solution simple consisterait à remplacer le tuyau par
-un canal sur lequel sont envoyés les entiers.
+In example~\ref {ex/crible-copro} of the Sieve of Eratosthenes,
+the communication between different threads is done with pipes as in
+the original program, using system memory (the pipe) as intermediary.
+One might think that it would be more efficient to communicate
+directly by using the memory of the process.  A simple solution
+consists of replacing the pipe by a channel on which integers are sent.
 
-Passer des entiers dans le canal n'est pas suffisant car il faut aussi
-pouvoir détecter la fin du flux. Le plus simple est donc de passer des
-éléments de la forme \ml+Some n+ et de terminer en envoyant la valeur
-\ml+None+.  Pour simplifier et souligner les changements en les
-minimisant, nous allons récupérer le code de
-l'exemple~\ref{ex/crible}.  Pour cela, nous simulons les tuyaux et les
-fonctions de lecture/écriture sur un tuyau par des canaux et de
-fonctions de lecture/écriture sur les canaux.
+Sending integers on the channel is not sufficient, because we must
+also be able to detect the end of the stream.  The simplest is
+therefore to pass elements of the form \ml+Some n+ and to terminate by
+sending the value \ml+None+.  To minimize the changes, we will go back
+to the code in example~\ref{ex/crible}.  We simulate pipes and the
+functions for reading and writing pipes by channels and functions for
+reading and writing channels.
 
-Il suffit de reprendre la version précédente du programme et de
-modifier les fonctions d'entrée-sortie pour qu'elles lisent et
-écrivent dans un canal plutôt que dans un tampon d'entrée-sortie de la
-bibliothèque \ml+Pervasives+, par exemple en insérant à la
-ligne~2 le code suivant:
+It is sufficient to take the previous version of the program and
+change the input/output functions to ones that read and write a channel,
+rather than an input/output buffer from the \ml+Pervasives+ library.
+For example, we can insert the following code at line~2:
 %
 \begin{codefile}{theventcrible.ed}
 f th/eventcrible.ml
@@ -1233,24 +1177,22 @@ let close_out chan = Event.sync (Event.send chan None);;
 wq
 \end{codefile}
 
-Toutefois, si l'on compare l'efficacité de cette version avec la
-précédente, on trouve qu'elle est deux fois plus lente.  La
-communication de chaque entier requiert une synchronisation entre deux
-coprocessus donc plusieurs appels systèmes pour prendre et relâcher le
-verrou.  Au contraire, la communication par tuyau utilise des
-entrées/sorties temporisées qui permettent d'échanger plusieurs
-milliers d'entiers à chaque appel système.
+However, if we compare the efficiency of this version with the
+previous one, we find that it is twice as slow.  Communication of each
+integer requires a synchronization between two threads and therefore
+several system calls for acquiring and releasing locks.  On the other
+hand, communication via pipes uses buffered I/O that allows several
+thousand integers to be exahanged with each system call.
 
-Pour être juste, il faudrait donc également fournir une communication
-temporisée sur les canaux en utilisant le canal seulement pour
-échanger un paquet d'entiers. Le fils peut accumuler les résultats
-dans une queue qu'il est seul à posséder, donc dans laquelle il peut
-écrire sans se synchroniser.  Quand la queue est pleine ou sur demande
-explicite, il la vide en se synchronisant sur le canal. Le père à lui
-même sa propre queue qu'il reçoit en se synchronisant et qu'il vide
-petit à petit.
+To be fair, one should also provide buffered communication on
+channels, using the channel only to exchange a packet of integers.
+The child can accumulate the results in a private queue, to which it
+can therefore write without synchronization.  When the queue is full,
+or upon an explicit request, it is emptied by synchronizing on the
+channel.  The parent has its own queue that it receives by
+synchronizing and empties gradually.
 
-Voici une solution~:
+Here is a solution:
 %
 \begin{codefile}{thbuffercrible.ed}
 f th/buffercrible.ml
@@ -1297,181 +1239,163 @@ let close_out chan =
 wq
 \end{codefile}
 %
-Cette version permet de retrouver une efficacité comparable à la
-version avec tuyau (mais pas meilleure).
+This version allows us to regain efficiency comparable to (but not
+better than) the version with pipes.
 
-Si l'on compare avec la version d'origine avec processus et tuyaux, il
-y a deux sources potentielles de gain: d'une part les coprocessus sont
-plus sobres et coûtent moins cher à leur lancement. D'autre part, la
-communication par le canal se contente de passer un pointeur sans
-recopie.  Mais ces gains ne sont pas perceptibles ici, car le nombre
-de coprocessus créés et les structures échangées ne sont pas
-suffisamment grands devant le coût de l'appel système et devant les
-temps de calcul.
+Compared to the original version with processes and pipes, there are
+two potential advantages. First, threads are more lightweight and less
+costly to launch.  Second, communication on a channel merely passes a
+pointer, without copying.  But these advantages are not noticeable
+here, because the number of threads created and the data exchanged are
+not big enough compared to the cost of system calls and compute time.
 
-En conclusion, on peut retenir que la communication entre coprocessus
-a un coût qui peut aller jusqu'à celui d'un appel système (si le
-processus doit être suspendu) et que ce coût peut être
-significativement réduit en temporisant les communications pour
-communiquer moins souvent de plus grosses structures.
+In conclusion, we can say that communication between threads has a
+cost of up to one system call (if the process must be suspended) and
+the cost can be significantly reduced by buffering communication and
+sending larger structures less often.
 \end{example}
 
 \begin{exercise}[noanswer]
-Un serveur {\http} peut être soumis à une charge élevée et par
-à-coups.  Pour améliorer le temps de réponse, on peut raffiner
-l'architecture d'un serveur {\http} en gardant toujours une dizaine de
-coprocessus prêts à traiter de nouvelles requêtes.  Cela veut dire
-qu'un coprocessus ne traite plus une seule requête, mais une suite
-potentiellement infinie de requêtes qu'il lit dans une file d'attente.
+An {\http} server can be subjected to a high, bursty load.  To improve
+response time, we can refine the architecture of an {\http} server by
+always keeping a dozen threads ready to handle new requests. This means
+that a thread does not handle only a single request, but a potentially
+infinite series of requests that it reads from a queue.
 
-Pour éviter l'écroulement de la machine, on peut limiter le nombre de
-coprocessus à une valeur raisonnable au delà laquelle le coût de la
-gestion des tâches dépasse la latence du service des requêtes (temps
-passés à attendre des données sur le disque, \etc). Au delà, on pourra
-garder quelques connexions en attente d'être traitées, puis finalement
-refuser les connexions. Lorsque la charge diminue et que le nombre de
-coprocessus est au-delà de la valeur \quotes{idéale}, certains se
-laissent mourir, les autres restent prêts pour les prochaines
-requêtes.
+To avoid overloading the machine, we can limit the number of threads
+to a reasonable value beyond which the overhead of managing tasks
+exceeds the latency for servicing requests (time spent waiting for
+data on disk, \etc).  After that, we can keep some connections waiting
+to be handled, and then finally we can refuse connections.  When the
+load diminishes and the number of threads is above the \quotes{ideal}
+value, some of them are allowed to die and the others remain ready for
+the next requests.
 
-Transformer l'exemple~\ref{ex/th-relais} pour arriver à cette architecture.
+Transform example~\ref{ex/th-relais} into this architecture.
 \end{exercise}
 
 
-\section{Quelques détails d'implémentation}
+\section{Implementation details}
 
-\paragraph {Implémentation des coprocessus en Unix}
+\paragraph {Implementation of threads in Unix}
 
-Le système Unix n'a pas été conçu au départ pour fournir du support
-pour les coprocessus. Toutefois, la plupart des implémentations
-modernes d'Unix offrent maintenant un tel support. Malgré tout, les
-coprocessus restent une pièce rapportée qui est parfois apparente. Par
-exemple, dès l'utilisation de coprocessus il est fortement déconseillé
-d'utiliser \ml+fork+ autrement que pour faire \ml+exec+ immédiatement
-après. En effet, \ml+fork+ copie le coprocessus courant qui devient un
-processus estropié car s'exécutant en croyant avoir des coprocessus
-qui en fait n'existent pas.  Le père lui continue à s'exécuter a
-priori normalement. Le cas particulier d'un appel à fork où le fils
-lance immédiatement un autre programme ne pose quant à lui pas de
-problème. Heureusement! car c'est le seul moyen de lancer d'autres
-programmes.
+The Unix system was not originally designed to provide support for
+threads.  However, most modern Unix implementations now offer such
+support.  Nevertheless, threads remain an add-on that is sometimes
+apparent.  For example, when using threads it is strongly discouraged
+to use \ml+fork+ except when doing \ml+exec+ immediately afterward.
+In effect, \ml+fork+ copies the current thread, which becomes a
+crippled process that runs believing it has threads when in fact they
+do not exist.  The parent continues to run normally as before.
+The special case of a call to \ml+fork+ where the child immediately
+launches another program does not cause the parent any problem.
+Luckily, since that is the only way to start other programs!
 
-Inversement, on peut faire \ml+fork+ (non suivi de \ml+exec+) puis lancer ensuite
-plusieurs coprocessus dans le fils et le père, sans aucun problème.
+Inversely, one can do \ml+fork+ (not followed by \ml+exec+), and then launch
+several threads in the child and the parent, without any problem.
 
-
-\paragraph {Implémentation native et implémentation simulée en OCaml}
+\paragraph {Native and simulated implementation in OCaml}
 \label{sec/thread-implementation}
 
-Lorsque le système d'exploitation sous-jacent possède des coprocessus,
-{\ocaml} peut fournir une implémen\-ta\-tion native des coprocessus,
-en laissant le plus possible leur gestion au système d'exploitation.
-Chaque coprocessus réside alors dans un processus Unix différent mais
-partageant le même espace mémoire.
+When the underlying operating system has threads, {\ocaml} can provide
+a native implementation of threads, leaving their management to the
+operating system as much as possible.  Each thread then lives in a
+different Unix process but shares the same address space.
 
-Lorsque le système ne fournit pas de support pour les coprocessus,
-{\ocaml} peut les émuler.  Tous les coprocessus s'exécutent alors dans
-le même processus Unix et leur gestion y compris leur ordonnancement
-est effectuée par l'environnement d'exécution d'{\ocaml}. Toutefois,
-cette implémentation n'est disponible qu'avec la compilation vers du
-bytecode.
+When the system does not provide support for threads, {\ocaml} can
+emulate them.  All the threads then execute in the same Unix process,
+and their management, including their scheduling, is handled by the
+{\ocaml} runtime system.  However, this implementation is only
+available when compiling to bytecode.
 
-Le système {\ocaml} offre une même interface programmatique pour les
-versions native et simulée des coprocessus.  L'implémen\-ta\-tion des
-coprocessus est donc dédoublée.  Une implémentation pour la version
-émulée qui comporte son propre contrôleur de tâches et une autre
-implémentation qui s'appuie sur les coprocessus
-\textsc{posix}~(1003.1c) et relève les fonctions des bibliothèques
-correspondantes au niveau du langage {\ocaml}. Au passage, le langage
-{\ocaml} effectue quelques tâches administratives simples et assure
-une interface identique avec la version émulée.  Cela garantit qu'un
-programme compilable sur une architecture Unix reste compilable sur
-une autre architecture Unix. Toutefois, le fait que les processus
-soient émulés ou natifs peut changer la synchronisation des appels à
-des bibliothèques C, et ainsi changer, malgré tout, la sémantique du
-programme. Il faut donc prendre quelques précautions avant de
-considérer qu'un programme se comportera de la même façon dans les
-deux versions.  Dans ce chapitre, le discours vaut principalement pour
-les deux implantations, mais rapelons qu'à défaut, nous avons pris le
-point de vue d'une implantation native.
+The {\ocaml} system provides the same programming interface for the
+native and simulated versions of threads. The implementation of
+threads is therefore split: one implementation for the emulated
+version that includes its own task controller, and another
+implementation that is based on \textsc{posix}~(1003.1c) threads and
+lifts the corresponding library functions to the level of the {\ocaml}
+language.  In the process, the {\ocaml} language handles certain
+simple administrative tasks and ensures an interface identical to the
+emulated version.  This guarantees that a program compilable on one
+Unix architecture remains compilable on another Unix architecture.
+However, whether threads are emulated or native can change the
+synchronization of calls to the C library, and therefore change,
+despite everything, the semantics of the program.  It is therefore
+necessary to take certain precautions before believing that a program
+will behave the same way in these two versions.  In this chapter, the
+discussion will mainly concern these two implementations, but recall
+that by default, we have taken the viewpoint of a native
+implementation.
 
-Pour utiliser les coprocessus émulés, il faut passer l'option
-\ml+-vmthreads+ à la place de \ml+-threads+ au compilateur
-\ml+ocamlc+. Cette option n'est pas acceptée par le compilateur
-\ml+ocamlopt+.
+To use emulated threads, one must pass the \ml+-vmthreads+ option
+instead of \ml+-threads+ to the \ml+ocamlc+ compiler. This option is
+not accepted by the \ml+ocamlopt+ compiler.
 
-\paragraph{Séquentialisation du code {\ocaml}}
+\paragraph{Sequentialization of {\ocaml} code}
 
-L'implémentation des coprocessus en {\ocaml} doit faire face à une des
-particularités du langage {\ocaml} qui est la gestion automatique de
-la mémoire et sa consommation importante de données allouées.  La
-solution retenue, qui est la plus simple et aussi généralement la plus
-efficace, est de séqentialiser l'exécution du code {\ocaml} dans tous
-les coprocessus: un verrou de l'environnement d'exécution empêche deux
-coprocessus d'exécuter du code {\ocaml} simultanément.  Cela semble
-contraire à l'idée même des coprocessus, mais il n'en est rien.  Car
-le verrou est évidemment relâché avant les appels systèmes bloquants
-et repris au retour.  D'autres coprocessus peuvent donc prendre la
-main à ce moment là. Un cas particulier d'appel système étant l'appel
-à \ml+sched_yield+ effectué à intervalles de temps réguliers pour
-permettre de suspendre le coprocessus en cours d'exécution et donner
-la main à d'autres.
+The implementation of threads in {\ocaml} must face one of the
+peculiarities of the {\ocaml} language: the automatic management of
+memory and its high consumption of allocated data.  The solution
+adopted, which is the simplest and also generally the most efficient,
+is to sequentialize the execution of {\ocaml} code in all threads: a
+lock in the runtime system prevents two threads from executing
+{\ocaml} code simultaneously.  This seems contrary to the whole idea
+of threads, but it is not, since the lock is released before blocking
+system calls and reacquired upon return.  Other threads can therefore
+take control at that moment.  A special case of such a system call is
+the call to \ml+sched_yield+, performed at regular intervals to
+suspend the running thread and give control to another.
 
-Sur une machine multiprocesseur, la seule source de vrai parallélisme
-provient de l'exécution du code C et des appels systèmes.  Sur une
-machine mono-processeur, le fait que le code {\ocaml} soit
-séquentialisé n'est pas vraiment perceptible.
+On a multiprocessor machine, the only source of true parallelism comes
+from the execution of C code and system calls.  On a uniprocessor
+machine, the fact that the {\ocaml} code is sequentialized is not
+really noticeable.
 
-Le programmeur ne peut pas pour autant s'appuyer sur cette
-séquentialisation, car un coprocessus peut donner la main à un autre à
-peu près à n'importe quel moment. À une exception près, la
-séquentialisation garantit la cohérence de la mémoire: deux
-coprocessus ont toujours la même vision de la mémoire, sauf,
-peut-être, lorsqu'ils exécutent du code C.  En effet, le passage du
-verrou implique une synchronisation de la mémoire: une lecture à une
-adresse effectuée par un coprocessus qui se situe dans le temps après
-une opération d'écriture à cette même adresse par un autre coprocessus
-retournera toujours la valeur fraîchement écrite, sans besoin de
-synchronisation supplémentaire.
+The programmer cannot rely on this sequentialization, because one
+thread can give control to another at almost any moment.  With one
+exception, the sequentialization guarantees memory coherence: two
+threads always have the same view of memory, except perhaps when the
+execute C code.  In effect, the passing of the lock implies a
+synchronization of the memory: a read operation by one thread
+occurring after a write operation to the same address by another
+thread will always return the freshly-written value, with no need for
+additional synchronization.
 
-\paragraph {Coprocessus et signaux}
+\paragraph {Threads and signals}
 
-D'une façon générale, l'utilisation des signaux est déjà délicate avec
-un seul coprocessus en raison de leur caractère asynchrone.  Elle
-l'est encore plus en présence de plusieurs coprocessus car s'ajoute
-alors de nouvelles difficultés: à quel coprocessus doit être envoyé le
-signal? À tous, au principal, ou à celui en cours d'exécution? Que se
-passe-t-il si un coprocessus envoie un signal à un autre? En fait, les
-coprocessus ont été implantés avant de bien répondre à ces questions,
-et différentes implantations peuvent se comporter différemment par
-rapport aux signaux.
+Generally speaking, using signals is already delicate with a single
+thread due to their asynchronous character.  It is even more so in the
+presence of multiple threads because of the addition of new
+difficulties: which thread should a signal be sent to?  To all, to the
+primary one, or to the one currently running?  What happens if one
+thread sends a signal to another?  In fact, threads were implemented
+before answering these questions, and different implementations can
+behave differently with respect to signals.
 
-Les opérations \ml+Thread.join+, \ml+Mutex.lock+, and
-\ml+Condition.wait+, bien qu'étant des appels systèmes longs, ne sont
-pas interruptibles par un signal. (Elle ne peuvent donc pas échouer
-avec l'erreur \ml+EINTR+).  Si un signal est envoyé pendant l'attente,
-il sera reçu et traité lorsque l'appel retournera.
+The \ml+Thread.join+, \ml+Mutex.lock+, and \ml+Condition.wait+,
+despite being long system calls, are not interruptible by a signal.
+(They cannot therefore fail with the \ml+EINTR+ error.)  If a signal
+is sent while waiting, it will be received and handled when the call
+returns.
 
-La norme \textsc{posix} spécifie que le handler des signaux est
-partagé entre tous les coprocessus et au contraire le masque des
-signaux est propre à chaque coprocessus et hérité à la création d'un
-coprocessus. Mais le comportement des coprocessus vis-à-vis des
-signaux reste largement sous-spécifié et donc non portable.
+The \textsc{posix} standard specifies that the signal handler is
+shared among all the threads and in contrast the signal mask is
+private to each thread and inherited upon creation of a thread.  But
+the behavior of threads with respect to signals remains largely
+underspecified and therefore non-portable.
 
-Il est donc préférable d'éviter autant que possible l'utilisation de
-signaux asynchrones (du type \ml+sigalrm+, \ml+sigvtalrm+,
-\ml+sigchld+, \etc) avec des coprocessus. Ceux-ci peuvent être bloqués
-et consultés avec \ml+Thread.wait_signal+. On peut dédier un
-coprocessus au traitement des signaux: ne faisant que cela, il peut se
-mettre en attente sur la réception de signaux et entreprendre les
-actions nécessaires et mettre à jour certaines informations consultées
-par d'autres coprocessus.
+It is therefore preferable to avoid as much as possible the use of
+asynchronous signals (such as \ml+sigalrm+, \ml+sigvtalrm+,
+\ml+sigchld+, \etc) with threads. These can be blocked and examined
+with \ml+Thread.wait_signal+.  One can dedicate a thread to signal
+handling and nothing else: it can wait for the reception of signals,
+undertake the necessary actions, and update certain information
+examined by other threads.
 
-De plus, les coprocessus {\ocaml} (depuis la version 3.08) utilisent
-le signal \ml+sigvtalarm+ de façon interne pour effectuer la
-préemption des coprocessus.  Ce signal est donc réservé et ne doit pas
-être utilisé par le programme lui-même, car il y a un risque
-d'interférence.
+In addition, {\ocaml} threads (since version 3.08) use the
+\ml+sigvtalarm+ signal internally to implement preemption of threads.
+This signal is therefore reserved and must not be used by the program
+itself, since there is a risk of interference.
 
 \begin{codefile}{thmisc.ed}
 f th/misc.mli
