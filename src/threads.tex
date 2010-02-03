@@ -684,7 +684,7 @@ We will modify the {\http} relay developed in the preceding chapter
 so that it services requests using threads.
 
 Intuitively, it suffices to replace the \ml+establish_server+ function
-that that creates a process clone with a function that creates a
+that creates a process clone with a function that creates a
 thread.  We must however take certain precautions.  The challenge
 with threads is that they share the entire memory space.  We must
 therefore ensure that the threads are not \quotes{stepping on each
@@ -1354,7 +1354,7 @@ really noticeable.
 The programmer cannot rely on this sequentialization, because one
 thread can give control to another at almost any moment.  With one
 exception, the sequentialization guarantees memory coherence: two
-threads always have the same view of memory, except perhaps when the
+threads always have the same view of memory, except perhaps when they
 execute C code.  In effect, the passing of the lock implies a
 synchronization of the memory: a read operation by one thread
 occurring after a write operation to the same address by another
