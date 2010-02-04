@@ -936,8 +936,8 @@ let add e q =
 
 let take q = 
   Mutex.lock q.lock; $\label{prog:lock}$
-  while Queue.length q.queue = 0  $\label{prog:slock}$
-  do Condition.wait q.non_empty q.lock done;
+  while Queue.length q.queue = 0
+  do Condition.wait q.non_empty q.lock done;  $\label{prog:slock}$
   let x = Queue.take q.queue in
   Mutex.unlock q.lock; x;;
 \end{listingcodefile}
@@ -956,7 +956,8 @@ As explained above, the \ml+broadcast q.non_empty+ signal
 possession of the lock \ml+q.lock+.
 This implies that a reader thread $q$ executing the \ml+take+ function
 cannot be between line~\ref{prog:lock} and~\ref{prog:slock}
-% shoudn't prog:slock refer to the following line (the Condition.wait)?
+% prog:slock referred to the previous line in the original, but this line
+% seems like the intended one.
 where it would have verified that the queue is empty but not yet have
 gone to sleep.  In this case, the signal sent by $p$ would be
 ineffective and ignored, since $q$ has not gone to sleep yet; but $q$
