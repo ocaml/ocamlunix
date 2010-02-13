@@ -217,7 +217,7 @@ function \ml+fork_search+ fails.
 
 In addition to the synchronization between processes, the \ml+wait+
 call also ensures recovery of all resources used by the child
-processes.  When a process terminates, it moves into a \quote{zombie}
+processes.  When a process terminates, it moves into a \quotes{zombie}
 state, where most, but not all, of is resources (memory, etc.) have
 been freed. It continues to occupy a slot in the process table to
 transmit its return value to the parent via the \ml+wait+ call.
@@ -229,7 +229,7 @@ If the parent process terminates before the child, the child is
 given the process number~$1$ (usually \ml+init+) as parent. This
 process contains an infinite loop of \ml+wait+ calls, and will
 therefore make the child process disappear once it finishes. This
-leads to the useful \quote{double fork} technique if you cannot
+leads to the useful \quotes{double fork} technique if you cannot
 easily call \ml+wait+ on each process you create (because you cannot
 afford to block on termination of the child process,
 for example).
