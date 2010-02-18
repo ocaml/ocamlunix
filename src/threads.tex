@@ -894,8 +894,6 @@ threads.  Note that if adding an element to a non-empty queue does not
 send a signal, then adding an element to an empty queue must send a
 broadcast, since it could be followed immediately by another addition
 (without a signal) and therefore behave like a multiple addition.
-% Note that the original says ``non vide'' (non-empty)
-% in the following sentence, which in incorrect.
 In summary, either send a signal on every addition, or send a
 broadcast only when adding to an empty queue.
 The choice between these two strategies is a bet on whether the queue
@@ -935,8 +933,8 @@ let add e q =
   Mutex.unlock q.lock;;
 
 let take q = 
-  Mutex.lock q.lock; $\label{prog:lock}$
-  while Queue.length q.queue = 0
+  Mutex.lock q.lock; 
+  while Queue.length q.queue = 0 $\label{prog:lock}$
   do Condition.wait q.non_empty q.lock done;  $\label{prog:slock}$
   let x = Queue.take q.queue in
   Mutex.unlock q.lock; x;;
@@ -956,14 +954,11 @@ As explained above, the \ml+broadcast q.non_empty+ signal
 possession of the lock \ml+q.lock+.
 This implies that a reader thread $q$ executing the \ml+take+ function
 cannot be between line~\ref{prog:lock} and~\ref{prog:slock}
-% prog:slock referred to the previous line in the original, but this line
-% seems like the intended one.
 where it would have verified that the queue is empty but not yet have
 gone to sleep.  In this case, the signal sent by $p$ would be
 ineffective and ignored, since $q$ has not gone to sleep yet; but $q$
 would then go to sleep and not be woken up, because $p$ has already
 sent its signal.
-% The original says $p$ in the following, but I think that's incorrect.
 The lock therefore guarantees that either $q$ is already asleep or
 else has not yet tested the state of the queue.
 
