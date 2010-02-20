@@ -34,7 +34,7 @@ the same code, are initially at the same control point (the return
 from \ml+fork+), attribute the same values to all variables, have
 identical call stacks, and hold open the same file descriptors to
 the same files.  The only thing which distinguishes the two processes
-is the return value from \ml+fork+: zero in the child processes,
+is the return value from \ml+fork+: zero in the child process,
 and a non-zero integer in the parent.  By checking the return value
 from \ml+fork+, a program can thus determine if it is in the parent
 process or the child and behave accordingly: 
@@ -76,7 +76,7 @@ The command \ml+leave hhmm+ immediately exits the main process, but
 forks a background process which, at the time \ml+hhmm+, reports that
 it is time to exit.
 %
-\begin{listingcodefile}[style=numbers]{leave.ml} open Sys;;
+\begin{listingcodefile}[style=numbers]{leave.ml}open Sys;;
 open Unix;;
 
 let leave () =
@@ -100,7 +100,7 @@ handle_unix_error leave ();;
 
 It begins with a rudimentary parsing of the command line, in order to
 extract the time provided.  It then calculates the delay in seconds
-(ligne~\ref{prog:delay}). The \ml+time+ call returns the current
+(line~\ref{prog:delay}). The \ml+time+ call returns the current
 date, in seconds from the epoch (midnight, Jan 01, 1970).  The
 function \ml+localtime+ transforms this into
 year/month/day/hours/minutes/seconds.  It then creates a new process
@@ -163,7 +163,7 @@ called \quotes{rendezvous}). To wait for $n$ child processes, one must
 call \ml+wait+ $n$ times.
 
 The command \ml+waitpid+ accepts two optional flags for its first
-argument: The flag \ml+WNOHANG+ indicates not to wait if there is
+argument: the flag \ml+WNOHANG+ indicates not to wait if there is
 a child that responds to the request but has not yet terminated.
 In that case, the first result is \ml+0+ and the second undefined.
 The flag \ml+WUNTRACED+ returns the child processes that have been
@@ -218,7 +218,7 @@ function \ml+fork_search+ fails.
 In addition to the synchronization between processes, the \ml+wait+
 call also ensures recovery of all resources used by the child
 processes.  When a process terminates, it moves into a \quotes{zombie}
-state, where most, but not all, of is resources (memory, etc.) have
+state, where most, but not all, of its resources (memory, etc.) have
 been freed. It continues to occupy a slot in the process table to
 transmit its return value to the parent via the \ml+wait+ call.
 Once the parent calls \ml+wait+, the zombie process is removed from
