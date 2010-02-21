@@ -19,8 +19,8 @@ pipes). Furthermore, pipes are not very suitable for a particularly useful model
 communication: the connected or client-server model. In this model, only one
 program (the server) has direct access to a shared resource; the other programs
 (the clients) access the resource through an intermediary connection
-with the server; the server serializes and controls the accesses to the shared
-resource. (Example: the \textsc{x}-window windowing system ~---~ the shared
+to the server; the server serializes and controls the accesses to the shared
+resource. (Example: the \textsc{x}-window windowing system~---~the shared
 resources here being the screen, the keyboard and the mouse.) The client-server model
 is difficult to implement with pipes. The major difficulty, here, is the
 establishment of the connection between a client and the server. With
@@ -110,7 +110,7 @@ Sockets also allow a \emph{connectionless} client-server mode.  In
 this mode, less frequently used, the server does not establish a
 private connection with the client, but responds directly to the
 client's requests. We shall briefly comment on this model in
-Section~\ref {sec/mode-deconnecte}.  In the remainder of this chapter,
+section~\ref {sec/mode-deconnecte}.  In the remainder of this chapter,
 we shall mainly describe communication in the \emph{connection-oriented} mode.
 
 \section{Sockets}
@@ -146,7 +146,7 @@ the communicating peer. Two examples of domains are:
 Finally, several communication modes are taken into account. These modes indicate
 in particular whether the communication is reliable (no loss nor duplication
 of data) and in which form the data is sent and received (a stream of bytes, or
-a stream of packets ~---~small delimited blocks of bytes). The mode
+a stream of packets~---~small delimited blocks of bytes). The mode
 constrains the protocol used to transmit data. Here are three
 examples of possible modes:
 %
@@ -190,7 +190,7 @@ val $\libvalue{Unix}{socket}$ : socket_domain -> socket_type -> int -> file_desc
 \end{listingcodefile}
 %
 The result is a file descriptor that represents the new socket. This descriptor is
-initially in a \quotes{unconnected} state; in particular, it is not ready to accept
+initially in an \quotes{unconnected} state; in particular, it is not ready to accept
 any \ml+read+ or \ml+write+.
 
 The first argument specifies the communication domain to which the socket is to be bound:
@@ -284,7 +284,7 @@ machine. (The same machine can be connected to multiple networks
 under different addresses.)
 
 Regarding the service numbers (\emph{port numbers}), the most
-common services are listed in the table \ml+/etc/services/+. It can be
+common services are listed in the table \ml+/etc/services+. It can be
 read in a portable way using the \syscall{getservbyname} function~:
 %
 \begin{codefile}{tmpunix.mli}
@@ -300,7 +300,7 @@ The first argument is the service name (i.e. \ml+ftp+ for FTP servers,
 \ml+ntalk+ for the commands of that name, etc.). The second argument
 is the name of the protocol: usually \ml+"tcp"+ if the service is
 using the \quotes{stream} mode or \ml+"udp"+ if the service uses
-the \quotes{datagrams} mode. The result of \ml+getservbyname+ is a
+the \quotes{datagram} mode. The result of \ml+getservbyname+ is a
 record whose \ml+s_port+ field contains the desired number.
 
 \begin{example} To obtain the address of the FTP server
@@ -343,7 +343,7 @@ it is preferable to manually choose this address, in which case one can call the
 The \ml+netstat+ command can be used to monitor the current connections in the
 shell.
 
-\section{Disconnecting}
+\section{Disconnecting sockets}
 
 There are two ways to disconnect a connection. The first is to call
 \indexvalue{close} on the socket. This closes the read and write sides of the
@@ -378,7 +378,7 @@ In fact, the deallocation of a socket can take some time whether done abruptly
 or cleanly.
 
 
-\section{A complete example: The universal client}
+\section{A complete example: the universal client}
 
 We are going to define a \ml+client+ command such that \ml+client host port+ establishes
 a connection with a service numbered \ml+port+ on the machine named \ml+host+,
@@ -392,7 +392,7 @@ echo -e 'GET /~remy/ HTTP/1.0\r\n\r\n' | ./client pauillac.inria.fr 80
 connects to the port \ml+80+ of \ml+paulliac.inria.fr+ and sends the
 \ml+HTTP+ command requesting the home page \ml+/~remy/+ on this server.
 
-This command is a \quotes{universal} client application, insofar as it factors
+This command is a \quotes{universal} client application insofar as it factors
 out the code for connection establishment common to many clients, while
 delegating the implementation of the communication protocol, which is specific to each
 application program that calls \ml+client+.
@@ -478,7 +478,9 @@ connection. On the other end of the socket \ml+sock+, the client (parent) finall
 an end-of-file on the connection and terminates normally.
 
 \item
-The server prematurely closes the connection. The client (father) tries to write
+% The original version said that the parent tries to write on the
+% socket; however, it is the child that writes on the socket.
+The server prematurely closes the connection. The client (child) tries to write
 on the socket \ml+sock+ and receives the \ml+sigpipe+ signal which kills it. It
 is the expected behaviour. However, the client dies immediately, without being able
 to indicate that the connection was lost. To retrieve this information, one can
@@ -668,9 +670,12 @@ descriptor, otherwise the close by the child will not suffice to terminate the
 connection; in addition, the parent will quickly find itself out of
 descriptors.  The descriptor must be closed in the normal case, but if for
 some reason the fork fails~---~the program can eventually decide this is not a
-fatal error and eventually maintain the server in service.
+fatal error and maintain the server in service.
 
-Similarly, the child must close the \ml+sock+ descriptor on which the
+% I have changed \ml+sock+ (in the original) to be \ml+server+ in the
+% sentence below, after comparing with the code, since I think that
+% was what was intended.
+Similarly, the child closes the \ml+server+ descriptor on which the
 connection request was received before performing the service. For one, it
 does not need it.  For another, the server might stop accepting connections
 before the child is done handling this connection. The \ml+exit 0+ command is
@@ -679,8 +684,11 @@ the service and not run the server code.
 
 We glossed over the collection of child processes that will become zombies,
 which we now attend to.  There are two ways to do so. The simple approach is
-to have a grand-child process handle the connection using a double fork
-technique.
+to have a grandchild process handle the connection using a double fork
+technique. % It might be a good idea here to reference
+           % section~\ref{double-fork}, which describes this technique
+           % in more detail, especially how the grandchild process is
+           % reaped.
 %
 \begin{codefile}{misc.mli}
 val double_fork_treatment :
@@ -720,7 +728,7 @@ transfer buffer, the size of the minimum transfer, the behavior on closing,
 floating point. For typing reasons, there are as many \ml+getsockopt+,
 \ml+getsockopt_optint+, \ml+getsockopt_float+ primitives to read those
 parameters, and the corresponding variants of \ml+setsockopt+. One can read
-the documentation of the \ocaml\libvalue{Unix}{getsockopt}~function and its
+the documentation of the \ocaml~\libvalue{Unix}{getsockopt} function and its
 variants to get a detailed list of those options, as well as the
 \textsc{posix} reference for \syscall{getsockopt} for their exact meaning.
 
@@ -749,7 +757,7 @@ new connection receiving packets destined for the old connection. This option
 enables the stop and immediate restart of a server, which is very useful in
 testing.
 
-\section{Full example: the universal server}
+\section{A complete example: the universal server}
 
 We shall now define a \ml+server+ command such that:
 %
@@ -757,9 +765,9 @@ We shall now define a \ml+server+ command such that:
 ./server port cmd arg1 ... argn
 \end{lstlisting}
 %
-receives connection requests on the port \ml+port+ and, for each connection
-dispatches \ml+cmd+ with the arguments \ml+arg1 ... argn+, and the connection
-is piped on its standard input and standard output. For instance, if we start
+receives connection requests on the port \ml+port+ and, for each connection,
+dispatches \ml+cmd+ with the arguments \ml+arg1 ... argn+, and pipes the connection
+on its standard input and standard output. For instance, if we start
 %
 \begin{lstlisting}
 ./server 8500 grep foo
@@ -821,9 +829,11 @@ The address given to \ml+tcp_server+ contains the Internet address of the
 machine running the program; the usual way to get it (line~\ref{prog:gethost})
 is to look for the machine (returned by the \ml+gethostname+ call) in the
 \ml+/etc/hosts+ table. In fact, there can in general be several addresses
-referencing the same machine. For instance, the address of the pauillac
+% The original did not change the font for pauillac below, but that is
+% inconsistent.
+referencing the same machine. For instance, the address of the \ml+pauillac+
 machine is \ml+128.93.11.35+, but we can also access it locally (provided we
-are already on the pauillac machine) with the address \ml+127.0.0.1+. To
+are already on the \ml+pauillac+ machine) with the address \ml+127.0.0.1+. To
 provide a service on all the addresses pointing to this machine, we can use
 the \ml+inet_addr_any+ address.
 
@@ -839,8 +849,8 @@ The command dispatched by the server receives an end-of-file on its standard
 input. It finishes what it has to do, and calls \ml+exit+ when it is
 done. This closes the standard outputs which are the last descriptors open for
 writing on the connection. (The client will then receive the end-of-file on
-the connection.) Second case: The client ends prematurely and closes the
-connection from the server. The server might then receive the \ml+sigpipe+
+the connection.) Second case: the client ends prematurely and closes the connection
+in the server to client direction. The server might then receive the \ml+sigpipe+
 signal while trying to send data to the client, which can cause the death of
 the server-side command; this is perfectly acceptable since nothing is reading
 the output of this command.
@@ -857,13 +867,13 @@ knows the server to which it is connecting, the server knows nothing about its
 client. In particular, for public services, the client might be
 \quotes{hostile}. The server must guard itself against all pathological cases.
 
-A typical attack is done by opening connections and leaving them opened
-without transmitting the requests: after having accepted the connection the
+A typical attack is done by opening connections and leaving them open
+without transmitting requests: after having accepted the connection the
 server is blocked waiting on the socket and remains so while the client stays
 connected. The attacker can then saturate the service by opening a lot of
 connections. It is important for the server to be robust against such
 attacks. Firstly, it must only accept a limited number of simultaneous
-connections and further connections, in order to avoid exhausting system
+connections and refuse further connections, in order to avoid exhausting system
 resources. Secondly, it must also terminate connections that remain inactive
 for long.
 %% Il devra aussi, pouvoir continuer à servir normalement les requêtes en cours
@@ -883,7 +893,7 @@ timeout, for example by programming an alarm.
 
 The \textsc{tcp} protocol used by most connections of \ml+SOCK_STREAM+ type can
 only work in connection-oriented mode. Conversely, the \textsc{udp} protocol used by most
-connections of \ml+SOCK_DGRAM+ type always work in connectionless mode. That is,
+connections of \ml+SOCK_DGRAM+ type always works in connectionless mode. That is,
 there is no connection established between the two machines.
 
 This type of socket can be used without establishing a prior connection.
@@ -950,7 +960,7 @@ val $\indexlibvalue{Unix}{open\_connection}$ : sockaddr -> in_channel * out_chan
 val $\indexlibvalue{Unix}{shutdown\_connection}$ : Pervasives.in_channel -> unit
 \end{listingcodefile}
 %
-The \ml+open_connection+ function opens a socket at the given address and
+The \ml+open_connection+ function opens a socket to the given address and
 creates a pair of input-output channels (from the \ml+Pervasives+ module) on
 this socket. The communication with the server is done by writing requests on
 the channel open for writing and by reading responses on the channel open for
@@ -977,15 +987,15 @@ connection to the server creates a new socket (as does the function
 \ml+accept+); after being cloned, the child process creates a pair of
 input-output channels (from the \ml+Pervasives+ library) and passes them to
 the function \ml+f+ to handle the connection. The function \ml+f+ reads the
-requests on the channel open for input and responds on the channel open for
-writing. Once the service has been provided (i.e. once \ml+f+ has returned),
+requests on the channel open for reading and responds to the client on the channel
+open for writing. Once the service has been provided (i.e. once \ml+f+ has returned),
 the child process closes the socket and exits. If the client closes the
 connection cleanly, the child will get an end-of-file on the channel open for
 reading. If the client does it abruptly, the child might receive a
 \ml+SIGPIPE+ when trying to write on the closed socket.  As for the parent, it
 has probably already handled another request! The \ml+establish_server+ usually
 never terminates, except in case of an error (e.g. of the {\ocaml} runtime or
-the system for establishing the service).
+the system during the establishment of the service).
 
 \section{Examples of protocols}
 
@@ -998,7 +1008,7 @@ the form of a byte stream on the socket. The client and the server must then
 agree on the precise transmission protocol, which specifies the format of
 requests and responses exchanged on the socket. Most protocols used by Unix
 commands are specified in documents called \quotes{\textsc{rfc}} (request for
-comments): these documents start out as propositions open for discussion, and
+comments): these documents start out as proposals open for discussion, and
 gradually become standards over time, as users adopt the described
 protocol.\footnote{The \textsc{rfc}s are available via anonymous \textsc{ftp}
   on numerous sites. In France:
@@ -1009,10 +1019,10 @@ protocol.\footnote{The \textsc{rfc}s are available via anonymous \textsc{ftp}
 
 \subsection*{\quotes{Binary} protocols}
 
-The first family of protocol aims at transmitting the data in a compact form as
+The first family of protocols aims at transmitting the data in a compact form as
 close as possible to its in-memory representation, in order to minimise the
 conversion work needed, and to make most of the available network bandwidth. Typical
-examples of protocol of this type are: the \textsc{x}-window protocol, which governs
+examples of protocols of this type are: the \textsc{x}-window protocol, which governs
 the exchanges between the \textsc{x} server and the \textsc{x} applications, and the
 \textsc{nfs} protocol (\rfc{1094}).
 
@@ -1039,12 +1049,12 @@ polygon, causes a message of the following form to be sent to the \textsc{x} ser
 \item a \quotes{form} byte, indicating whether the polygon is convex, etc.
 \item a byte indicating whether the coordinates of the vertices are absolute or
   relative
-\item $4n$ bytes coding the coordinates of the polygon's vertices, with two 16 bits
-  integer for each vertex.
+\item $4n$ bytes coding the coordinates of the polygon's vertices, with two 16 bit
+  integers for each vertex.
 \end{itemize}
 \end{example}
 
-In this type of protocol, one must be cautious of architecture differences
+In this type of protocol, one must be wary of architecture differences
 between the communicating machines. In particular, in the case of multi-byte
 integers, some machines put the most significant byte first (that is, in memory,
 at the lower-address) (called \emph{big-endian} architectures),
@@ -1055,7 +1065,7 @@ byte $57$ at the address $n+1$ on a big-endian architecture, and by the byte $57
 at the address $n$ and the byte $48$ at the address $n+1$ on a little-endian
 architecture. The protocol must specify for example that all the whole
 multi-bytes are transmitted in big-endian mode. Another possibility is to let
-the emitter choose freely between big-endian and little-endian, and have it
+the sender choose freely between big-endian and little-endian, and have it
 specify in the header of the message which convention it will use.
 
 The {\ocaml} system helps this task of data formatting (often called
@@ -1279,8 +1289,8 @@ The commands \ml+HELO+, \ml+MAIL+ and \ml+RCPT+ transmit the name of the sending
 machine, the address of the sender and the address of the recipient. The
 \ml+DATA+ command sends the text of the message itself. It is followed by a certain number of lines
 (the text of the message), terminated by a line containing the single character
-\quotes{dot}. To avoid ambiguity, all the lines of the message beginning with a
-dot are transmitted by doubling the initial dot. The additional dot is
+\quotes{period}. To avoid ambiguity, all the lines of the message beginning with a
+period are transmitted by doubling the initial period. The additional period is
 suppressed by the server.
 
 The responses are all of the form \quotes{a 3 digit numerical code and a
@@ -1295,7 +1305,7 @@ The {\http} protocol (HyperText Transfer Protocol) is primarily used to read
 documents over the famous \quotes{web}. This domain is a niche area of
 client-server examples: from reading pages on the web or writing servers, relays placed as
 intermediaries, virtual servers for real clients and clients for delegating to real servers,
-often providing an additional service such as adding caches, filters \etc.
+often providing an additional service such as adding caches, filters \etc
 
 There are several versions of the {\http} protocol. In order to
 focus on the essential, namely the architecture of clients or relays, we
@@ -1305,7 +1315,7 @@ servers. We describe at the end a version that is more modern and expressive,
 but also more complex, which is essential to make real tools to explore the
 web. However, we will leave the translation of the examples as exercises.
 
-Version 1.0 of the {http} protocol specified in the \rfc{1945} standard permits
+Version 1.0 of the {\http} protocol specified in the \rfc{1945} standard permits
 simplified requests of the form:
 
 \begin{lstlisting}
@@ -1313,12 +1323,12 @@ GET $\textit{sp}$ $\textit{uri}$ $\textit{crlf}$
 \end{lstlisting}
 where \textit{\ml+sp+} represents a space and \textit{\ml+crlf+} the string
 \ml+"\r\n"+ (\quotes{return} followed by \quotes{linefeed}). The response to a
-simplified request is also simplified: the content of the url is sent directly,
+simplified request is also simplified: the content of the {\URL} is sent directly,
 without any headers, and the end of the request is signaled by the end-of-file,
 which closes the connection. This form of request, inherited from version 0.9
 of the protocol, limits the connection to the current request.
 
-\subsection*{Fetching an url}
+\subsection*{Fetching a {\URL}}
 
 We propose to write a \ml+geturl+ program that takes a single argument, a {\URL}, searches
 the web for the resource it denotes, and displays it.
@@ -1470,8 +1480,8 @@ relay has multiple advantages.
 A relay can store the most recent requests or the most frequent requests for
 later reuse without querying the remote server, either to
 avoid overloading it or in the absence of a network connection.
-A relay can also filter specific pages (remove advertisements or
-images \etc). Using a relay can also simplify writing applications by allowing
+A relay can also filter specific pages (to remove advertisements or
+images, \etc). Using a relay can also simplify writing applications by allowing
 interaction with a single server for all the web pages in the world.
 
 The \ml+proxy+ command launches the server on the port passed as an argument,
@@ -1542,8 +1552,8 @@ exceed the time spent handling the request itself. We shall see in
 chapter~\ref{sec/coprocessus} how one can reduce it by handling
 the requests with threads rather than processes.
 %
-In the following exercises we shall use the
-\http/1.1~(\rfc{2068})~protocol which uses complex requests which allow serving
+In the following exercises, we shall use the
+\http/1.1~(\rfc{2068})~protocol which uses complex requests that allow serving
 multiple requests per connection.\footnote{The \http/1.0 protocol already allows
   such requests in addition to simplified requests, but we prefer to describe the
   \http/1.1 protocol which deals exclusively with complex requests.}
@@ -1606,8 +1616,9 @@ Host:pauillac.inria.fr\r
 A response to a complex request is also a complete response. It contains
 a status line, a header, and the body of the response, if any.
 %
+% The original showed a HTTP/1.0 response, when a HTTP/1.1 response was probably intended.
 \begin{lstlisting}
-HTTP/1.0 $\textit{sp}$ $\textit{status}$ $\textit{sp}$ $\textit{message}$ $\textit{crlf}$
+HTTP/1.1 $\textit{sp}$ $\textit{status}$ $\textit{sp}$ $\textit{message}$ $\textit{crlf}$
 $\textit{header}$ $\textit{crlf}$
 $\textit{body}$
 \end{lstlisting}
@@ -1682,7 +1693,7 @@ Write a program \ml+wget+ such that \ml+wget u1 .. un+ makes the requests \ml+u1
 where \ml+mi+ and \ml+pi+ are the name of the server and absolute path of the
 request \ml+ui+ respectively. We shall take advantage of the protocol to establish only one
 connection to the machine \ml+m+ when it is the same for consecutive
-requests. Further, we shall follow {\URL} in case of a temporary or permanent redirection.
+requests. Further, we shall follow a {\URL} in case of a temporary or permanent redirection.
 %
 The following options can be added:
 \begin{mltypecases}
