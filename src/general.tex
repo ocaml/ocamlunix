@@ -8,17 +8,16 @@
 % Translation by Eliot Handelman (eliot@colba.net)
 %------------------------------------------------------------------------------
 
-\chapter{General}
+\chapter{Generalities}
 \cutname{general.html}
 
 \section{Modules {\normalfont\texttt{Sys}} and {\normalfont\texttt{Unix}}}
 
-Functions to access the system from {\ocaml} are grouped into two
+Functions that give access to the system from {\ocaml} are grouped into two
 modules. The first module,  \libmodule{Sys}, contains those functions
 common to Unix and other operating systems under which {\ocaml} runs.
-The second module, \libmodule{Unix}, contains everthing specific to
+The second module, \libmodule{Unix}, contains everything specific to
 Unix. 
-
 
 In what follows, we will refer to identifiers of modules \ml+Sys+ and
 \ml+Unix+ without saying which modules they come from.  That is, we
@@ -26,12 +25,11 @@ will suppose that we are within the scope of the directives
 \ml+open Sys+ and \ml+open Unix+. In complete examples, we explicitly write
 \ml+open+, in order to be truly complete.
 
-Modules \ml+Sys+ and \ml+Unix+ can redefine certain
+The \ml+Sys+ and \ml+Unix+ modules can redefine certain
 identifiers of module \ml+Pervasives+, hiding previous
 definitions. For example,  \ml+Pervasives.stdin+  is different from 
 \ml+Unix.stdin+. The previous definitions can always be obtained
-through a prefix. 
-
+through a prefix.
 
 To compile an {\ocaml} program that uses the 
 Unix library, do this:
@@ -40,10 +38,8 @@ Unix library, do this:
 ocamlc -o prog unix.cma mod1.ml mod2.ml mod3.ml 
 \end{lstlisting}
 %
-
-assuming that the program  \ml+prog+ is composed of three modules  \ml+mod1+,
-\ml+mod2+ and \ml+mod3+. The modules can also be compiled seaparately~:
-
+assuming that the program  \ml+prog+ is composed of the three modules  \ml+mod1+,
+\ml+mod2+ and \ml+mod3+. The modules can also be compiled separately~:
 %
 \begin{lstlisting}
 ocamlc -c mod1.ml
@@ -51,56 +47,46 @@ ocamlc -c mod2.ml
 ocamlc -c mod3.ml
 \end{lstlisting}
 %
-
 then to link them~:
 %
 \begin{lstlisting}
 ocamlc -o prog unix.cma mod1.cmo mod2.cmo mod3.cmo
 \end{lstlisting}
 %
-
 In both cases, the argument \ml+unix.cma+ represents the \ml+Unix+
 library written in {\ocaml}. To use the native compiler rather than the bytecode
 compiler, replace \ml+ocamlc+ with \ml+ocamlopt+ and \ml+unix.cma+ with
 \ml+unix.cmxa+.
 
-
 If the compilation tool  \ml+ocamlbuild+ is used, simply add the
 following line to the 
 \ml+_tags+ file~:
-
-
 %
 \begin{lstlisting}
 <prog.{native,byte}> : use_unix
 \end{lstlisting}
 %
-
 The Unix system can also be accessed from the interactive system (the
 \quotes{toplevel}). If your platform supports dynamic linking of C
 libraries, start an \ml+ocaml+ toplevel and type in the directive~:
-
-
 %
 \begin{lstlisting}
 #load "unix.cma";;
 \end{lstlisting}
 %
-
 Otherwise, you will need to create an interactive system containing
 the pre-loaded system functions:
-
 %
 \begin{lstlisting}
 ocamlmktop -o ocamlunix unix.cma
 \end{lstlisting}
 %
-
-
 The system can be started by~:
 %
+% The original contained ./camlunix, which is clearly a typo, given
+% the above listing.
 \begin{lstlisting}
-./camlunix
+./ocamlunix
 \end{lstlisting}
 
 \section{Interface with the calling program}
@@ -114,54 +100,36 @@ variables: bindings set with \texttt{setenv var=val} for the
 \texttt{csh} shell, or with \texttt{var=val; export var} for
 the \texttt{sh} shell.
 
-
-
 The arguments passed to the program are placed in the string array
 \ml+Sys.argv+~:
-
-
-
 %
 \begin{listingcodefile}{tmpsys.mli}
 val $\indexlibvalue{Sys}{argv}$ : string array
 \end{listingcodefile}
 %
-
 The environment of the entire program is obtained by the function
 \ml+Unix.environment+ :
-
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{environment}$ : unit -> string array
 \end{listingcodefile}
 %
-
 A more convenient way of looking up the environment is to use the
 function \ml+Sys.getenv+~:
-
-
 %
 \begin{listingcodefile}{tmpsys.mli}
 val $\indexlibvalue{Sys}{getenv}$ : string -> string
 \end{listingcodefile}
 %
-
 \ml+Sys.getenv v+ returns the value associated with the variable name
 \ml+v+ in 
 the environment, raising the exception  \ml+Not_found+ if this 
 variable is not bound.
-
-
-
-
 %
 \begin{example}
-
 As a first example, here is the \ml+echo+ program, which prints a
 list of its arguments, as does the Unix command of the same name.
-
 \begin{listingcodefile}{echo.ml}
-
 let echo () = 
   let len = Array.length Sys.argv in
   if len > 1 then 
@@ -178,42 +146,32 @@ echo();;
 \end{example}
 
 A program can be terminated at any point with a call to \ml+exit+:
-
 %
 \begin{listingcodefile}{tmppervasives.mli}
 val $\indexlibvalue{Pervasives}{exit}$ : int -> 'a
 \end{listingcodefile}
 %
-%
-
 The argument is the return code to send back to the calling program. The
 convention is to return 0 if all has gone well, and to return a
 non-zero code to signal an error. In conditional constructions, the
 \ml+sh+ shell interprets the return code 0 as the boolean
 \quotes{true}, and all non-zero codes as the boolean \quotes{false}.
-
-
 %
-
 When a program terminates normally after executing all of the
 expressions of which it is composed, it makes an implict call to
 \ml+exit 0+. When a program terminates prematurely because an
 exception was raised but not caught, it makes an implicit call to
 \ml+exit 2+.
-
-
-
+%
 The function \ml+exit+ always flushes the buffers of all channels open for
-writing. The function \ml+at_exit+ lets one specify other actions
+writing. The function \ml+at_exit+ lets one register other actions
 to be carried out when the program terminates.
-
 %
 \begin{listingcodefile}{tmppervasives.mli}
 val $\indexlibvalue{Pervasives}{at\_exit}$ : (unit -> unit) -> unit
 \end{listingcodefile}
 %
-
-The last function entered is called first. A function specified at
+The last function to be registered is called first. A function registered with
 \ml+at_exit+ cannot be subsequently cancelled. However, this is not a
 real restriction: we can easily get the same effect with functions
 whose execution depends on a global variable.
@@ -222,7 +180,7 @@ whose execution depends on a global variable.
 
 Unless otherwise indicated, all functions in the \ml+Unix+ module
 raise the exception \ml+Unix_error+ in case of error.
-
+%
 \begin{codefile}{tmpunix.mli}
 type error = Unix.error
 \end{codefile}
@@ -231,8 +189,6 @@ type error = Unix.error
 exception $\libexn{Unix}{Unix\_error}$ of error * string * string
 \end{listingcodefile}
 %
-
-
 The second argument of the \ml+Unix_error+ exception is the name of
 the system call that raised the error. The third argument identifies,
 if possible, the object on which the error occurred; for example, for
@@ -240,48 +196,40 @@ a system call taking a filename as an argument, this filename will be
 in the third position in \ml+Unix_error+. Finally, the first argument
 of the exception is an error code indicating the nature of the
 error. It belongs to the concrete enumerated type \ml+error+
-
+%
 \begin{lstlisting}
 type $\libtype{Unix}{error}$ = E2BIG | EACCES | EAGAIN | ...  | EUNKNOWNERR of int
 \end{lstlisting}
 %
-
 Constructors of this type have the same names and meanings as those
 used in the \textsc{posix} convention and  certain errors from
 \textsc{unix98} and \textsc{bsd}. All other errors use the constructor \ml+EUNKOWNERR+.
 
 Given the semantics of exceptions, an error that is not specifically
-forseen and intercepted by a \ml+try+ propagates up to the top of a
+foreseen and intercepted by a \ml+try+ propagates up to the top of a
 program and causes it to terminate prematurely.  It is generally a
-good semantic for unforseen errors in small applications to be
+good semantic for unforeseen errors in small applications to be
 fatal. However, it is appropriate to display the error clearly. To do
 this, the module \ml+Unix+ supplies the functional
 \ml+handle_unix_error+~:
-
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{handle\_unix\_error}$ : ('a -> 'b) -> 'a -> 'b
 \end{listingcodefile}
 %
-
-
 The call  \ml+handle_unix_error f x+ applies function  \ml+f+ to the
 argument \ml+x+. If this raises the exception \ml+Unix_error+, a
 message is displayed describing the error, and the program is
 terminated with  \ml+exit 2+. A typical use is
-
-
-
 %
 \begin{lstlisting}
 handle_unix_error prog ();;
 \end{lstlisting}
 %
-
 where the function  \ml+prog : unit -> unit+  executes the body of the
 function  \ml+prog+. For reference, here is how
 \ml+handle_unix_error+ is implemented.
-
+%
 \begin{listingcodefile}[style=numbers]{handle_unix_error.ml}
 open Unix;;
 let handle_unix_error f arg =
@@ -302,18 +250,16 @@ let handle_unix_error f arg =
     exit 2;;
 \end{listingcodefile}
 %
-
 Functions of the form \ml+prerr_xxx+ are like the functions
 \ml+print_xxx+, except that they are written to the error port
 \ml+stderr+ instead of the standard port \ml+stdout+. Further,
 \ml+prerr_endline+ flushes \ml+stderr+ (whereas \ml+print_endline+ does not).
 
-
 The primitive \indexlibvalue{Unix}{error\_message}, of type 
-\ml+error -> string+, sends a message describing the error given as an argument
+\ml+error -> string+, returns a message describing the error given as an argument
 (line~\ref{prog:errmsg}). Argument number zero of the command
 \ml+Sys.argv.(0)+, contains the name of the command that was used to
-call the program (line~\ref{prog:argv}).
+invoke the program (line~\ref{prog:argv}).
 
 The function \ml+handle_unix_error+ treats fatal errors, \ie{} errors
 that stop the program.  An advantage of {\ocaml} is that it requires
@@ -322,7 +268,6 @@ the program to stop. Indeed, any error in a system call raises an
 exception, and the execution thread in progress is interrupted up to the
 level where it is explicitly caught and treated. This avoids
 continuing the program in an incoherent situation.
-
 
 Errors of type \ml+Unix_error+  can, of course, be
 selectively matched. We will often see the following
@@ -333,11 +278,8 @@ let rec restart_on_EINTR f x =
   try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x 
 \end{lstlisting}
 %
-
 which is used to execute a function and to start it again automatically
 when it is interrupted by a system call (see \ref{restart_on_EINTR}).
-
-
 
 \section{Library functions}
 
@@ -345,7 +287,6 @@ As we will see throughout the examples, system programming often
 repeats the same patterns. We will want to define library functions
 that factor out the common parts, reducing the code of each
 application to its essential part.
-
 
 Whereas in a complete program one knows precisely which errors can be
 raised, often fatally (the program is stopped), we generally do not
@@ -361,28 +302,18 @@ including those where the processing of the file causes an error. This
 is in order to avoid a memory leak, leading to the exhaustion of file
 descriptors.
 
-
-
-
-Furthermore, the process applied to the file might be given by a
+Furthermore, the processing to perform for a file might be given by a
 function that was received as an argument, and one thus does not know
-precisely when nor how the processing can fail (but the caller in
-general will know). One is thus often led to protect the body of
-processing with \quotes {finalizer} code, which must be carried out
+precisely when or how the processing can fail (but the caller in
+general will know). One is thus often led to protect the body of the
+processing with \quotes {finalization} code, which must be carried out
 just before the return of the function, whether normal or exceptional.
-
 
 There is no built-in finalizer construct \ml+try+ ... \ml+finalize+ in
 the {\ocaml} language, but it can be easily defined\footnote{A
   built-in construct would not be less useful.}
-
-
-
 \begin{codefile}{misc.mli}
 (** miscelleaneous functions for the Unix library *)
-
-
-
 
 open Sys
 open Unix
@@ -404,16 +335,13 @@ let try_finalize f x finally y =
   finally y; 
   res
 \end{listingcodefile}
-
 %
-
-
 This function takes the main body \ml+f+ and the finalizer
 \ml+finally+, each in the form of a function, and two parameters \ml+x+
 and \ml+y+, which are passed to their respective functions. The body
 of the program \ml+f x+ is executed first, and its result is kept
 aside to be returned after the execution of the finalizer 
-\ml+finally+. In case the program fails, \ie raises an exception \ml+exn+,
+\ml+finally+. In case the program fails, \ie{} raises an exception \ml+exn+,
 the finalizer is run and the exception \ml+exn+ is raised
 again. If both the main function and the finalizer fail, the
 finalizer's exception is raised (one could choose to have the main
@@ -421,11 +349,11 @@ function's exception raised instead).
 
 \paragraph{Note}
 
-In the rest of this course, we will use an auxilliary library \ml+Misc+
+In the rest of this course, we will use an auxiliary library \ml+Misc+
 which will contain several generally useful functions, such as
 \ml+try_finalize+, often used in the examples, and which we will
-introduce as they are needed. To compile the course examples, we will
-need to collect the definitions of the module \ml+Misc+ and to
+introduce as they are needed. To compile the examples of the course, we will
+need to collect the definitions of the module \ml+Misc+ and
 compile it.
 
 Module \ml+Misc+ also contains certain functions, added for the
@@ -441,7 +369,7 @@ The course consists of numerous examples. These may be compiled with
 slightly modified in order to work with an older version. 
 
 The examples are essentially of two kinds: very general functions that can
-be reused, called \quotes{Library Functions}, and small
+be reused, called \quotes{library functions}, and small
 applications. It is important to distinguish between these two kinds
 of examples. In the first case, we will want the broadest possible context
 for the use of the program, and we will carefully specify the
