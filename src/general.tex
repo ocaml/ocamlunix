@@ -82,9 +82,6 @@ ocamlmktop -o ocamlunix unix.cma
 \end{lstlisting}
 %
 The system can be started by~:
-%
-% The original contained ./camlunix, which is clearly a typo, given
-% the above listing.
 \begin{lstlisting}
 ./ocamlunix
 \end{lstlisting}
@@ -368,13 +365,13 @@ The course consists of numerous examples. These may be compiled with
 {\ocaml}, version {\ocamlversion}.  Some programs will have to be
 slightly modified in order to work with an older version. 
 
-The examples are essentially of two kinds: very general functions that can
-be reused, called \quotes{library functions}, and small
+The examples are essentially of two kinds: very general functions that
+can be reused, called \quotes{library functions}, and small
 applications. It is important to distinguish between these two kinds
-of examples. In the first case, we will want the broadest possible context
-for the use of the program, and we will carefully specify the
+of examples. In the first case, we will want the broadest possible
+context for the use of the program, and we will carefully specify the
 interface, properly treating all particular cases.  In the second
-case, an error is often fatal, leading to the termination of a running program. In this
-case, it is sufficient to report the cause of the error, without
-needing to return to a consistent state, since the program will be
-stopped immediately after reporting the error.
+case, an error is often fatal, leading to the termination of a running
+program. In this case, it is sufficient to report the cause of the
+error, without needing to return to a consistent state, since the
+program will be stopped immediately after reporting the error.
