@@ -45,14 +45,16 @@
 \newstyle{.titlerest SUP}{ font-size: 70\%; padding-right:0.5ex }
 
 %% Title 
-\newstyle{.titlemain}{font-size: 180\%; text-align: left}
+\newstyle{.title}{ margin:0em; border: 0em; padding: 0em; border-spacing:0px;}
+\newstyle{.title *}{ margin-left:0em; padding-left: 0em; border-style:none}
+\newstyle{.titlemain}{font-size: 180\%;}
 \newstyle{.titlerest}{text-align: left; margin-top: 1em}
-\newstyle{TABLE.title TR TD}{ padding:0em; border-style:none}
 
 %% Copyright notice
 \newenvironment{copyrightnotice}
    {\@open{DIV}{class="copyrightnotice"}}{\@close{DIV}}
-\newstyle{.copyrightnotice}{ margin-top: 1em; 
+\newstyle{.copyrightnotice}{ margin-top: 2em; 
+			     margin-bottom: 1em;
                              font-size: 80\%;
                              text-align: left}
 \newstyle{.ccimage}{ vertical-align: text-top;}
