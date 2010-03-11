@@ -41,7 +41,7 @@ access dates,{\etc}
 As a first approximation, we may think of the file system as a tree. The
 root is denoted by \ml+'/'+ . The branches are labelled by the names (of  
 the files), which are made up of strings of any characters excluding 
-solely the characters  \ml+'\000'+ et \ml+'/'+,  but it is good practice
+solely the characters  \ml+'\000'+ and \ml+'/'+,  but it is good practice
 to avoid the use of non-printing characters as well as spaces.
 The non-terminating nodes of the file system are
 called \emph{directories}: These nodes always contain two branches \ml+.+
@@ -56,7 +56,7 @@ the top of the file hierarchy or to a directory (usually the current
 work directory) in which case we may refer to them as absolute
 paths. A relative path is a string of file names separated by the the
 character \ml+'/'+.  An absolute path is a relative path preceded by
-the the character \ml'/'+ (note the double use of of this character
+the the character \ml+'/'+ (note the double use of of this character
 both as a separator and as the name of the root node).
 
 The \libmodule{Filename} library handles file paths in a portable
@@ -69,25 +69,25 @@ module provides the names \libvalue{Filename}{current\_dir\_name} and
 \ml+.+ and \ml+..+.  The \libvalue{Filename}{basename} and
 \libvalue{Filename}{dirname} functions extract the prefix \ml+d+ and
 the suffix \ml+b+ from a file path \ml+p+ such that the file path
-\ml+p+ and \ml+d/b+ designate the same file.  denote (designate) the
-same file, \ml+d+ designates the directory in which the file is found
-and \ml+b+ the name of the file within the directory. The functions
-defined in \ml+Filename+ operate only on files, independently of their
-position within the file hierarchy.
+\ml+p+ and \ml+d/b+ refer to the same file, where \ml+d+ refers to the
+directory in which the file is found and \ml+b+ the name of the file
+within the directory.
 
+The functions defined in \ml+Filename+ operate only on files,
+independently of their position within the file hierarchy.
 In fact, the file hierarchy is not a tree.  In particular, the
-directory conventions \ml+.+ et \ml+..+ allow the directory to refer
+directory conventions \ml+.+ and \ml+..+ allow the directory to refer
 to itself (auto-referencing) and allow remounting within the file
 hierarchy, thus allowing the creation of paths in a directory leading
-to itself.  For another part, non-directory files can have many
+to itself.  In addition, non-directory files can have many
 ancestors. In this case, one says that they have many \quotes{hard
-  links}. Finally, there also exist \quotes{symbolic links} which lend
+  links}. Finally, there are also \quotes{symbolic links} which lend
 themselves to a double interpretation.  A symbolic link is a
 non-directory file which contains a path.  Additionally, a symbolic
 link can be interpreted as an ordinary file and we can simply read
-what it contains, a link.  But we can also follow the symbolic link in
-a transparent manner and not see anything but the target file.  The
-latter is the only possible interpretation when the link appears in
+what it contains, a link.  It is also possible to follow the symbolic
+link in a transparent manner and not see anything but the target file.  
+The latter is the only possible interpretation when the link appears in
 the middle of a file path: if \ml+s+ is a symbolic link whose value is
 the path \ml+l+, then the path \ml+p/s/q+ designates the file \ml+l/q+
 if \ml+l+ is an absolute link or the file \ml+p/l/q+ if \ml+l+ is a
@@ -158,32 +158,32 @@ relative link.
 \label{fig/hierarchy}
 \end{myfigure}
 
-The figure~\ref{fig/hierarchy} gives an example of a file hierarchy
-fichiers.  The symbolic link \ml+11+ designated by the file path
-\ml+/tmp/bar+, where the value is the relative path \ml+./gnu+, does
-not refer to any existing file in the hierarchy (in this instant).
+Figure~\ref{fig/hierarchy} gives an example of a file hierarchy.  The
+symbolic link \ml+11+ referred to by the file path \ml+/tmp/bar+,
+where the value is the relative path \ml+./gnu+, does not refer to any
+existing file in the hierarchy (in this instant).
 
-In general a recursive traversal of the hierarchy carries out a
-reading of the hierarchical tree.
+In general a recursive traversal of the hierarchy will be complete
+if the following two rules are followed:
 %
 \begin{itemize}
-\item the directories \ml+currentdir+ et \ml+parentdir+ are ignored.
+\item the directories \ml+currentdir+ and \ml+parentdir+ are ignored.
 \item symbolic links are not followed. 
 \end{itemize}
 %
-If one follows the symbolic links, one is then brought back to a
+If a symbolic link is followed, one is brought back to a
 traversal of the graph and care is required to keep track of nodes we
 have already visited and nodes that we are currently visiting.
 
-Each process has a working directory. It is possible to check what
-this is through the function \indexlibvalue{Unix}{getcwd} and it can
-be changed by the command \indexlibvalue{Unix}{chdir}. It is possible
-to constrict the view of the file hierarchy. The call
-\indexlibvalue{Unix}{chroot}\ml+ p+ makes the node \ml+p+, which
-should be a directory, the root of the hierarchy.  Absolute file paths
+Each process has a current working directory. It is possible to check what
+this is using the function \indexlibvalue{Unix}{getcwd} and it can
+be changed by passing a desired target directory to
+\indexlibvalue{Unix}{chdir}.  It is also possible to constrict the view
+of the file hierarchy using \indexlibvalue{Unix}{chroot}\ml+ p+ which
+makes the node \ml+p+, which should be a directory, the root of the 
+of a restricted view of the hierarchy.  Absolute file paths
 are then interpreted in accordance with the new root (and the path
-\ml+..+ applied to the new root remains as a matter of course in the
-root).
+\ml+..+ applied to the new root remains in the new root).
 
 \section{File names, file descriptors}
 
@@ -216,12 +216,12 @@ like the command \ml+mv f1 f2+).
 
 The other method of accessing a file is through a file descriptor.  A
 descriptor contains a pointer to a file in addition to other
-information like the current reading/writing position.  in the file,
+information like the current reading/writing position in the file,
 the permissions on the file (read-permission ? write-permission ?)
 and the wrappers which control the behavior of the read and write
 processes (writes appending or overwriting blocking reads or
-non-blocking).  The descriptors are represented by by values of type
-abstract \libtype{Unix}{file\_descr}.
+non-blocking).  The descriptors are represented by values of abstract
+type \libtype{Unix}{file\_descr}.
 
 File access through a descriptor is in large part independent
 of access via the file name.  In particular, when a 
@@ -229,8 +229,8 @@ descriptor for a file is obtained, the file may be destroyed or renamed
 but the descriptor will always point to the original file.
 
 When a program is launched, three descriptors are allocated and 
-tied to variables \ml+stdin+, \ml+stdout+ and \ml+stderr+ of the module
-\ml+Unix+:
+tied to variables \ml+stdin+, \ml+stdout+ and \ml+stderr+ of the
+\ml+Unix+ module:
 \begin{codefile}{tmpunix.mli}
 type file_descr
 \end{codefile}
@@ -243,10 +243,9 @@ val $\indexlibvalue{Unix}{stderr}$ : file_descr
 They correspond respectively to the standard input of the process, the
 standard output of the process and the standard error of the process.
 
-When a program is launched interactively on the command line Lorsque
-le programme est lancé depuis un interpréteur de commandes and without
-any redirections, the three descriptors refer to the terminal.  But
-if, for example, the input has been redirected by the notation 
+When a program is launched interactively on the command line and
+without any redirections, the three descriptors refer to the terminal.
+But if, for example, the input has been redirected by the notation 
 \ml+cmd < f+, then the descriptor \ml+stdin+ refers to the file with
 file name \ml+f+ during the execution of the command \ml+cmd+.
 
@@ -255,15 +254,15 @@ way that the descriptors \ml+stdout+ and \ml+stderr+ refer to the file
 \ml+f+ during the execution of the command \ml+cmd+.
 
 
-\section{Méta-attributes, types and permissions}
+\section{Meta-attributes, types and permissions}
 
 The system calls  \syscall{stat}, \syscall{lstat} and \syscall{fstat}
 return the meta-attributes of a file. This is to say 
 information about the node itself rather than its content.
 
 Among other things, this information contains the identity of the file, the  
-type of file, the rights of access, the dates of last access.
-plus other supplementary information.
+type of file, the rights of access, the dates of last access and other
+supplementary information.
 %
 \begin{codefile}{tmpunix.mli}
 type stats
@@ -275,7 +274,7 @@ val $\libvalue{Unix}{lstat}$ : string -> stats
 val $\libvalue{Unix}{fstat}$ : file_descr -> stats
 \end{listingcodefile}
 %
-The system calls \ml+stat+ et \ml+lstat+ take a file name as an 
+The system calls \ml+stat+ and \ml+lstat+ take a file name as an 
 argument.  The call \ml+fstat+ takes as an argument a previously opened descriptor 
 and gives information about the designated file. The
 difference between  \ml+stat+ and \ml+lstat+ can be seen in symbolic links
@@ -283,8 +282,8 @@ difference between  \ml+stat+ and \ml+lstat+ can be seen in symbolic links
 , while \ml+stat+ returns information
 about the file that the link refers to. 
 %
-The result of these three calls is a record
-(\emph{record}) of type \ml+stats+ described in the table~\ref
+The result of these three calls is a \emph{record} of type
+\ml+stats+ described in the table~\ref
 {fig/stats}.
 
 \begin{mytable}
@@ -293,7 +292,7 @@ The result of these three calls is a record
 & The device number of the device where the file is located. \\
 \ml+st_ino : int+ 
 & The file's inode number in its partition. 
-The tuple \ml+(st_dev, st_ino)+ uniquely identifies the file.
+The tuple \ml+(st_dev, st_ino)+ uniquely identifies the file
 within the file system. \\
 \ml+st_kind : file_kind+ & 
 The file type. The file type \ml+file_kind+ is a 
@@ -341,7 +340,7 @@ device number (typically the disk partition where it is located)
 A files has one user owner \ml+st_uid+ and one group owner
 \ml+st_gid+.  All the users and user groups 
 on the machine are usually described in the  
- \ml+/etc/passwd+ et \ml+/etc/groups+ files.  One can examine them by name  
+ \ml+/etc/passwd+ and \ml+/etc/groups+ files.  One can examine them by name  
 in a portable manner through the help of the commands \syscall{getpwnam} and 
 \syscall{getgrnam} or numerically through the help of the commands 
 \syscall{getpwuid} and \syscall{getgrgid}.
@@ -370,8 +369,9 @@ val $\libvalue{Unix}{getgroups}$ : unit -> int array
 The call  \syscall{chown} changes the owner (second argument) and 
 the group (third argument) of a file (first
 argument).  Only the super user can make these changes.
-While a descriptor has a file, one should use \syscall{fchown} through the descriptor
-instead of the file name.
+If the program has an open files descriptor on a file, one should
+use \syscall{fchown} through the descriptor instead of \syscall{chown}
+on the file name.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{chown}$ : string -> int -> int -> unit
@@ -447,8 +447,8 @@ Bit (octal) & Notation \ml+ls -l+ & Right \\
 
 The meaning of read and write permissions is clearer than 
 that of the execution rights. Execution rights on a directory
-mean the user's right to use the directory as a working directory (do
-\ml+chdir+ on the directory ). Read permissions on a directory
+mean the user's right to use the directory as a working directory (to
+\ml+chdir+ into the directory ). Read permissions on a directory
 are sufficient to list the directory's contents but not to read
 its files or sub-directories (but it is sufficient to read their names).
 
@@ -490,7 +490,7 @@ A process also has a file creation mask made up in the same fashion.
 As its names indicates, the mask specifies prohibitions (masked permissions):
 During file creation all the bits that have 1 in the creation mask  
 are set to 0 in the permissions of the created file. The mask may be  
-looked up and changed by the system call système \syscall{umask}~:
+looked up and changed by the system call system \syscall{umask}~:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{umask}$ : int -> int
@@ -512,7 +512,7 @@ let m = umask 0 in ignore (umask m); m
 \end{listingcodefile}
 
 File access permissions may be modified by the call
-\syscall{chmod} et \syscall{fchmod}~:
+\syscall{chmod} and \syscall{fchmod}~:
 %
 \begin{codefile}{tmpunix.mli}
 type file_perm
@@ -553,7 +553,7 @@ created). Thus opening a directory in write mode is prohibited. In
 certain versions of unix a directory may be opened in read
 only mode and read with \indexvalue{read}, but other versions
 prohibit it. While this is possible, it is preferable 
-not to do because the format of directory entries vary
+not to do so because the format of directory entries vary
 depending on the unix version and is often complex. The following functions
 allow reading a directory sequentially in a manner that is
 portable:
@@ -578,7 +578,7 @@ descriptor at the beginning of the directory and \syscall{closedir} closes the
 directory descriptor. 
 
 To create a directory or remove an empty directory, we have
-\syscall{mkdir} et \syscall{rmdir}~:
+\syscall{mkdir} and \syscall{rmdir}~:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{mkdir}$ : string -> file_perm -> unit
@@ -622,9 +622,9 @@ permissions) etc. Here we propose to develop  part of
 a library function \ml+Findlib.find+ which will allow us to 
 make such searches and a command \ml+find+ providing a restricted
 version of the unix command \ml+find+ does not implement any but the options
-\ml+-follow+ et \ml+-maxdepth+.
+\ml+-follow+ and \ml+-maxdepth+.
 
-We define (specify?) the following interface for the library \ml+Findlib+:
+We specify the following interface for the library \ml+Findlib+:
 %
 \begin{listingcodefile}{findlib.mli}
 val find : 
@@ -640,9 +640,9 @@ find handler action follow depth roots
 traverses the file hierarchy starting from the indicated roots in
 the list \ml+roots+ (absolute or relative to the current directory
 when the call is made) up to a maximum depth \ml+depth+, following
-symbolic links if the flag \ml+follow+ is set.  The 
-found paths under the root \ml+r+ include \ml+r+ as a prefix.
-Each found paht \ml+p+ is passed to a function \ml+action+. Actually,
+symbolic links if the flag \ml+follow+ is set.  The paths 
+found under the root \ml+r+ include \ml+r+ as a prefix.
+Each found path \ml+p+ is passed to a function \ml+action+. Actually,
 \ml+action+ also receives the data \ml+Unix.stat p+
 if the flag \ml+follow+ is set or \ml+Unix.lstat p+ if not. The
 function \ml+action+ returns a boolean, \ml+true+ in the case
@@ -693,11 +693,11 @@ let find on_error on_path follow depth roots =
 \end{listingcodefile}
 
 Directories are identified by the pair \ml+id+
-(ligne~\ref{prog:did}) which consists of their device number and
-their inode. The list \ml+visiting+ contains all the
-directories which are in train to be visited. Actually this information
+(line~\ref{prog:did}) which consists of their device number and
+their inode. The list \ml+visiting+ contains all the directories
+which have not yet been visited. Actually this information
 is not useful unless symbolic links are followed
-(ligne~\ref{prog:follow}).
+(line~\ref{prog:follow}).
 
 We can now easily infer the command \ml+find+.
 \begin{listingcodefile}{find.ml}
@@ -737,7 +737,7 @@ rm find.out
 \end{codefile}
 
 Although the \ml+find+ command above is sufficiently 
-restricted, the library function \ml+FindLib.find+ compared to it is
+restricted, the library function \ml+FindLib.find+ is
 far more general, as the following exercise demonstrates.
 \begin{exercise}
 
@@ -807,9 +807,9 @@ argument is a list of flags held in the enumeration type
 \libtype{Unix}{open\_flag}, and describe in what mode the file should
 be opened, and what to do if it does not exist.  The third argument of
 type \libtype{Unix}{file\_perm} defines the access permission rights  
-the file should be created with if the case occurs.  The result is a descriptor of the file
-pointing at the indicated file.  The position of the read/write cursor is
-initially fixed at the beginning of the file.
+the file should be created with if the case occurs.  The result is a
+file descriptor pointing at the indicated file.  The position of the
+read/write cursor is initially fixed at the beginning of the file.
 
 The list of opening modes (second argument) should contain
 exactly one of the three following flags:
@@ -820,10 +820,9 @@ exactly one of the three following flags:
 \mltypecase{O\_RDWR} open in read and write mode 
 \end{mltypecases}
 %
-These flags qualify the possibility of doing reads or writes
-Ces drapeaux conditionnent la possibilité de faire par la suite des
-through the descriptor in the operations that follow. The call
-opérations de lecture ou d'écriture à travers le descripteur. L'appel
+These flags specify whether the file is being read from, written
+to or whether both operations are allowed during the following
+operations on the descriptor. The call
 \ml+openfile+ fails if a process that does not have write permissions
 tries to open a file in write mode or if it tries to open a file 
 in read mode on which the process does not have read permissions.
@@ -867,7 +866,8 @@ in the current position (initially, the beginning of the file).
 is opened:  The length of the file is reduced to zero and the bytes
 contained in the file are lost.  The writes start again
 on an empty file.  On the contrary, without \ml+O_TRUNC+, the writes are
-made before the bytes already present or after them.
+made at the start of the file overwriting any data that may already be
+there.
 
 \item \ml+O_CREAT+ is set,  If it does not already exist, 
 the file is created with zero size, and with the access rights
@@ -962,15 +962,15 @@ synchronized. If,
 \begin{itemize}
 \item\ml+O_DSYNC+ is provided, data are written 
 synchronously in such a manner that the command is blocked 
-and does not return unltil all the writes have been done
+and does not return until all the writes have been done
 physically on the media (usually disk).
 
 \item\ml+O_SYNC+ is provided, the file data and the information about the file 
 are synchronized.
 
 \item\ml+O_RSYNC+ is provided along with \ml+O_DSYNC+ the data
-reads are also synchronized:  It is guaranteed that 
-It is guaranteed that all current writes (requested but not necessarily 
+reads are also synchronized: it is guaranteed that all current writes
+(requested but not necessarily 
 registered) on the file are actually written on the media before the
 next read.  If \ml+O_RSYNC+ is provided with  \ml+O_SYNC+ the above
 applies equally to the information about the file.
@@ -979,7 +979,7 @@ applies equally to the information about the file.
 
 \section{Reading and Writing}
 
-the system calls \syscall{read} and \syscall{write} allow the reading
+The system calls \syscall{read} and \syscall{write} allow the reading
 and writing of bytes in a file. For historical reasons, the system call \ml+write+ 
 is raised in {\ocaml} under the name \ml+single_write+:
 %
@@ -988,7 +988,7 @@ val $\libvalue{Unix}{read}$  : file_descr -> string -> int -> int -> int
 val $\libvalue{Unix}{single\_write}$ : file_descr -> string -> int -> int -> int
 \end{listingcodefile}
 %
-The two calls \ml+read+ et \ml+single_write+ have the same 
+The two calls \ml+read+ and \ml+single_write+ have the same 
 interface. The first argument is the descriptor on which
 the reader or the writer should have a link.  The second
 argument is a character string which contains the bytes to be written 
@@ -1030,9 +1030,9 @@ position is advanced by the number of bytes read or written.
 In the case of a write, the number of bytes actually written
 is normally the number of bytes requested, but there are many
 exceptions to this behaviour: (i) In the case where it is not possible
-to read the bytes (for example, if the disk is full); (ii) When
+to write the bytes (for example, if the disk is full); (ii) When
 the write is on a descriptor of files which reference a pipe or
-a lockfile placed in non-blocking input/output mode, the write
+a lock file placed in non-blocking input/output mode, the write
 could turn out to be partial; And lastly, (iii){\ocaml}, which makes
 a supplementary copy in a scratch buffer and writes on it, limits
 the size of the buffer to a maximum value ( which is in general the
@@ -1054,7 +1054,7 @@ of \ml+single_write+ described in the following chapter
 ~\ref{single_write}).
 
 In the following chapter, we shall see that when we write on a 
-file descriptor which references a pipe or a lockfile placed
+file descriptor which references a pipe or a lock file placed
 in input/output blocking mode and which is then interrupted by a signal,
 the call \ml+single_write+ returns an error \ml+EINTR+.
   
@@ -1139,8 +1139,8 @@ descriptor releases it, and thus avoids crashing because of a shortage of descri
 
 \section{Complete example: file copy}
 \label{ex/filecopy}
-We will program a command \ml+file_copy+, with two arguments
-\ml+f1+ et \ml+f2+,  which will copy to a file with the name \ml+f2+ the 
+We will write a function \ml+file_copy+, with two arguments
+\ml+f1+ and \ml+f2+,  which will copy to a file with the name \ml+f2+ the 
 bytes contained in a file with the name \ml+f1+.
 %
 \begin{listingcodefile}{file_copy.ml}
@@ -1227,7 +1227,6 @@ openfile output_name [O_WRONLY; O_CREAT; O_TRUNC] 0o666
 \end{lstlisting}
 %
 The analysis of the option is left to the reader.
-Le parsing de l'option est laissé au lecteur.
 \end{answer}
 
 \section{The cost of system calls.  The buffers.}
@@ -1241,7 +1240,7 @@ shows the speed of copy, in bytes per second of the program
 
 For small block sizes, the copy speed is almost proportional
 to the block size. While the amount of data transferred is the same
-regardless of the size of the blocks. Properly said, the bulk of the 
+regardless of the size of the blocks. More specifically, the bulk of the 
 time is not spent on transferring data but in the execution 
 of the loop \ml+copy_loop+ and in the calls \ml+read+ and \ml+write+.
 After measuring more finely, we see that it is the calls \ml+read+ and
@@ -1579,7 +1578,7 @@ let close_out chan =
 To write a character on an \ml+out_channel+, where the buffer 
 is not full, it suffices to store the character in the buffer
 in the position \ml+out_pos+, and to advance \ml+out_pos+; where 
-the buffer is ful , in this case we empty the buffer on the file with 
+the buffer is full, in this case we empty the buffer on the file with 
 a call to \ml+write+, then we store the character to write at the beginning of 
 the buffer.
 
@@ -1681,7 +1680,7 @@ depending on the value of the third argument, which indicates the
 type of position desired:
 %
 \begin{mltypecases}
-\mltypecase{SEEK\_SET} Abolute position. The second argument is 
+\mltypecase{SEEK\_SET} Absolute position. The second argument is 
 the number of characters in the file where to place the pointer. The first character of a file 
 is at position zero. 
 
@@ -1732,12 +1731,12 @@ on such a descriptor. On the other hand, it is well taken into account
 by the read. 
 
 The behaviour of \ml+seek+ is unpredictable on certain type of files
-for which direct access is meaningless: Communication devices (pipes, lockfiles),
+for which direct access is meaningless: Communication devices (pipes, lock files),
 but also most special files (peripherals), such as for example the terminal.
 For most implementations of Unix, an \ml+lseek+ on such files 
 is simply ignored:  The read/write cursor is positioned 
 but read/write operations ignore it.
-In some implementations, ml+lseek+ on a pipe or on a lockfile
+In some implementations, ml+lseek+ on a pipe or on a lock file
 triggers an error.
 
 \begin{exercise}
@@ -1751,9 +1750,9 @@ How to add the option \ml+-f+ (cf. \ml+man tail+) ? .
 The naive implementation of \ml+tail+ is to read the file
 sequentially from the beginning keeping the last $n$ lines read in
 a circular buffer. When we reach the end of file, we display the buffer. 
-fichier, on affiche le tampon. There is no better way when
-the data comes from a pipe or a special file which
-does not implement \ml+lseek+. But if the data is coming from a normal file,
+When the data comes from a pipe or a special file which
+does not implement \ml+lseek+, there is no better way.
+On the other hand, if the data is coming from a normal file,
 it would be better to read the file starting from the end: with 
 \ml+lseek+, we read the last 4096 characters:  We scan them for 
 the end of line;hr.  If there are at least $n$, we output and display
@@ -1772,7 +1771,7 @@ try again.
 
 In Unix, the communication is passed through descriptors of files the which 
 are permanent (files, peripherals) or volatile (communication between
-processes through pipes or lockfiles). This enables giving a uniform 
+processes through pipes or lock files). This enables giving a uniform 
 interface for communicating data independent of media. Of course, the implementation
 of operations depends as much on the media. The uniformity
 finds its limits in the necessity to give access to all the
@@ -1838,9 +1837,10 @@ chapter \ref{sec/pipes}).
 \mltypecase{/dev/tty*}  These are the terminals.
 
 \mltypecase{/dev/pty*} These are the pseudo-terminals: They 
-are not real terminals but they simulate (They use the
-same interface).
+are not real terminals but provide the
+same interface.
 
+\mltypecase{/dev/sd*}
 \mltypecase{/dev/hd*} These are the disks.  
 
 \mltypecase{/proc} Under Linux, enable reading and writing of some  
@@ -1850,20 +1850,20 @@ system parameters organized as a file system.
 The special files have a behaviour sufficient variable in response
 to system calls generated on files. Most special files 
 (terminals, tape drives, disks, \ldots) follow 
-\ml+read+ et \ml+write+ in the obvious manner (but sometimes with 
+\ml+read+ and \ml+write+ in the obvious manner (but sometimes with 
 restrictions on the number of bytes written or read). Many 
 special files ignore \indexvalue{lseek}.
 
 In most system generated calls, special files which 
-correspond to the  peri\-phé\-rals should be able to have dynamic parameters 
+correspond to the  peripherals should be able to have dynamic parameters 
 or commands. Examples of such possibilities: To 
 rewind the tape, rewind or fast forward; for a terminal 
 terminal, choice of line editing mode, special characters 
 , serial connection parameters (speed, parity, etc).
 These operations are made in Unix through the system call  
 \syscall{ioctl} which group together all the particular cases. However, this
-system call is not picked up in {\ocaml}... because it is  
-ill-defined and not capable of uniform treatment. 
+system call is not provided by {\ocaml}... because it is  
+ill-defined and cannot be treated in a uniform way. 
 
 \subsubsection{Terminals}
 \label{sec/termio}
@@ -1873,7 +1873,7 @@ The terminals (or  pseudo-terminals) are a particular
 case of special files of type character for which 
 {\ocaml} gives access to the configuration. The call \syscall{tcgetattr}
 takes as an argument a file descriptor open on the special file 
-spécial in question and returns a structure of type
+in question and returns a structure of type
 \ml+terminal_io+ which describe the state of the terminal
 represented by the file according to the standard  \textsc{posix}.
 %
@@ -1954,23 +1954,23 @@ The \ml+read_passwd+ function begins by recovering the default value
 of the terminal associated with \ml+stdin+ and constructing 
 a modified version in which the characters do not have echo.  
 In case of failure, when the input stream is not a terminal,
-,it is enough to read a line. Otherwise we display
+it is enough to read a line. Otherwise we display
 a message, we change the terminal, we read the response and reset the  
 terminal into its normal state. Care has to be taken to set
 the terminal back to its normal state after a read failure.
 \end{example}
 %
-It may happen that an application needs to launch another linked to its
-input stream from a terminal(or pseudo-terminal).  The {\ocaml} does not
+Sometimes an application needs to launch another linked to its
+input stream from a terminal (or pseudo-terminal).  {\ocaml} does not
 supply any support for this \footnote {The Cash library
-~\cite {Cash} supplies such functions.}: It is necessary to manually
-look in the ensemble of pseudo-terminals  (in general, they are files 
+~\cite {Cash} supplies such functions.} so it is necessary to manually
+look for an unused pseudo-terminals  (in general, they are files 
 with names in the form of \ml+/dev/tty[a-z][a-f0-9]+) and find one of 
 these files which has not already been opened, open it and launch  
 the application with this file in the input stream.
 
-Four other functions allow control of the stream (void data on hold,
-, wait for end of transmission, restart communication). 
+Four other functions allow control of the stream (flush data on hold,
+wait for end of transmission, restart communication). 
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{tcsendbreak}$ : file_descr -> int -> unit
@@ -2083,11 +2083,10 @@ let set_infos filename infos =
 \end{listingcodefile}
 %
 The system call \ml+utime+ modifies the dates of access and 
-modification.  We use \ml+chmod+ et \ml+chown+ to re-establish 
+modification.  We use \ml+chmod+ and \ml+chown+ to re-establish 
 the access rights and the owner. For normal users, there are  
 a certain number of cases where  \ml+chown+ will fail with an error
 \quotes{permission denied}.  We trap this error and ignore it.
-l'ignore.
 
 Voici la fonction récursive principale.
 \begin{listingcodefile}{copy_rec.ml}
@@ -2267,7 +2266,6 @@ use more than one file as an archive.) Its value is the sum of character
 codes in the header (from this, we hypothesize that the 
 \ml+checksum+ field which is not yet calculated consists of blanks
 terminated by the null character). 
-et terminé par le caractère nul).
 
 The \ml+kind+ field encodes the file type in a byte.
 Significant values are the characters indicated in the table below. \footnote
@@ -2321,7 +2319,7 @@ type header =
 \end{listingcodefile}
 
 \paragraph {Lecture d'un entête}
-The reading of a header is not very interesting, but 
+Reading of a header is not very interesting, but 
 cannot be ignored.
 %
 \begin{listingcodefile}{tarlib.ml}
@@ -3023,7 +3021,7 @@ let write_from archive file =
     if !verbose then begin prerr_endline source end;
     let st = lstat source in
     if st.st_ino = archive.st.st_ino && st.st_dev = archive.st.st_dev 
-    then warning source "Skiping archive itself!"
+    then warning source "Skipping archive itself!"
     else
       let write_header kind =
         write_header_to_buffer source st kind;
