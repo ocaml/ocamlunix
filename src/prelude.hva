@@ -212,7 +212,7 @@
                        border-top-style: solid;
                        text-align: center; }
 
-\newstyle{TABLE}{margin-top:1em}
+\newstyle{TABLE}{margin-top:1em; empty-cells:show}
 \newstyle{TR} {margin-top: 4ex }
 \newstyle{TD}{ padding-left: 2ex; padding-top:1ex }
 \newstyle{.hbar}{background-color:white;
