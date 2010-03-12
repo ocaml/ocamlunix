@@ -15,7 +15,7 @@
 
 These course notes originate from a system programming course Xavier
 Leroy taught in 1994 to the first year students of the Master's program in
-fundamentals and applied mathematics and computer science at the École
+fundamental and applied mathematics and computer science at the École
 Normale Supérieure. This earliest version used the
 Caml-Light~\cite{Caml-Light} language.
 %
@@ -25,10 +25,10 @@ teached from 2003 to 2006, Didier Rémy adapted the notes to use the
 Fessant and Maxence Guesdon helped to teach the course and also
 contributed to this document. The new version also brought
 additions and updates. In ten years, some orders of magnitude have
-shifted by a digit and the web left its infancy. For example the
+shifted by a digit and the web left its infancy. For example, the
 {\http} relay example, now classical, may have been a forerunner in
-1994. But foremost the {\ocaml} language gained maturity and was used
-to program real system applications like Unison~\cite{Unison}.
+1994. But, most of all, the {\ocaml} language gained maturity and was
+used to program real system applications like Unison~\cite{Unison}.
 
 Tradition dictates that Unix system programming must be done in C. For
 this course we found it more interesting to use a higher-level
@@ -38,11 +38,11 @@ programming.
 The {\ocaml} interface to Unix system calls is more abstract. Instead
 of encoding everything in terms of integers and bit fields as in C,
 {\ocaml} uses the whole power of the ML type system to clearly
-represent the system calls' arguments and results. Hence it becomes
-easier to explain the semantics of the calls instead of losing oneself
-explaining how the arguments and the results have to be en/decoded. (See
-for example the presentation of the system call \ml+wait+,
-page~\pageref{wait}.)
+represent the arguments and return values of system calls. Hence, it
+becomes easier to explain the semantics of the calls instead of losing
+oneself explaining how the arguments and the results have to be
+en/decoded. (See, for example, the presentation of the system call
+\ml+wait+, page~\pageref{wait}.)
 
 Furthermore, due to the static type system and the clarity of its
 primitives, it is safer to program in {\ocaml} than in C. The
