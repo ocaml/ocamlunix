@@ -13,25 +13,25 @@
 \label{sec/pipes}
 \cutname{pipes.html}
 
-So far we learned how to manage processes and how they can communicate
-with the environment by using files. In the remaining part of the
-course we look how processes running in parallel can cooperate by
+So far, we have learned how to manage processes and how they can communicate
+with the environment by using files. In the remainder of the
+course we see how processes running in parallel can cooperate by
 communicating among themselves.
 
 \section{Pipes}
 
 Regular files are not a satisfactory communication medium for processes
 running in parallel. Take for example a reader/writer situation in
-which a process writes data and the other reads it. If a file is used
+which one process writes data and the other reads them. If a file is used
 as the communication medium, the reader can detect that the file
-doesn't grow anymore (\ml+read+ returns zero) but it doesn't know if
-that means that the writer is finished or if it is only busy computing
-more data. Moreover the file keeps track of all the data transmitted
-which can be problematic, especially regarding disk space usage.
+doesn't grow any more (\ml+read+ returns zero), but it doesn't know
+whether the writer is finished or simply busy computing
+more data. Moreover, the file keeps track of all the data transmitted,
+requiring needless disk space.
 
-Pipes provide a mechanism suitable for that kind of communication. A
-pipe is made of two file descriptors. The first one, open in read mode
-represents the pipe's output. The second one, open in write mode is
+Pipes provide a mechanism suitable for this kind of communication. A
+pipe is made of two file descriptors. The first one
+represents the pipe's output. The second one represents
 the pipe's input. Pipes are created by the system call
 \syscall{pipe}~:
 %
@@ -42,7 +42,7 @@ val $\libvalue{Unix}{pipe}$ : unit -> file_descr * file_descr
 The call returns a pair \ml+(fd_in, fd_out)+ where \ml+fd_in+ is a
 file descriptor open in \emph{read mode} on the pipe's output and
 \ml+fd_out+ is file descriptor open in \emph{write mode} on the pipe's
-input. The pipe itself is an internal object of the kernel which can
+input. The pipe itself is an internal object of the kernel that can
 only be accessed via these two descriptors. In particular, it has no
 name in the file system.
 
@@ -64,14 +64,14 @@ name in the file system.
 \end{tikzpicture}
 \end{myimage}
 
-A pipe behaves like a queue (\emph{first-in, first-out}), what is read
-on the pipe's output is what was written on its input in the same
-order. Writes (calls to \indexvalue{write} on the pipe's input
+A pipe behaves like a queue (\emph{first-in, first-out}). The first
+thing written to the pipe is the first thing read from the pipe.
+Writes (calls to \indexvalue{write} on the pipe's input
 descriptor) fill the pipe and block when the pipe is full. They block
 until another process reads enough data at the other end of the pipe
-and return when all the data given to \ml+write+ has been
+and return when all the data given to \ml+write+ have been
 transmitted. Reads (calls to \indexvalue{read} on the pipe's output
-descriptor) empty the pipe. If the pipe is empty, a call to \ml+read+
+descriptor) drain the pipe. If the pipe is empty, a call to \ml+read+
 blocks until at least a byte is written at the other end. It then
 returns immediately without waiting for the number of bytes requested
 by \ml+read+ to be available.
@@ -81,7 +81,7 @@ Pipes are useless if they are written and read by the same process
 a read on the empty pipe). Hence they are usually read and written by
 different processes. Since a pipe has no name, one of these processes
 must be created by forking the process that created the pipe. Indeed,
-the two file descriptors of the pipe, like any other file descriptor,
+the two file descriptors of the pipe, like any other file descriptors,
 are duplicated by the call to \indexvalue{fork} and thus refer to the
 same pipe in the parent and the child process.
 \begin{example} The following snippet of code is typical.
@@ -136,7 +136,7 @@ result is as follows :
 \end{tikzpicture}
 \end{myimage}
 % 
-Data written by the child on \ml+fd_out+ is transmitted to the
+Data written by the child on \ml+fd_out+ are transmitted to the
 descriptor \ml+fd_in+ of the father.
 \end{example}
 
@@ -187,7 +187,7 @@ multiple of $p$ are rewritten on its output.
 \end{tikzpicture}
 \end{myimage}
 %
-Hence the next process reads $p=3$ which it displays and then starts
+Hence the next process reads $p=3$, which it displays and then starts
 to filter multiples of 3, and so on.
 %
 \begin{myimage}[width="100\%"]
@@ -209,10 +209,13 @@ one). Most Unix systems limit the number of process to a few dozens.
 Moreover, on a mono-processor machine, too many processes active
 simultaneously can bring the system to its knees because of the
 high costs incurred by switching process contexts. In the following
-implementation each process first reads $k$ primes $p_1, \ldots, p_k$
+implementation each process first reads $n$ primes $p_1, \ldots, p_n$
 on its input before transforming itself in a filter that eliminate the
-multiples of $p_1, \ldots, p_k$. In practice $k = 1000$ gives a
+multiples of $p_1, \ldots, p_v$. In practice $n = 1000$ gives a
 reasonable slowdown on process creation.
+
+%% the index $k$ is used below as the limit on the whole sieve; I chose
+%% $n$ to use for the # of primes stored in each filter stage.
 
 We start with the process that enumerates integers from 2 to $k$.
 %
@@ -237,15 +240,16 @@ val $\libvalue{Pervasives}{input\_binary\_int}$ : in_channel -> int
 \end{lstlisting}
 %
 The function \ml+output_binary_int+ from the standard library writes a
-four byte binary representation of an integer on an
+four-byte binary representation of an integer on an
 \ml+out_channel+. The integer can be read back by the function
 \ml+input_binary_int+ on an \ml+in_channel+. Using these functions
-from the standard library has two advantages: first there's no need to
+from the standard library has two advantages: first, there's no need to
 code the function converting integers to a bytewise representation
-(the actual representation is unspecified but it is guaranteed to be platform
-independent and unique for a version of the language); second, since
-these functions use buffered \textsc{i/o}, less system calls are
-performed which results in better performance. The following functions
+\footnote{The representation used by these functions is unspecified but it is
+  guaranteed to be platform-independent
+  for a particular version of the language}; second, since
+these functions use buffered \textsc{i/o}, fewer system calls are
+performed, which results in better performance. The following functions
 create an \ml+in_channel+ or \ml+out_channel+ to bufferize the 
 \textsc{i/o} on the given descriptor~:
 %
@@ -254,11 +258,11 @@ val $\indexlibvalue{Unix}{in\_channel\_of\_descr}$ : file_descr -> in_channel
 val $\indexlibvalue{Unix}{out\_channel\_of\_descr}$ : file_descr -> out_channel
 \end{listingcodefile}
 %
-They allow to perform buffered \textsc{i/o} on descriptors acquired
+They allow a program to perform buffered \textsc{i/o} on descriptors acquired
 indirectly or that are not the result of opening a file. These
 functions are not here to mix buffered \textsc{i/o} with non-buffered
-\textsc{i/o} which is possible but very brittle and highly
-discouraged~---~in particular for input. Note also that it is possible
+\textsc{i/o}; this is possible but very brittle and highly
+discouraged~---~particularly for input. Note also that it is possible
 but very risky to create more than one \ml+in_channel+ (for example)
 on the same descriptor.
 
@@ -311,8 +315,8 @@ The filter starts by calling \ml+read_first_primes+ to read the first
 1000 prime numbers on its input (the \ml+input+ argument of type
 \ml+in_channel+). Then we create a pipe and clone the process with
 \ml+fork+. The child starts to filter the output of this pipe.  The
-father reads numbers on its input and writes them to the pipe if they
-are not a multiple of one the 1000 primes it initially read.
+father reads numbers on its input and writes each one to the pipe if it
+is not a multiple of one the 1000 primes it initially read.
 
 Finally, the main program just connects the integer generator to the
 first filter process with a pipe. Invoking the program \ml+sieve k+
@@ -339,16 +343,16 @@ In this example we do not wait for the child before stopping the
 father. The reason is that father processes are \emph{generators} for
 their children.
 
-Hence when \ml+k+ is given, the father will terminate first and close
+hen \ml+k+ is given, the father will terminate first and close
 the descriptor on the input of the pipe connected to its child. Since
 {\ocaml} empties the buffers of descriptors open in write mode when a
 process stops, the child process will read the last integer provided
-by the father. After that the child also stops {\etc} Thus in this
+by the father. After that the child also stops {\etc} Thus, in this
 program children become orphaned and are temporarily attached to the
 process \ml+init+ before they die in turn.
 
-If \ml+k+ is not given, all processes continue infinitely until one or
-more are killed. The death of a process results in the death its child
+If \ml+k+ is not given, all processes continue indefinitely until one or
+more are killed. The death of a process results in the death of its child
 as described above. It also closes the output of the pipe connected to
 its father. This will in turn kill the father at the next write on the
 pipe (the father will receive a \ml+SIGPIPE+ signal whose default
@@ -359,12 +363,12 @@ What needs to be changed so that the father waits on the termination
 of its children ? 
 \end{exercise}
 \begin{answer}
-Of course the father must wait on its child. However before that the
+Of course the father must wait on its child. However, before that the
 input of the pipe on which the child reads must be closed by the
-father, otherwise the child will wait infinitely for new integers from the
-father and this leads to a deadlock (closing the channel empties the
+father, otherwise the child will wait indefinitely for new integers from the
+father. This leads to a deadlock (closing the channel empties the
 buffer before closing the corresponding descriptor, therefore no data
-is lost).  Concretely the line~\ref{prog:gen} of the \ml+sieve+
+are lost).  Concretely, the line~\ref{prog:gen} of the \ml+sieve+
 function needs to be replaced by :
 \begin{lstlisting}
 let output = out_channel_of_descr fd_out in
@@ -399,7 +403,7 @@ Since the child process is an exact copy of the father, \textsc{i/o}
 buffers of the standard library are duplicated when \ml+fork+ is
 executed. If the buffers are not emptied after each write,
 they must be emptied explicitly just before the call to
-\ml+fork+. For that all is needed is to add 
+\ml+fork+. All is needed is to add 
 \ml+flush Pervasives.stdout+ after the line~\ref{prog:pprime} of the 
 function \ml+read_first_prime+.
 \end{answer}
@@ -446,20 +450,20 @@ The system call \syscall{mkfifo} creates a named pipe~:
 val $\indexlibvalue{Unix}{mkfifo}$ : string -> int -> unit
 \end{listingcodefile}
 %
-The first argument is the name of the pipe, the second one the
-requested access permissions. 
+The first argument is the name of the pipe, and the second one represents the
+requested access permissions.
 
 Named pipes are opened with a call to \syscall{openfile} like any
 regular file. Reads and writes on a named pipe have the same semantics
 as those on regular ones. Opening a named pipe in read-only mode
 (resp. write-only mode) blocks until the pipe is opened by another
-process for writing (resp. reading); if this already happened,
+process for writing (resp. reading); if this has already happened,
 there's no blocking. Blocking can be avoided altogether by opening the
-pipe with the flag \ml+O_NONBLOCK+. But in that case reads and writes
-on the pipe won't block either. This flag can be changed after the
-pipe was opened with the function \ml+clear_nonblock+ to make further
-reads or writes on the pipe blocking, or non blocking with
-\ml+set_nonblock+.
+pipe with the flag \ml+O_NONBLOCK+, but in this case reads and writes
+on the pipe won't block either. After the
+pipe is opened, the function \ml+clear_nonblock+ will change this flag to make further
+reads or writes on the pipe blocking. Alternatively,
+\ml+set_nonblock+ will make reads and writes non-blocking.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{clear\_nonblock}$ : file_descr -> unit
@@ -468,27 +472,28 @@ val $\indexlibvalue{Unix}{set\_nonblock}$ : file_descr -> unit
 
 \section{Descriptor redirections}
 
-So far we still do not know how to connect the standard input and
+So far, we still do not know how to connect the standard input and
 output of processes with a pipe as the shell does to execute
 commands like \ml+cmd1 | cmd2+. Indeed, the descriptors we get on the
 ends of a pipe with a call to \ml+pipe+ (or to \ml+openfile+ on a
-named piped) are \quotes{new} descriptors, distinct from \ml+stdin+,
+named piped) are \emph{new} descriptors, distinct from \ml+stdin+,
 \ml+stdout+ or \ml+stderr+.
 
 To address this problem, Unix provides the system call \syscall{dup2}
 (read: \quotes{\emph{dup}licate a descriptor \emph{to} another
-  descriptor}) which allows to redirect a descriptor on another. This
-can be done because there's a level of indirection between a file
+  descriptor}) that gives one file descriptor another one's meaning.
+This
+can be done because there is a level of indirection between a file
 descriptor (an object of type \ml+file_descr+) and the object in the
-kernel called a \emph{file table entry} that points on the actual
+kernel called a \emph{file table entry} that points to the actual
 file or pipe and maintains its current read/write position.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{dup2}$ : file_descr -> file_descr -> unit
 \end{listingcodefile}
 %
-The effect of \ml+dup2 fd1 fd2+ is to point the descriptor \ml+fd2+ on
-the file table entry pointed by \ml+fd1+. After the call, these two
+The effect of \ml+dup2 fd1 fd2+ is to update the descriptor \ml+fd2+ to refer to
+the file table entry pointed to by \ml+fd1+. After the call, these two
 descriptors refer to same file or pipe, at the same read/write
 position.
 
@@ -523,9 +528,9 @@ close fd;
 execvp "bar" [|"bar"|]
 \end{lstlisting}
 % 
-After the call to \ml+dup2+, the descriptor \ml+stdin+ points on the
+After the call to \ml+dup2+, the descriptor \ml+stdin+ points to the
 file \ml+foo+. Any read on \ml+stdin+ will read from the file \ml+foo+
-(so does any read on \ml+fd+; but since we won't use it we close it
+(so does any read on \ml+fd+; but since we won't use it, we close it
 immediately). This setting on \ml+stdin+ is preserved by \ml+execvp+
 and  the program \ml+bar+ will execute with its standard input
 connected to the file \ml+foo+. This is the way the shell executes
@@ -575,11 +580,11 @@ whatever \ml+cmd1+ writes on its standard output is read by \ml+cmd2+
 on its standard input.
 
 What happens if \ml+cmd1+ terminates before \ml+cmd2+ ? When \ml+cmd1+
-terminates, all its open descriptors are closed.  As such there's no
+terminates, all its open descriptors are closed.  This means that there's no
 open descriptor on the input of the pipe. When \ml+cmd2+ has read all
 the data waiting in the pipe, the next read returns an end-of-file;
 \ml+cmd2+ will then do what it is assigned to do when it reaches the
-end of its standard input~---~for example terminate. 
+end of its standard input~---~for example, terminate. 
 
 %% I commented out these examples, the problem is that you need
 %% more assumptions on foo bar gee files for them to be understandable.
@@ -590,7 +595,7 @@ end of its standard input~---~for example terminate.
 %% cat foo bar gee | grep buz
 %% \end{lstlisting}
 %% %
-Now if \ml+cmd2+ terminates before \ml+cmd1+, the last descriptor on
+Now,  if \ml+cmd2+ terminates before \ml+cmd1+, the last descriptor on
 the output of the pipe is closed and \ml+cmd1+ will get
 a signal (which by default kills the process) the next time
 it tries to write on its standard output. 
@@ -618,18 +623,18 @@ Implement some of the other redirections provided by the shell
 \end{exercise}
 \begin{answer}
 \begin{itemize}
-\item For \ml+>>+ we do like the \ml+>+ redirection, except that the
+\item For \ml+>>+, the answer is similar to the \ml+>+ redirection, except that the
 file  is opened with the flags \ml+[O_WRONLY; O_APPEND; O_CREAT]+.
 %
-\item For \ml+2>+, we do like the \ml+>+ redirection, except that
+\item For \ml+2>+, the answer is similar to the \ml+>+ redirection, except that
 \ml+dup2 fd stderr+ is executed instead of \ml+dup2 fd stdout+
 %
-\item For \ml+2>1+, just call \ml+dup2 stderr stdout+ before executing
+\item For \ml+2>1+, we must call \ml+dup2 stderr stdout+ before executing
 the command.
 %
-\item For \ml+<<+ the shell \ml+sh+ creates a temporary file in
-\ml+/tmp+ containing the lines that follow \ml+<<+ and executes the 
-command with its standard input redirected on this file. Another 
+\item For \ml+<<+, the shell \ml+sh+ must create a temporary file in
+\ml+/tmp+ containing the lines that follow \ml+<<+ and execute the 
+command with its standard input redirected from this file. Another 
 solution is to connect the command's standard input to the output of a 
 pipe and let a child process write the lines following \ml+<<+ on the
 input of that pipe.
@@ -639,9 +644,9 @@ input of that pipe.
 Swapping two descriptors requires care. The naive sequence
 \ml+dup2 fd1 fd2;+ \ml+dup2 fd2 fd1+ doesn't work. Indeed, the second
 redirection has no effect since after the first one both descriptors
-\ml+fd1+ and \ml+fd2+ already point on the same file table entry.  The
+\ml+fd1+ and \ml+fd2+ already point to the same file table entry.  The
 initial value pointed by \ml+fd2+ was lost. This is like swapping the
-contents of two reference cells, a temporary variable is needed to
+contents of two reference cells: a temporary variable is needed to
 save one of the two values. Here we can save one of the
 descriptors by copying it with the system call \syscall{dup}.
 %
@@ -773,7 +778,7 @@ Just after the call to \ml+pipe+ and \ml+fork+ we have~:
 \end{tikzpicture}
 \end{myimage}
 %
-the father calls \ml+dup2+, we get~:
+When the father calls \ml+dup2+, we get~:
 %
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
@@ -792,7 +797,7 @@ the father calls \ml+dup2+, we get~:
 \end{tikzpicture}
 \end{myimage}
 %
-the child calls \ml+dup2+ and \ml+execv+, we get~:
+When the child calls \ml+dup2+ and \ml+execv+, we get~:
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
 \node (ldots) at (0, 0) {...};
@@ -810,13 +815,13 @@ the child calls \ml+dup2+ and \ml+execv+, we get~:
 \end{tikzpicture}
 \end{myimage}
 %
-and everything's ready for the next iteration. 
+and everything is ready for the next iteration. 
 
 The last command is forked after the loop because there's no need to
 create a new pipe: the process \ml+compose+ already has the right
 standard input (the output of the next to last command) and output
 (the one initially given to the command \ml+compose+) for the
-child. Hence it sufficient to \ml+fork+ and \ml+exec+. The father then
+child. Hence it is sufficient to \ml+fork+ and \ml+exec+. The father then
 waits for its children to terminate: it calls \ml+wait+ repeatedly
 until the error \ml+ECHILD+ (no child to wait for) is raised. The
 children's return codes are combined with a bitwise \quotes{or}
@@ -825,27 +830,26 @@ children's return codes are combined with a bitwise \quotes{or}
 zero otherwise.
 
 Note that we execute commands through the shell \ml+/bin/sh+. This
-prevents us from having to parse complex commands into tokens like
+prevents us from having to parse complex commands into tokens as
 in the following invocation~:
 %
 \begin{lstlisting}
 compose "grep foo" "wc -l"
 \end{lstlisting}
-% 
-We could have done that ourselves like in the mini-shell example, but
-it is painful.
+%
+Adding this functionality to our program would complicate it needlessly.
 
 \section{Input/output multiplexing}
 
-In all the examples so far, processes communicate \quotes{linearly}~:
-each process reads data coming from \emph{at most one} other process. In this
+In all the examples so far, processes communicate \emph{linearly}~:
+each process reads data coming from at most one other process. In this
 section we highlight and solve the problems occurring whenever a
 process needs to read data coming from \emph{many} processes.
 
 Consider the example of a multi-windowed terminal emulator. Suppose we
 have a computer, called the client, connected to a Unix machine by a
 serial port. We want to emulate, on the client, many terminal windows
-connected to different user processes on the Unix machine. For example
+connected to different user processes on the Unix machine. For example,
 one window can be connected to a shell and another to a text
 editor. Outputs from the shell are displayed in the first window and
 those from the editor in the other. If the first window is
@@ -854,8 +858,8 @@ the shell and if the second window is active they are sent to the
 input of the editor.
 
 Since there's only a single physical link between the client and the
-Unix machine we need to multiplex the virtual connections between
-windows and processes, we need to interleave the data transmissions.
+Unix machine, we need to multiplex the virtual connections between
+windows and processes by interleaving the data transmissions.
 Here's the protocol we are going to use. On the serial port, we send
 messages with the following structure~: 
 %
@@ -921,17 +925,17 @@ of the data.
 \end{tikzpicture}
 \end{myimage}
 % 
-This doesn't work because reading a pipe can block. For example if we
-try to read the output of the shell but that it has nothing to
-display at that moment the multiplexer process will block. And if at
-the same time the editor displays characters, these won't be sent to
-the client. There's no way to know in advance on which pipes there is
+This doesn't work, because reading a pipe can block. For example, if we
+try to read the output of the shell but it has nothing to
+display at that moment, the multiplexer process will block, and waiting
+characters from the editor will be ignored.
+There's no way to know in advance on which pipes there are
 data waiting to be displayed (in parallel algorithms, the situation
 where a process is perpetually denied access to a shared resource is
-called \quotes{starvation}).
+called \emph{starvation}).
 
-Here is another approach~: we associate to each user process a
-\quotes{repeater} process. The repeater reads the output of the pipe
+Here is another approach~: we associate with each user process a
+\emph{repeater} process. The repeater reads the output of the pipe
 connected to the standard output of the user process, transforms the
 data into messages and writes the result directly on the serial port
 (each repeater process opens \ml+/dev/ttya+ in write mode).
@@ -970,7 +974,7 @@ first and then interpret the rest of the data as a new message header.
 
 To avoid this, repeater processes must synchronize so that at anytime
 at most one of them is writing on the serial port (in parallel
-algorithms we says that we need to enforce the mutual exclusion of
+algorithms we say that we need to enforce the mutual exclusion of
 repeaters on the access to the serial link). Technically, this can be
 done with concepts we have already seen so far: repeaters can create a
 specific file (the \quotes{lock}) with the \ml+O_EXCL+ flag before
@@ -978,7 +982,7 @@ sending a message and destroy it after they are done writing to the
 serial port. However this technique is not very efficient because the
 lock creation and destruction costs are too high.
 
-A solution that works is to take the first approach (a single
+A better solution is to take the first approach (a single
 multiplexer process) and set the output of the pipes connected to the
 standard output of user processes in non-blocking mode with
 \ml+set_nonblock+. A read on an empty pipe will not block but return
@@ -987,30 +991,29 @@ just ignore this error and try to read the output of the next user
 process. This will prevent starvation and avoid any mutual exclusion
 problem. However it is a very inefficient solution, the multiplexer
 process performs what is called \quotes{busy waiting}: it uses
-processing time even if there's nothing to do, even if no process is
+processing time even if no process is
 sending data. This can be alleviated by introducing calls to
-\ml+sleep+ in the reading loop however it is very difficult to find
-the right frequency. The frequency that doesn't load the machine when
-there's nothing to do but that introduces no perceptible delay in
-transmissions when there's a lot of data to send.
+\ml+sleep+ in the reading loop; unfortunately, it is very difficult to find
+the right frequency. Short \ml+sleep+s cause needless processor load when there
+are few data, and long \ml+sleep+s introduce perceptible delays when there are a lot of data..
 
-This is a serious problem. To solve it the designers of \textsc{bsd}
+This is a serious problem. To solve it, the designers of \textsc{bsd}
 Unix introduced a new system call, \syscall{select}, which is now
 available on most Unix variants. A call to \ml+select+ allows a
 process to wait (passively) on one or more input/output events.
 An event can be~:
 %
 \begin{itemize}
-\item A read event~: \quotes{there's data to read on that descriptor}.
+\item A read event~: there are data to read on that descriptor.
 
-\item A write event~: \quotes{it is possible to write on that descriptor
-  without blocking}.
+\item A write event~: it is possible to write on that descriptor
+  without blocking.
 
-\item An exceptional event~: \quotes{an exceptional condition is
-  true on that descriptor}. For example on certain network connections
-  high-priority data can be sent (\emph{out-of-band data}) which
-  overtakes normal data waiting to be sent. Receiving that kind of 
-  high-priority data is a conditional exception. 
+\item An exceptional event~: an exceptional condition is
+  true on that descriptor. For example, on certain network connections
+  high-priority data can be sent (\emph{out-of-band data}) that
+  overtake normal data waiting to be sent. Receiving this kind of 
+  high-priority data is a conditional exception.
 \end{itemize}
 %
 The system call \ml+select+ has the following signature~:
@@ -1034,7 +1037,7 @@ The \ml+select+ call returns a triplet of descriptor lists~: the first
 component is the list of descriptors ready for reading, the second
 component those ready for writing and the third one those on which an
 exceptional condition occurred. If the timeout expires before any
-event occurred the three lists are empty.
+event occurs, the three lists are empty.
 
 \begin{example} 
 The code below watches read events on the descriptors \ml+fd1+ and 
@@ -1056,8 +1059,8 @@ multiplexer/demultiplexer of the multi-windowed terminal emulator
 described above.
 
 To simplify, the multiplexer just sets the receiver of messages
-according to their provenance and the demultiplexer redirects data
-directly to the receiver number. In other words we assume that either
+according to their provenance and the demultiplexer redirect data
+directly to the receiver number. In other words, we assume that either
 each sender talks to a receiver with the same number, or that the
 correspondence between them is magically established in the middle of
 the serial link by rewriting the receiver number.
@@ -1065,7 +1068,7 @@ the serial link by rewriting the receiver number.
 The \ml+multiplex+ function takes a descriptor open on the serial port
 and two arrays of descriptors of the same size, one containing pipes
 connected to the standard input of the user processes, the other
-containing pipes connected to their standard output. 
+containing pipes connected to their standard output.
 %
 \begin{listingcodefile}{multiplex.ml}
 open Unix;;
@@ -1108,32 +1111,32 @@ let multiplex channel inputs outputs =
 \end{listingcodefile}
 
 The \ml+multiplex+ function starts by constructing a set of
-descriptors (\ml+input_fds+) that contains the input descriptors
+descriptors (\ml+input_fds+) that contain the input descriptors
 (those connected to the standard output of the user processes) and the
 descriptor of the serial port. On each iteration of the 
 \ml+while+ loop we call \ml+select+ to watch for pending reads in
 \ml+input_fds+. We do not watch for any write or exceptional event and
-we do not limit the waiting time. When \ml+select+ returns, we test if
-there's data waiting on an input descriptor or on the serial port.
+we do not limit the waiting time. When \ml+select+ returns, we test whether
+there are data waiting on an input descriptor or on the serial port.
 
-If there's data on an input descriptor we \ml+read+ this input in a
+If there are data on an input descriptor we \ml+read+ this input in a
 buffer, add a message header and write the result on the serial
 port. If \ml+read+ returns zero this indicates that the corresponding
 pipe was closed. The terminal emulator on the client will receive a
-message with zero bytes to be interpreted as \quotes{the user process
-  with that number died}; it can then close the corresponding window.
+message with zero bytes, signalling that the user process
+  with that number died; it can then close the corresponding window.
 
-If there is data on the serial port we read the two-byte message
+If there are data on the serial port, we read the two-byte message
 header which gives us the number \ml+i+ of the receiver and the number
 \ml+n+ of bytes to read. We then read \ml+n+ bytes on the channel and
 write them on the output \ml+i+ connected to the standard input of the
-corresponding user process. However if \ml+n+ is 0, we close the
+corresponding user process. However, if \ml+n+ is 0, we close the
 output $i$. The idea is that the terminal emulator at the other end
 sends a message with \ml+n = 0+ to indicate an end-of-file on the
 standard input of the receiving user process.
 
 We get out of the loop when \ml+really_read+ raises the exception
-\ml+End_of_file+, that is when the end-of-file is reached on the
+\ml+End_of_file+, which indicates an end-of-file on the
 serial port.
 \end{example}
 
@@ -1146,11 +1149,11 @@ The function \ml+write+ of the \ml+Unix+ module iterates the system call
 val $\libvalue{Unix}{write}$ : file_descr -> string -> int -> int -> int
 \end{listingcodefile}
 % 
-However when the descriptor is a pipe (or a socket, see
-chapter~\ref{sec/sockets}) writes may block and the system call
-\ml+write+ can be interrupted by a signal. In that case the {\ocaml}
+However, when the descriptor is a pipe (or a socket, see
+chapter~\ref{sec/sockets}), writes may block and the system call
+\ml+write+ may be interrupted by a signal. In this case the {\ocaml}
 call to \ml+Unix.write+ is interrupted and the error \ml+EINTR+ is
-raised. The problem is that part of the data may already have been
+raised. The problem is that some of the data may already have been
 written by a previous system call to \ml+write+ but the actual size
 that was transferred is unknown and lost. This renders the function 
 \ml+write+ of the \ml+Unix+ module useless in the presence of signals.
@@ -1162,10 +1165,10 @@ To address this problem, the \ml+Unix+ module also provides the
 val $\libvalue{Unix}{single\_write}$ : file_descr -> string -> int -> int -> int
 \end{listingcodefile}
 With \ml+single_write+, if an error is raised it is guaranteed that no
-data was written.
+data were written.
 
 The rest of this section shows how to implement this
-function. Fundamentally it is just a matter of interfacing {\ocaml} with
+function. Fundamentally, it is just a matter of interfacing {\ocaml} with
 C (more information about this topic can be found in the relevant
 section of {\ocaml}'s manual). The following code is written in the file
 \ml+single_write.c+~:
@@ -1216,10 +1219,10 @@ During the system call {\ocaml} may perform a garbage collection and
 the address of the {\ocaml} string \ml+buf+ may move in memory. To
 solve this problem we copy \ml+buf+ into the C string \ml+iobuf+.
 This has an additional cost, but only in the order of magnitude of
-10\% (and not 50\% as one may think) because the overall cost of the
+10\% (and not 50\% as one might think) because the overall cost of the
 function is dominated by the system call. The size of this C string is
 defined in \ml+unix_support.h+. If an error occurs during the system
-call (detected by a negative return value) it is propagated to
+call (indicated by a negative return value) it is propagated to
 {\ocaml} by the function \ml+uerror+, defined in the {\ocaml} Unix library.
 
 To access this code from {\ocaml}, the file \ml+unix.mli+ declares~:
@@ -1242,8 +1245,7 @@ external unsafe_single_write :
   file_descr -> string -> int -> int -> int = "caml_single_write"
 \end{listingcodefile}
 %
-But in practice we verify the arguments before calling the function
-and define : 
+But in practice we verify the arguments before calling the function~: 
 \begin{listingcodefile}{write.ml}
 let single_write fd buf ofs len =
   if ofs < 0 || len < 0 || ofs > String.length buf - len
@@ -1251,9 +1253,9 @@ let single_write fd buf ofs len =
   else unsafe_single_write fd buf ofs len
 \end{listingcodefile}
 %
-This function is already available in the \ml+Unix+ module since version
-\texttt{3.08}. But if we had done the work above ourselves we would
-need to compile it as follows to use it (assume the {\ocaml} code is
+This function has been available in the \ml+Unix+ module since version
+\texttt{3.08}. But if we had written the program above ourselves we would
+need to compile it as follows to use it (assuming the {\ocaml} code is
 in the files \ml+write.mli+ and \ml+write.ml+)~:
 %
 \begin{lstlisting}
@@ -1276,10 +1278,10 @@ ocamlc -o main.byte unix.cma write.cma main.ml
 
 The semantics of \ml+single_write+ is as close as possible to the
 system call \syscall{write}. The only remaining difference is when the
-original string is very long (greater than \ml+UNIX_BUFFER_SIZE+), the
+original string is very long (greater than \ml+UNIX_BUFFER_SIZE+); the
 call may then not write all the data and must be iterated.  The
 atomicity of \ml+write+ (guaranteed for regular files) is thus not
-guaranteed for long writes. This difference is marginal but one should
+guaranteed for long writes. This difference is generally insignificant but one should
 be aware of it.
 
 On top of this function we can implement a higher-level function
