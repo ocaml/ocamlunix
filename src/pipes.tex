@@ -98,15 +98,15 @@ match fork () with
 \end{lstlisting}
 % 
 After the \ml+fork+ there are two descriptors open on the pipe's
-input, one in the father and the other in the child. The same
+input, one in the parent and the other in the child. The same
 holds for the pipe's output.
 %
 \begin{myimage}[width="45\%"]
 \begin{tikzpicture}
 \node (pipe) at (0,0) [pipe] {};
-\node (outfather) at (-2,1.5) [fd] {\texttt{fd\_out} father};
+\node (outfather) at (-2,1.5) [fd] {\texttt{fd\_out} parent};
 \node (outchild) at (-2,-1.5) [fd] {\texttt{fd\_out} child};
-\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} father};
+\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} parent};
 \node (inchild) at (2,-1.5) [fd] {\texttt{fd\_in} child};
 \draw [->] (outfather.south) to [bend right=30] (pipe.west);
 \draw [->] (outchild.north) to [bend left=30] (pipe.west);
@@ -115,29 +115,29 @@ holds for the pipe's output.
 \end{tikzpicture}
 \end{myimage}
 % 
-In this example the child becomes the writer and the father the
+In this example the child becomes the writer and the parent the
 reader. Consequently the child closes its descriptor \ml+fd_in+ on the
 pipe's output (to save descriptors and to avoid programming
-errors). This leaves the descriptor \ml+fd_in+ of the father unchanged
+errors). This leaves the descriptor \ml+fd_in+ of the parent unchanged
 as descriptors are allocated in process memory and after the fork the
-father's and child's memory are disjoint. The pipe, allocated in system
+parent's and child's memory are disjoint. The pipe, allocated in system
 memory, still lives as there's still the descriptor \ml+fd_in+ of the
-father open in read mode on the pipe's output. Following the same
-reasoning the father closes its descriptor on the pipe's input. The
-result is as follows : 
+parent open in read mode on the pipe's output. Following the same
+reasoning the parent closes its descriptor on the pipe's input. The
+result is as follows~:
 %
 \begin{myimage}[width="45\%"]
 \begin{tikzpicture}
 \node (pipe) at (0,0) [pipe] {};
 \node (outchild) at (-2,-1.5) [fd] {\texttt{fd\_out} child};
-\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} father};
+\node (infather) at (2,1.5) [fd] {\texttt{fd\_in} parent};
 \draw [->] (outchild.north) to [bend left=30] (pipe.west);
 \draw [->] (pipe.east) to [bend right=30] (infather.south);
 \end{tikzpicture}
 \end{myimage}
 % 
 Data written by the child on \ml+fd_out+ are transmitted to the
-descriptor \ml+fd_in+ of the father.
+descriptor \ml+fd_in+ of the parent.
 \end{example}
 
 When all the descriptors on a pipe's input are closed and the pipe is
@@ -152,10 +152,10 @@ changed, the call to \ml+write+ fails with an \ml+EPIPE+ error.
 \section{Complete example: parallel sieve of Eratosthenes}
 \label{ex/crible}
 
-This a classic example of parallel programming. The task of the
+This is a classic example of parallel programming. The task of the
 program is to enumerate the prime numbers and display them
 interactively as they are found. The idea of the algorithm is as
-follows. A process enumerates on its output the integers from 2 on. We
+follows. A process enumerates on its output the integers from 2 onwards. We
 connect this process to a \quotes{filter} process that reads an
 integer $p$ on its input and displays it.
 
@@ -168,7 +168,7 @@ integer $p$ on its input and displays it.
 \begin{tikzpicture}
 \node (intgen) at (0,0) [process] {ints};
 \node (read) at (3.5,0) [process] {read $p$};
-\draw [->] (intgen) to node [output] {2, 3, 4...} (read);
+\draw [->] (intgen) to node [output] {2, 3, 4, \ldots} (read);
 \end{tikzpicture}
 \end{myimage}
 %
@@ -182,8 +182,8 @@ multiple of $p$ are rewritten on its output.
 \node (intgen) at (0,0) [process] {ints};
 \node (filter2) at (3.5,0) [process] {filter $2n$};
 \node (read) at (7,0) [process] {read $p$};
-\draw [->] (intgen) to node [output] {2, 3, 4...} (filter2);
-\draw [->] (filter2) to node [output] {3, 5, 7...} (read);
+\draw [->] (intgen) to node [output] {2, 3, 4, \ldots} (filter2);
+\draw [->] (filter2) to node [output] {3, 5, 7, \ldots} (read);
 \end{tikzpicture}
 \end{myimage}
 %
@@ -195,23 +195,23 @@ to filter multiples of 3, and so on.
 \node (intgen) at (0,0) [process] {ints};
 \node (filter2) at (3.5,0) [process] {filter $2n$};
 \node (filter3) at (7,0) [process] {filter $3n$};
-\node (ldots) at (10,0) {...};
+\node (ldots) at (10,0) {\ldots};
 \node (read) at (11,0) [process] {read $p$};
-\draw [->] (intgen) to node [output] {2, 3, 4...} (filter2);
-\draw [->] (filter2) to node [output] {2, 3, 4...} (filter3);
-\draw [->] (filter3) to node [output] {5, 7, 11...} (ldots);
+\draw [->] (intgen) to node [output] {2, 3, 4, \ldots} (filter2);
+\draw [->] (filter2) to node [output] {3, 5, 7, \ldots} (filter3);
+\draw [->] (filter3) to node [output] {5, 7, 11, \ldots} (ldots);
 \end{tikzpicture}
 \end{myimage}
 % 
 This algorithm cannot be directly implemented in Unix because it
 creates too many processes (the number of primes already found plus
 one). Most Unix systems limit the number of process to a few dozens.
-Moreover, on a mono-processor machine, too many processes active
+Moreover, on a uniprocessor machine, too many processes active
 simultaneously can bring the system to its knees because of the
 high costs incurred by switching process contexts. In the following
 implementation each process first reads $n$ primes $p_1, \ldots, p_n$
 on its input before transforming itself in a filter that eliminate the
-multiples of $p_1, \ldots, p_v$. In practice $n = 1000$ gives a
+multiples of $p_1, \ldots, p_n$. In practice $n = 1000$ gives a
 reasonable slowdown on process creation.
 
 %% the index $k$ is used below as the limit on the whole sieve; I chose
@@ -243,14 +243,14 @@ The function \ml+output_binary_int+ from the standard library writes a
 four-byte binary representation of an integer on an
 \ml+out_channel+. The integer can be read back by the function
 \ml+input_binary_int+ on an \ml+in_channel+. Using these functions
-from the standard library has two advantages: first, there's no need to
-code the function converting integers to a bytewise representation
-\footnote{The representation used by these functions is unspecified but it is
-  guaranteed to be platform-independent
-  for a particular version of the language}; second, since
+from the standard library has two advantages: first, there is no need to
+code the function converting integers to a bytewise
+representation\footnote{The representation used by these functions is
+  unspecified but it is guaranteed to be platform-independent for a
+  particular version of the language.}; second, since
 these functions use buffered \textsc{i/o}, fewer system calls are
 performed, which results in better performance. The following functions
-create an \ml+in_channel+ or \ml+out_channel+ to bufferize the 
+create an \ml+in_channel+ or \ml+out_channel+ to buffer the
 \textsc{i/o} on the given descriptor~:
 %
 \begin{listingcodefile}{tmpunix.mli}
@@ -289,7 +289,7 @@ let read_first_primes input count =
   read_primes [] count$\label{prog:pprime}$;;
 \end{listingcodefile}
 %
-And here's the concrete filter function~:  
+And here is the concrete filter function~:  
 %
 \begin{listingcodefile}[style=numbers]{sieve.ml}
 let rec filter input =
@@ -315,8 +315,8 @@ The filter starts by calling \ml+read_first_primes+ to read the first
 1000 prime numbers on its input (the \ml+input+ argument of type
 \ml+in_channel+). Then we create a pipe and clone the process with
 \ml+fork+. The child starts to filter the output of this pipe.  The
-father reads numbers on its input and writes each one to the pipe if it
-is not a multiple of one the 1000 primes it initially read.
+parent reads numbers on its input and writes each one to the pipe if it
+is not a multiple of one of the 1000 primes it initially read.
 
 Finally, the main program just connects the integer generator to the
 first filter process with a pipe. Invoking the program \ml+sieve k+
@@ -340,33 +340,33 @@ handle_unix_error sieve ();;
 %
 
 In this example we do not wait for the child before stopping the
-father. The reason is that father processes are \emph{generators} for
+parent. The reason is that parent processes are \emph{generators} for
 their children.
 
-hen \ml+k+ is given, the father will terminate first and close
+When \ml+k+ is given, the parent will terminate first and close
 the descriptor on the input of the pipe connected to its child. Since
 {\ocaml} empties the buffers of descriptors open in write mode when a
 process stops, the child process will read the last integer provided
-by the father. After that the child also stops {\etc} Thus, in this
+by the parent. After that the child also stops {\etc} Thus, in this
 program children become orphaned and are temporarily attached to the
 process \ml+init+ before they die in turn.
 
 If \ml+k+ is not given, all processes continue indefinitely until one or
 more are killed. The death of a process results in the death of its child
 as described above. It also closes the output of the pipe connected to
-its father. This will in turn kill the father at the next write on the
-pipe (the father will receive a \ml+SIGPIPE+ signal whose default
+its parent. This will in turn kill the parent at the next write on the
+pipe (the parent will receive a \ml+SIGPIPE+ signal whose default
 handler terminates the process).
 
 \begin{exercise}
-What needs to be changed so that the father waits on the termination
-of its children ? 
+What needs to be changed so that the parent waits on the termination
+of its children?
 \end{exercise}
 \begin{answer}
-Of course the father must wait on its child. However, before that the
+Of course the parent must wait on its child. However, before that the
 input of the pipe on which the child reads must be closed by the
-father, otherwise the child will wait indefinitely for new integers from the
-father. This leads to a deadlock (closing the channel empties the
+parent, otherwise the child will wait indefinitely for new integers from the
+parent. This leads to a deadlock (closing the channel empties the
 buffer before closing the corresponding descriptor, therefore no data
 are lost).  Concretely, the line~\ref{prog:gen} of the \ml+sieve+
 function needs to be replaced by :
@@ -399,7 +399,7 @@ followed by \ml+flush Pervasives.stdout+. What can happen if
 to be added to solve the problem ?
 \end{exercise}
 \begin{answer}
-Since the child process is an exact copy of the father, \textsc{i/o}
+Since the child process is an exact copy of the parent, \textsc{i/o}
 buffers of the standard library are duplicated when \ml+fork+ is
 executed. If the buffers are not emptied after each write,
 they must be emptied explicitly just before the call to
@@ -440,7 +440,7 @@ wq
 On some Unix systems (System~V, SunOS, Ultrix, Linux, \textsc{bsd})
 pipes with a name in the file system can be created. These \emph{named
   pipes} (also known as \emph{fifo}) allow processes to communicate
-even if they are not in a father/child relationship. This contrasts
+even if they are not in a parent/child relationship. This contrasts
 with regular pipes that limit communication between the pipe creator
 and its descendants.
 
@@ -476,10 +476,10 @@ So far, we still do not know how to connect the standard input and
 output of processes with a pipe as the shell does to execute
 commands like \ml+cmd1 | cmd2+. Indeed, the descriptors we get on the
 ends of a pipe with a call to \ml+pipe+ (or to \ml+openfile+ on a
-named piped) are \emph{new} descriptors, distinct from \ml+stdin+,
+named pipe) are \emph{new} descriptors, distinct from \ml+stdin+,
 \ml+stdout+ or \ml+stderr+.
 
-To address this problem, Unix provides the system call \syscall{dup2}
+To address this problem, Unix provides the \syscall{dup2} system call
 (read: \quotes{\emph{dup}licate a descriptor \emph{to} another
   descriptor}) that gives one file descriptor another one's meaning.
 This
@@ -547,7 +547,7 @@ close fd;
 execvp "bar" [|"bar"|]
 \end{lstlisting}
 % 
-After the call to \ml+dup2+, the descriptor \ml+stdout+ points on
+After the call to \ml+dup2+, the descriptor \ml+stdout+ points to
 the file \ml+foo+. Any write on \ml+stdout+ will write to the file
 \ml+foo+ (so does any write on \ml+fd+; but since we won't use it we
 close it immediately). This setting on \ml+stdout+ is preserved by
@@ -579,7 +579,7 @@ with its standard output connected to the input of the pipe. Therefore
 whatever \ml+cmd1+ writes on its standard output is read by \ml+cmd2+
 on its standard input.
 
-What happens if \ml+cmd1+ terminates before \ml+cmd2+ ? When \ml+cmd1+
+What happens if \ml+cmd1+ terminates before \ml+cmd2+? When \ml+cmd1+
 terminates, all its open descriptors are closed.  This means that there's no
 open descriptor on the input of the pipe. When \ml+cmd2+ has read all
 the data waiting in the pipe, the next read returns an end-of-file;
@@ -663,6 +663,9 @@ open Unix;;
 let exchange () = 
 \end{codefile}
 %
+% There is an error in the original: tmp should be the dup of
+% stdout, not stderr.  As originally written, both stdout and stderr
+% will point to the standard error port.
 \begin{listingcodefile}{dup.ml}
 let tmp = dup stderr in
 dup2 stderr stdout; 
@@ -671,7 +674,10 @@ close tmp;;
 \end{listingcodefile}
 % 
 After the swap, do not forget to close the temporary descriptor
-\ml+tmp+ to prevent a memory leak.
+% The original referred to this as a memory leak, but it is more
+% accurate to call it a descriptor leak, since the symptoms of the two
+% are different.
+\ml+tmp+ to prevent a descriptor leak.
 
 \section{Complete example: composing $N$ commands}
 
@@ -721,8 +727,8 @@ The bulk of the work is done by the \ml+for+ loop starting at
 line~\ref{prog:composefor}. For each command except the last one, we
 create a new pipe and a child process. The child connects the pipe's
 input to its standard output and executes the command. After the
-\ml+fork+ it inherits the standard input of its father. The main
-process (the father) connects the pipe's output to its standard input
+\ml+fork+ it inherits the standard input of its parent. The main
+process (the parent) connects the pipe's output to its standard input
 and continues the loop. Suppose (induction hypothesis) that at the
 beginning of the $i$th iteration, the situation is as follows~:
 %
@@ -739,13 +745,13 @@ process/.style={draw,rectangle,inner sep=1mm, rounded corners,
 \node (cmd1) at (2.5,0) [process] {\texttt{cmd}$_1$};
 \node (pipe1) at (4.5,0) [pipe] {};
 \node (cmd2) at (6.5,0) [process] {\texttt{cmd}$_2$};
-\node (ldots1) at (8.25,0) {...};
+\node (ldots1) at (8.25,0) {\ldots};
 \draw[->] (stdin) to (cmd1);
 \draw[->] (cmd1) to (pipe1);
 \draw[->] (pipe1) to (cmd2);
 \draw[->] (cmd2) to (ldots1);
 
-\node (ldots2) at (0.75,-1.5) {...};
+\node (ldots2) at (0.75,-1.5) {\ldots};
 \node (cmd) at (2.5,-1.5) [process] {\texttt{cmd}$_{i-1}$};
 \node (pipe2) at (4.5,-1.5) [pipe] {};
 \node (compose) at (6.5,-1.5) [process] {\texttt{compose}};
@@ -763,12 +769,12 @@ Just after the call to \ml+pipe+ and \ml+fork+ we have~:
 %
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
-\node (ldots) at (0, 0) {...};
+\node (ldots) at (0, 0) {\ldots};
 \node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
 \node (pipe1) at (3.5, 0) [pipe] {};
 \node (composec) at (5.5,0) [process] {\texttt{compose} \scriptsize{(child)}};
 \node (pipe2) at (7.5, 0) [pipe] {};
-\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(father)}};
+\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(parent)}};
 \node (stdout) at (12,0) [fd] {\texttt{stdout}};
 \draw[->] (cmd) to (pipe1);
 \draw[->] (pipe1) to (composec);
@@ -778,16 +784,16 @@ Just after the call to \ml+pipe+ and \ml+fork+ we have~:
 \end{tikzpicture}
 \end{myimage}
 %
-When the father calls \ml+dup2+, we get~:
+When the parent calls \ml+dup2+, we get~:
 %
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
-\node (ldots) at (0, 0) {...};
+\node (ldots) at (0, 0) {\ldots};
 \node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
 \node (pipe1) at (3.5, 0) [pipe] {};
 \node (composec) at (5.5,0) [process] {\texttt{compose} \scriptsize{(child)}};
 \node (pipe2) at (7.5, 0) [pipe] {};
-\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(father)}};
+\node (composef) at (9.5,0) [process] {\texttt{compose} \scriptsize{(parent)}};
 \node (stdout) at (12,0) [fd] {\texttt{stdout}};
 \draw[->] (cmd) to (pipe1);
 \draw[->] (pipe1) to (composec);
@@ -800,7 +806,7 @@ When the father calls \ml+dup2+, we get~:
 When the child calls \ml+dup2+ and \ml+execv+, we get~:
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
-\node (ldots) at (0, 0) {...};
+\node (ldots) at (0, 0) {\ldots};
 \node (cmd) at (1.5, 0) [process] {\texttt{cmd}$_{i-1}$};
 \node (pipe1) at (3.5, 0) [pipe] {};
 \node (cmd2) at (5.5,0) [process] {\texttt{cmd}$_{i}$};
@@ -821,7 +827,7 @@ The last command is forked after the loop because there's no need to
 create a new pipe: the process \ml+compose+ already has the right
 standard input (the output of the next to last command) and output
 (the one initially given to the command \ml+compose+) for the
-child. Hence it is sufficient to \ml+fork+ and \ml+exec+. The father then
+child. Hence it is sufficient to \ml+fork+ and \ml+exec+. The parent then
 waits for its children to terminate: it calls \ml+wait+ repeatedly
 until the error \ml+ECHILD+ (no child to wait for) is raised. The
 children's return codes are combined with a bitwise \quotes{or}
@@ -995,7 +1001,7 @@ processing time even if no process is
 sending data. This can be alleviated by introducing calls to
 \ml+sleep+ in the reading loop; unfortunately, it is very difficult to find
 the right frequency. Short \ml+sleep+s cause needless processor load when there
-are few data, and long \ml+sleep+s introduce perceptible delays when there are a lot of data..
+is little data, and long \ml+sleep+s introduce perceptible delays when there is a lot of data.
 
 This is a serious problem. To solve it, the designers of \textsc{bsd}
 Unix introduced a new system call, \syscall{select}, which is now
@@ -1004,19 +1010,19 @@ process to wait (passively) on one or more input/output events.
 An event can be~:
 %
 \begin{itemize}
-\item A read event~: there are data to read on that descriptor.
+\item A read event~: there is data to read on that descriptor.
 
 \item A write event~: it is possible to write on that descriptor
   without blocking.
 
 \item An exceptional event~: an exceptional condition is
   true on that descriptor. For example, on certain network connections
-  high-priority data can be sent (\emph{out-of-band data}) that
-  overtake normal data waiting to be sent. Receiving this kind of 
-  high-priority data is a conditional exception.
+  high-priority data (\emph{out-of-band data}) can be sent that
+  overtakes normal data waiting to be sent. Receiving this kind of 
+  high-priority data is an exceptional condition.
 \end{itemize}
 %
-The system call \ml+select+ has the following signature~:
+The \ml+select+ system call has the following signature~:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{select}$ : 
@@ -1031,7 +1037,7 @@ write events; the third argument is the set of descriptors to watch
 for exceptional events. The fourth argument is a timeout in
 seconds. If it is positive or zero, the call to \ml+select+ will return
 after that time, even if no event occurred. If it is negative, the call
-to \ml+select+ waits forever until one of the requested events occurs.
+to \ml+select+ waits indefinitely until one of the requested events occurs.
 
 The \ml+select+ call returns a triplet of descriptor lists~: the first
 component is the list of descriptors ready for reading, the second
@@ -1059,7 +1065,7 @@ multiplexer/demultiplexer of the multi-windowed terminal emulator
 described above.
 
 To simplify, the multiplexer just sets the receiver of messages
-according to their provenance and the demultiplexer redirect data
+according to their provenance and the demultiplexer redirects data
 directly to the receiver number. In other words, we assume that either
 each sender talks to a receiver with the same number, or that the
 correspondence between them is magically established in the middle of
@@ -1117,16 +1123,16 @@ descriptor of the serial port. On each iteration of the
 \ml+while+ loop we call \ml+select+ to watch for pending reads in
 \ml+input_fds+. We do not watch for any write or exceptional event and
 we do not limit the waiting time. When \ml+select+ returns, we test whether
-there are data waiting on an input descriptor or on the serial port.
+there is data waiting on an input descriptor or on the serial port.
 
-If there are data on an input descriptor we \ml+read+ this input in a
+If there is data on an input descriptor we \ml+read+ this input into a
 buffer, add a message header and write the result on the serial
 port. If \ml+read+ returns zero this indicates that the corresponding
 pipe was closed. The terminal emulator on the client will receive a
 message with zero bytes, signalling that the user process
-  with that number died; it can then close the corresponding window.
+with that number died; it can then close the corresponding window.
 
-If there are data on the serial port, we read the two-byte message
+If there is data on the serial port, we read the two-byte message
 header which gives us the number \ml+i+ of the receiver and the number
 \ml+n+ of bytes to read. We then read \ml+n+ bytes on the channel and
 write them on the output \ml+i+ connected to the standard input of the
@@ -1165,12 +1171,12 @@ To address this problem, the \ml+Unix+ module also provides the
 val $\libvalue{Unix}{single\_write}$ : file_descr -> string -> int -> int -> int
 \end{listingcodefile}
 With \ml+single_write+, if an error is raised it is guaranteed that no
-data were written.
+data is written.
 
 The rest of this section shows how to implement this
 function. Fundamentally, it is just a matter of interfacing {\ocaml} with
 C (more information about this topic can be found in the relevant
-section of {\ocaml}'s manual). The following code is written in the file
+section of the {\ocaml} manual). The following code is written in the file
 \ml+single_write.c+~:
 %
 \begin{listingcodefile}[style=numbers]{single_write.c}
@@ -1285,7 +1291,7 @@ guaranteed for long writes. This difference is generally insignificant but one s
 be aware of it.
 
 On top of this function we can implement a higher-level function
-\ml+really_write+, analog to the function \ml+really_read+ of the
+\ml+really_write+, analogous to the function \ml+really_read+ of the
 multiplexer example, that writes exactly the requested amount of data
 (but not atomically).
 %
