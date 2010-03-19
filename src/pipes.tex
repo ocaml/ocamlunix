@@ -667,7 +667,7 @@ let exchange () =
 % stdout, not stderr.  As originally written, both stdout and stderr
 % will point to the standard error port.
 \begin{listingcodefile}{dup.ml}
-let tmp = dup stderr in
+let tmp = dup stdout in
 dup2 stderr stdout; 
 dup2 tmp stderr;
 close tmp;;
