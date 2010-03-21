@@ -155,7 +155,7 @@ non-zero code to signal an error. In conditional constructions, the
 \quotes{true}, and all non-zero codes as the boolean \quotes{false}.
 %
 When a program terminates normally after executing all of the
-expressions of which it is composed, it makes an implict call to
+expressions of which it is composed, it makes an implicit call to
 \ml+exit 0+. When a program terminates prematurely because an
 exception was raised but not caught, it makes an implicit call to
 \ml+exit 2+.
@@ -310,7 +310,7 @@ There is no built-in finalizer construct \ml+try+ ... \ml+finalize+ in
 the {\ocaml} language, but it can be easily defined\footnote{A
   built-in construct would not be less useful.}
 \begin{codefile}{misc.mli}
-(** miscelleaneous functions for the Unix library *)
+(** miscellaneous functions for the Unix library *)
 
 open Sys
 open Unix
