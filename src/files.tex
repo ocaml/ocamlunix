@@ -2026,19 +2026,19 @@ session and detaches it from the terminal.
 
 \section{Locks on files}
 
-Two processes may modify the same file in parallel at the risk
-of some writes colliding with others. In some cases,the open
-in \ml+O_APPEND+ mode allows these collisions to be managed, for example,
-in the case of a \ml+log+ file where it suffices to write the 
-information always at the end of the file.   But this mechanism
-does not resolve the general case where the writes are at a prior 
-arbitrary positions, for example, when a file represents a
+If two processes attempt to modify the same file in parallel there is a
+danger that some of the writes may collide with each other. In some cases, opening
+the file in \ml+O_APPEND+ mode allows these collisions to be managed, for example,
+in the case of a \ml+log+ file where data is always written 
+at the end of the file.   However, this mechanism
+does not resolve the general case where the writes are at  
+arbitrary positions in the file, for example, when a file represents a
 database. It then becomes necessary for all the processes utilizing this file
-to collaborate together so as not to step on each others toes.
+to collaborate so as not to step on each others toes.
 A lock on the file is always possible by creating an auxiliary lock file
 (see page \pageref{page/lock}). The system call 
-\syscall{lockf} which does not lock more than a part of the file
-allows a very accurate synchronization.
+\syscall{lockf} allows a part of the file to be locked thereby providing
+very accurate synchronization.
 %
 \begin{codefile}{tmpunix.mli}
 type lock_command = Unix.lock_command
@@ -2056,7 +2056,7 @@ We will extend the function \ml+file_copy+ (section~\ref{ex/filecopy})
 to copy symbolic links and directories in addition to normal files. 
 In the case of directories, we need copy their contents recursively.
 
-We begin by retrieving the function \ml+file_copy+ in the example of the same name given 
+We begin by reusing the function \ml+file_copy+ in the example of the same name
 for copying normal files (page~\pageref{ex/filecopy}). 
 \begin{lstlisting}
 open Unix
@@ -2119,7 +2119,7 @@ let rec copy_rec source dest =
 We begin by reading the information from the source file. If this is a 
 normal file, we copy its contents with \ml+file_copy+, then its 
 information with \ml+set_infos+. If it is a symbolic link, we read
-where it points to, and we create a link which points to the same 
+where it points to, and we then create a link which points to the same 
 object.  If it is a directory, we create a directory as the
 destination, then we read the directory entries in the source (ignoring
 the entries which are about the source  \ml+Filename.current_dir_name+
@@ -2207,22 +2207,22 @@ let rec copy source dest =
 
 The \ml+tar+ format (for \ml+t+ape \ml+ar+chive) allows us to represent 
 a group of files in one file.  (In addition it allows us to store 
-an entire file hierarchy on a tape.)  This is thus
-in a way a mini file system. 
+an entire file hierarchy on a tape.)  The tar archive may be viewed as
+a mini file system. 
 
 In this section we describe a group of functions which 
 allows the reading and writing of archives in the \ml+tar+ format. The  
-first part which is completely described, consists of writing a function
-\ml+readtar+ such that  \ml+readtar a+ displays a list of files 
-contained in the archive~\ml+a+  and \ml+a f+ displaying the contents of  
-a file \ml+f+ contained within the archive \ml+a+. We leave as an 
+first part for which a complete example is provided, consists of writing a function
+\ml+readtar+ such that  \ml+readtar a+ displays the list of files 
+contained in the archive~\ml+a+  and \ml+readtar a f+ displays the contents of  
+the file \ml+f+ contained within the archive \ml+a+. We leave as an 
 exercise the problem of extracting all the files contained in an archive
 as well as generating an archive starting from a group of files.
 
 \paragraph{Description of format}
 
-A \ml+tar+ archive is a set of records,each 
-record represents a file.  A record is composed of a header
+A \ml+tar+ archive is a set of records, with each 
+record representing a file.  A record is composed of a header
 which encodes the information about the file (its name, type, size, owner \etc) 
 and the contents of the file.
 The header consists of a block (512 bytes) as shown in the figure~\ref {fig/tar}.
@@ -2260,10 +2260,10 @@ The contents are represented by a number of whole blocks following the header.
 The records are given one after another. If necessary, the file is padded
 with empty blocks in order to reach a minimum of 20 blocks. 
 
-As the archives are also designed to be written on unreliable media
+As tar archives are designed to be written to unreliable media
 and retrieved many years later, the header contains a \ml+checksum+ field
 which allows the archives to be found when the header is damaged (or to
-use more than one file as an archive.) Its value is the sum of character
+use more than one file as an archive.) The checksum value is the sum of the character
 codes in the header (from this, we hypothesize that the 
 \ml+checksum+ field which is not yet calculated consists of blanks
 terminated by the null character). 
@@ -2275,7 +2275,7 @@ when the value of a field exceeds the place reserved for it in the header or
 in the extensions of the \ml+tar+ command.}: 
 \begin{center}
 \begin{tabular}{cccccccc}
-\ml+'\0'+ ou \ml+'0'+ & 
+\ml+'\0'+ or \ml+'0'+ & 
 \ml+'1'+ & \ml+'2'+ &\ml+'3'+ & \ml+'4'+ & \ml+'5'+ & \ml+'6'+ & \ml+'7'+\\
 \hline
 \ml+REG+ & 
@@ -2288,14 +2288,16 @@ in the extensions of the \ml+tar+ command.}:
 \ml+CONT+
 \end{tabular}
 \end{center}
-Most of the cases correspond to the \ml+st_link+ type of Unix file.
-The case \ml+LINK+ represents hard links: These have 
+Most of the cases correspond to the Unix file type \ml+st_link+.
+\ml+LINK+ represents hard links; these have 
 the same node (\emph{inode}) but are accessible through two different paths.
 In this case,the link must lead to another
-file already defined within the archive. The case \ml+CONT+ represents an 
+file already defined within the archive. \ml+CONT+ represents an 
 ordinary file, but which is represented by a contiguous memory zone
 (this is a feature of some types of file systems, we can then treat it
-like an ordinary file).  The field 
+like an ordinary file).
+
+The field 
 \emph{\ml+link+} represents the link when the value of \ml+kind+ equals \ml+LNK+ or 
 \ml+LINK+.  The fields \emph{\ml+major+} and \emph{\ml+minor+}
 contain the major and minor numbers of the peripheral in the case 
@@ -2369,8 +2371,8 @@ let total_size size =
   block_size + ((block_size -1 + size) / block_size) * block_size;;    
 \end{listingcodefile}
 %
-The end of the archive is marked either at the end of the file where
-a new record would begin, or on a complete, but empty, block. Thus to
+We detect the end of an archive when we reach the end of the file where
+a new record would begin, or on a complete, but empty, block.  Thus to
 read the header we need to try to read a block which should be either
 empty or complete. To read an entire block we reuse the
 \ml+really_read+ function we defined above. The end of file should not
@@ -2462,7 +2464,7 @@ let list tarfile =
 The function \ml+readtar a f+ must search for the file with the name \ml+f+
 in the archive and display it if it is a regular file.  Further, a
 path \ml+f+ of the archive, which is a hard link and represents a path 
-\ml+g+ of the archive, is followed and the contents of \ml+g+ are displayed: In 
+\ml+g+ of the archive, is followed and the contents of \ml+g+ are displayed. In 
 effect, it is appropriate that \ml+f+ and \ml+g+ are represented differently in the 
 final archive ( the one is a hard link to the other) they represent
 exactly the same file at its creation. The fact that \ml+g+  is a
@@ -2528,7 +2530,7 @@ until we find a record with the target name. We call the function
 \ml+find_regular+ to search the list of read records to find that one
 which actually contains the file. 
 The second, subsequent search will always succeed if the archive
-is well-formed. In contrast the first, preceding search will fail 
+is well-formed. By way of contrast the first search will fail 
 if the record is not in the archive.  We need to take care to
 distinguish errors due to a corrupt archive from those resulting
 from an unproductive search.
