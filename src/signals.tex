@@ -16,45 +16,45 @@ Signals, or software interrupts, are external, asynchronous events
 used to alter the course of a program.  These may occur at any
 time during the execution of a program.  Because of this,
 they differ from other methods of interprocess communication, where
-two programs must be explictly directed to wait for external messages,
+two processes must be explicitly directed to wait for external messages;
 for example, by calling \indexvalue{read} on a pipe.
 
-The amount of information transmitted via a signal is minimal (e.g.
-the type of signal, and nothing else) and although they were not
+The amount of information transmitted via a signal is minimal (just
+the type of signal) and although they were not originally
 intended for communication between processes, they do make it
-possible to transmit atomic information concerning the state of an
-external concern (the state of the system or another process). 
+possible to transmit atomic information about the state of an
+external entity (e.g.\ the state of the system or another process). 
 
 \section{Default behavior}
 
-When a process receivies a signal, there are several possible behaviors:
+When a process receives a signal, there are four possible outcomes:
 %
 \begin{itemize}
 \item 
 The signal terminates the process.  Additionally, the system may write
-an image of the process state in a core file (a emph{core dump}, which
-may be later examined with a \emph{debugger}.
+an image of the process state in a core file (a \emph{core dump}, which
+may be later examined with a \emph{debugger}).
 %
 \item 
 The signal suspends process execution, but retains it in memory.  The
 parent process (usually the shell) is not terminated, and so may
-choose to continue the process, or restart it in the background by
+choose to continue the process or restart it in the background by
 sending the process additional signals.
 %
-\item Nothing occurs.  The signal is completely ignored.
+\item Nothing occurs: the signal is completely ignored.
 %
-\item The signal triggers the executation of an associated function in the
-receiving program.  The normal execution of the program resumes when the
+\item The signal triggers the execution of an associated function in the
+receiving process.  Normal execution of the process resumes after the
 function returns.
 \end{itemize}
 %
 
-The are several types of signals each associated with a particular condition.  
-Table~\ref{tab/signals} lists them, with the default behavior:
+There are several types of signals, each associated with a particular condition.  
+Table~\ref{tab/signals} lists some of them with their default behaviors:
 
 \begin{mytable}
 \begin{tabular}{lll}
-Name & Significance & Behavior \\
+Name & Significance & Default Behavior \\
 \hline
 \ml+signup+ &
 Hang-up (end of connection) &
@@ -64,16 +64,16 @@ Interruption (\ml+ctrl-C+) &
 Termination \\
 \ml+sigquit+ &
 Strong interruption (\ml+ctrl-\+) &
-Term. + core dump \\
+Term.\ \& core dump \\
 \ml+sigfpe+ &
 Arithmetic error (division by zero) &
-Term. + core dump \\
+Term.\ \& core dump \\
 \ml+sigkill+ &
 Very strong interruption (cannot be ignored) &
 Terminasion \\
 \ml+sigsegv+ &
 Memory protection violation &
-Term. + core dump \\
+Term.\ \& core dump \\
 \ml+sigpipe+ &
 Writing to a pipe without readers &
 Termination \\
@@ -90,35 +90,34 @@ Possibly ignored \\
 A process died or was stopped &
 Possibly ignored \\
 \end{tabular}
-\caption{Some signal types and their default behavior}
+\caption{Some signals and their default behaviors}
 \label{tab/signals}
 \end{mytable}
 
-The signals received by a program come from several possible sources:
+The signals received by a process come from several possible sources:
 %
 \begin{itemize}
 
-\item The user may send signals via the keyboard.  By typing \ml+ctrl-C+,
+\item The user may send signals via the keyboard.  By typing \verb'ctrl-C',
   the console operator sends the \ml+sigint+ signal to the processes
-  controlled by their terminal (that were not already put in the background).
-  In the same way, \ml+sigquit+ is sent by typing \verb'ctrl-\'\footnote{These 
-    are the default characters, but it is possible to change them by 
+  controlled by her terminal (that were not already put in the background).
+  In the same way, the \ml+sigquit+ signal is sent by typing \verb'ctrl-\'\footnote{These 
+    are the default keystrokes, but it is possible to change them by 
     modifying the properties of the terminal, see section~\ref {sec/termio}.}.  
-  When the terminal is closed (through disconnection, either voluntarily 
-  or through a disconnected telephone link), the signal \ml+signup+ is sent.
+  When the terminal is closed (either through voluntary disconnection or owing to a disconnected network link), the \ml+signup+ signal is sent.
 
-\item The user, by issuing the \ml+kill+ command.  This makes it possible 
+\item The user may issue the \ml+kill+ command.  This makes it possible 
   to send a specific signal to a specific process.  For example, 
-  \ml+kill -KILL 194+ sends the signal \ml+sigkill+ to process 194, which 
+  \ml+kill -KILL 194+ sends the \ml+sigkill+ signal to the process with ID 194, which 
   causes the process to be killed.
 
-\item Another program (via the operating system), requesting a system 
-  \ml+kill+ (the preceeding example being a specific case).
+\item Another program (via the operating system), requesting a
+  \ml+kill+ (the preceding example being a specific case).
 
-\item The system, for misbehaving processeses.  For example, a process 
-  attempting a divide by zero instruction will receive  a \ml+sigfpe+ signal.
+\item The system, for misbehaving processes.  For example, a process 
+  attempting to divide by zero will receive a \ml+sigfpe+ signal.
 
-\item The system, to notify a process when its execution environment has 
+\item The system, to notify a process that its execution environment has 
   been changed.  For example, when a child process terminates, its parent 
   will receive a \ml+sigchld+ signal.
 
@@ -135,17 +134,17 @@ signal to a process.
 val $\libvalue{Unix}{kill}$ : int -> int -> unit
 \end{listingcodefile}
 %
-The only parameter is the process identifier (PID) of the intended 
+The only parameter is the process identifier (\ml+pid+) of the intended 
 recipient.  An error occurs if one attempts to send a signal
 to a process not owned by the user.  A process may send signals to 
 itself.  When the \ml+kill+ system call executes, it is guaranteed
-that the signal is delivered to the intended recipient.  That is to say, 
-if the recipient is made aware of an unmasked signal, its first action
-will be to treat the signal (either this one, or another). If a process 
-receives the same signal in rapid succession, it will execute the code 
+that the signal is delivered to the intended recipient i.e.\ if
+the recipient is made aware of an unmasked signal then its first action
+will be to act on the signal (either this one, or another). If a process 
+receives the same signal in rapid succession it will execute the code 
 associated with the signal only once.  Therefore a program cannot 
-count the number of times it receives a signal, but only the number 
-of times it reponds to it.
+count the number of times it receives a signal, rather only the number 
+of times it responds to it.
 
 The system call \syscall{alarm} makes it possible to create interruptions
 based on the system clock.
@@ -156,11 +155,11 @@ val $\libvalue{Unix}{alarm}$ : int -> int
 \end{listingcodefile}
 %
 
-The call \ml+alarm s+ returns immediately, but causes the \ml+sigalrm+ 
-signal to be sent the the recieving process at least \ml+s+ seconds later 
-(note: there is no guarantee on the maximum wait time).  The call returns 
+The call \ml+alarm s+ returns immediately but causes the \ml+sigalrm+ 
+signal to be sent to the receiving process at least \ml+s+ seconds later 
+(note that there is no guarantee on the maximum wait time).  The call returns 
 the number of seconds remaining until the signal is actually sent.  
-If \ml+s+ is null, the effect is simply to cancel an earlier alarm.
+If \ml+s+ is \ml+null+, the effect is simply to cancel an earlier alarm.
 
 \section{Changing the effect of a signal}
 
@@ -177,31 +176,31 @@ val signal : int -> signal_behavior -> signal_behavior
 \end{listingcodefile}
 %
 
-The second argument indicates the desired behavior.  If it is the 
-\ml+Signal_ignore+ constant, the signal will be ignored.  If it is 
-\ml+Signal_default+, the default behavior is assumed.  In the case of 
-\ml+Signal_handle f+ (where \ml+f+ is a function of the type 
-\ml+unit -> unit+), the function \ml+f+ will be 
+The second argument indicates the desired behavior.  If it is
+\ml+Signal_ignore+, then the signal will be ignored.  If it is 
+\ml+Signal_default+ then the default behavior is assumed.  For
+\ml+Signal_handle f+ (where \ml+f+ is a function with type 
+\ml+unit -> unit+) then the function \ml+f+ will be 
 invoked each time the signal is received.
 
 Forking a process (with the system call \indexvalue{fork}) preserves 
 signal behavior: the initial definitions for the child are those of 
-the parent at the time the \ml+fork+ is executed.  The \indexvalue{exec} 
-system call sets the behaviors to \ml+Signal_default+, with one 
-exception: signals ignored before are ignored afterwards.
+the parent at the time when \ml+fork+ was executed.  The \indexvalue{exec} 
+system call sets all the behaviors to \ml+Signal_default+ except that
+signals ignored before are still ignored afterwards.
 
 \begin{example}
-Occassionally one wants to logoff or end a session while allowing 
-background tasks (large calculations, \quotes{spyware} programs, etc) 
+Occasionally one wants to log-off or end a session while allowing 
+background tasks (large calculations, \quotes{spyware} programs, etc.) 
 to continue to run.  If this is desired, processes which normally
-exit on receiving \ml+SIGHUP+ (sent at the time the user disconnects)
+exit on receiving \ml+sighup+ (sent at the time the user disconnects)
 should be prevented from doing so. The \ml+nohup+
-command is exactly what is needed:
+command is exactly what is needed.
 \begin{lstlisting}
 nohup cmd arg1 ... argn
 \end{lstlisting}
 executes the command \ml+cmd arg1 ... argn+ in a way unaffected by
-the signal \ml+SIGHUP+. (Certain shells execute \ml+nohup+
+the signal \ml+sighup+ (certain shells execute \ml+nohup+
 automatically for all processes launched as background tasks).  Here's how
 to implement this in three lines:
 %
@@ -231,24 +230,24 @@ signal sigfpe  (Signal_handle quit);
 where the function \ml+quit+ is of the form:
 %
 \begin{lstlisting}
-let quit() =
-  (* Try to save important information in a file  *);
+let quit () =
+  (* Try to save important information in a file *);
   exit 100;;
 \end{lstlisting}
 \end{example}
 
 \begin{example} 
-Capturing user-initiated interruptions. Some interactive programs, 
-for example, need to return main control loop when a user
-strikes \ml+ctrl-C+.  It is enough to raise an exception when the
-\ml+SIGINT+ signal is received.
+Capturing user-initiated interruptions. Some interactive programs
+need to return to a main control loop when a user
+presses \ml+ctrl-C+.  It is enough to raise an exception when the
+\ml+sigint+ signal is received.
 
 %
 \begin{lstlisting}
 exception Break;;
 let break () = raise Break;;
 ...
-let main_loop() =
+let main_loop () =
   signal sigint (Signal_handle break);
   while true do
     try
@@ -260,7 +259,7 @@ let main_loop() =
 \end{example}
 
 \begin{example} 
-To carry out periodic tasks (animations, etc) interlaced with
+To carry out periodic tasks (animations, etc.) interlaced with
 the execution of the main program.  For example, here is how
 to create \quotes{beep} sounds every 30 seconds, regardless of
 the activity of the main program (calculations or input/output).
@@ -274,39 +273,38 @@ signal sigalrm (Signal_handle beep); alarm 30;;
 
 \subsection*{Checkpoints}
 
-Signals are useful for asynchronous communication--indeed, it is their 
-very reason for existence--but they are often impossible to 
+Signals are useful for asynchronous communication -- indeed, it is their 
+raison d'\^etre -- but they are often impossible to 
 circumvent and thus create some significant difficulties for the
 system programmer.
 
-Indeed, the signal handling code (that which is executed upon 
+The signal handling code (that which is executed on 
 receiving a particular signal) is handled asynchronously, and thus 
-pseudo-concurrently executed (i.e., interlaced) with the main 
-code of the program.  As the signal handler does not return
-a signal, their side effect is typically to modify a global variable.
-A competition (race condition) between the signal and the main program 
-for access to this global variable may ensue.  Generally, the solution
-is to block signals during the treatment of these critical areas as 
+pseudo-concurrently executed (i.e.\ interlaced) with the main 
+code of the process.  As the signal handler does not return
+a signal, its side effect is typically to modify a global variable.
+A competition (race condition) between the signal and the main process
+for access to this global variable may therefore ensue.  Generally, the solution
+is to block signals during the treatment of these critical sections as 
 explained later in this chapter.  
 
 However, OCaml does not treat signals in a strictly asynchronous
-fashion.  Upon receiving a signal, OCaml is satisfied to record the
-signals' reception but the signal will only be handled (that is to
-say, the signal handling code will be executed) at certain
-checkpoints.  These are frequent enough to provide the illusion of
+fashion.  On receiving a signal, OCaml records the receipt of the
+signal but the signal handling code will only be executed at certain
+\emph{checkpoints}.  These are frequent enough to provide the illusion of
 asynchronous treatment.  The checkpoints typically occur during
 allocations, loop controls, or interactions with the system
 (particularly with system calls).  OCaml guarantees that a program
 that does not loop, does not allocate, and does not interact with the
-system, will not interlace with the signal handler.  Specifically, the
-writing of an unallocated value (whole, boolean, etc~---~but not a
-float !) in a reference does not pose the problem of contention.
+system will not interlace with the signal handler.  Specifically, the
+writing of an unallocated value (integer, boolean, etc.\ -- but not a
+float!) in a reference does not pose the problem of contention.
 
 \section{How to mask signals}
 
 Signals may be blocked.  Blocked signals are not ignored, but put on 
-standby, generally to be delivered later.  The system call
-\syscall{sigprocmask} makes it possible to change the mask
+standby, generally to be delivered later.  The 
+\syscall{sigprocmask} system call makes it possible to change the mask
 for incoming signals:
 %
 \begin{codefile}{tmpunix.mli}
@@ -320,22 +318,22 @@ val $\libvalue{Unix}{sigprocmask}$ : sigprocmask_command -> int list -> int list
 \ml+sigprocmask cmd sigs+ changes the list of blocked signals and 
 returns a list of signals that were blocked immediately proceeding 
 the execution of the command.  This makes it possible later on to 
-give the mask of blocked signals in its intial state.  The argument 
-\ml+sigs+ is a list of signals whose order depends on \ml+cmd+:
+give the mask of blocked signals in its initial state.  The argument 
+\ml+sigs+ is a list of signals whose interpretation depends on \ml+cmd+:
 
 \begin{mltypecases}
 \mltypecase{SIG\_BLOCK} the signals \ml+sigs+ are added
 to the list of blocked signals.
 
 \mltypecase{SIG\_UNBLOCK} the signals \ml+sigs+ are removed
-from the freed signals.
+from signal mask.
 
 \mltypecase{SIG\_SETMASK} the signals \ml+sigs+ are exactly the 
-blocked signals.
+signals to be blocked.
 \end{mltypecases}
 %
-A typical usage of \ml+sigprocmask+ is to temporarily mask certain
-signals.
+A typical usage of \ml+sigprocmask+ is to mask certain
+signals temporarily.
 
 %
 \begin{lstlisting}
@@ -344,7 +342,7 @@ let old_mask = sigprocmask cmd sigs in
 let _ = sigprocmask SIG_SETMASK old_mark
 \end{lstlisting}
 %
-Often, one will have to protect oneself from possible errors by using
+Often, one has to guard against possible errors by using
 the following outline:
 
 %
@@ -355,40 +353,40 @@ let tmp cmd sigs =
 %
 \begin{listingcodefile}{sign.ml}
 let old_mask = sigprocmask cmd sigs in 
-let treat() = ((* do something *)) in
-let reset() = ignore (sigprocmask SIG_SETMASK old_mask) in
+let treat () = ((* do something *)) in
+let reset () = ignore (sigprocmask SIG_SETMASK old_mask) in
 Misc.try_finalize treat () reset ()
 \end{listingcodefile}
 
 \section{Signals and system calls} 
 
-Warning ! Any signal that is not ignored can potentially interrupt 
+Any signal that is not ignored can potentially interrupt 
 certain system calls.  Generally speaking, these system calls are 
 known as \emph{slow} calls, which can take an arbitrary length of time (for
-example, terminal I/O, select (see below), system, \etc).
+example, terminal I/O, \syscall{select} -- see below, \syscall{system}, etc.).
 If an interruption occurs, the system call is not completed and
-returns exception \ml+EINTR+.  Note file I/O is not interruptible:
-although these operations can suspend the running process to instead
+returns exception \ml+EINTR+.  File I/O is not interruptible:
+although these operations can suspend the running process to 
 execute another process for disk I/O, when this occurs the interruption
-will always be brief--if the disk functions correctly.  In particular, 
+will always be brief if the disk functions correctly.  In particular, 
 the throughput of data depends only on the system, and not another user's
 process.
 
-Ignored (masked) signals are never delivered.  In the case of unmasked 
+Ignored (masked) signals are never delivered.  For unmasked 
 signals, it is important to guard against any potentially 
 unwanted interruptions.
 
 A typical example is a parent waiting for the termination of a child.
-In this case, the father executes \ml+waitpid [] pid+ where \ml+pid+ 
-is the process \textsc{id} of the child.  This is a blocking system call, and 
+In this case, the parent executes \ml+waitpid [] pid+ where \ml+pid+ 
+is the process ID of the child.  This is a blocking system call and 
 is therefore \emph{slow}, which means it could be stopped by the 
-arrival of a signal.  Specifically, the signal \ml+sigchld+ is sent 
+arrival of a signal.  Specifically, the \ml+sigchld+ signal is sent 
 to the parent concerning the terminated child process.
 
-The module \ml+Misc+ contains the following function:
-\ml+restart_on_EINTR+ of the type \ml+('a -> 'b) -> 'a -> 'b+ which
+The module \ml+Misc+ contains the function
+\ml+restart_on_EINTR+ of type \ml+('a -> 'b) -> 'a -> 'b+ which
 makes it possible to repeat a system call when it is stopped
-by a signal, \ie. when the exception \ml+EINTR+ is raised.
+by a signal, i.e.\ when the \ml+EINTR+ exception is raised.
 
 %
 \begin{codefile}{misc.mli}
@@ -402,14 +400,14 @@ let rec restart_on_EINTR f x =
   try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x
 \end{listingcodefile}
 \label{restart_on_EINTR}%
-To really wait on a child, then, one needs to simply write
+To wait on a child correctly one simply writes
 \ml+restart_on_EINTR (waitpid flags) pid+.
 
 \begin{example}
 The parent can also recover children asynchronously, specifically
 when their return value does not necessitate continued execution.
 This is accomplished by executing a function \ml+free_children+ upon
-receiving the signal \ml+sigchld+.  We find this general function 
+receiving the \ml+sigchld+ signal signal.  We find this general function 
 described in the \ml+Misc+ library.
 
 
@@ -428,34 +426,34 @@ let free_children signal =
 %
 This function executes \ml+waitpid+ in non-blocking mode 
 (option \ml+WNOHANG+) and for each thread, repeats
-the call when a child reutrns.  It stops when there are
-no more live threads (zero is returned to the pid of the
+the call when a child returns.  It stops when there are
+no more live threads (zero is returned to the \ml+pid+ of the
 original process) or when there are no more threads
-(exception \ml+ECHILD+).  When the process receives the \ml+sigchld+ 
-signal, it is not possible to know the number of completed process, 
+(\ml+ECHILD+ exception).  When the process receives the \ml+sigchld+ 
+signal, it is not possible to know the number of completed processes, 
 especially if the signal is received several times within a short 
-period of time--the parent 'sees' only one signal.  Note that it 
-is not important to guard against signal \ml+EINTR+ because 
+period of time -- the parent `sees' only one signal.  Note that it 
+is not important to guard against the \ml+EINTR+ signal because 
 \ml+waitpid+ is non-blocking when called with the \ml+WNOHANG+ option.
 
-In other cases, this signal cannot be ignored (the associated 
-action will release all completed threads, in a non-blocking way--
+In other cases, this signal cannot be ignored: the associated 
+action will release all completed threads, in a non-blocking way --
 one never knows how much time may have elapsed during the signal 
-generation).
+generation.
 \end{example}
 
 \begin{example}
-The command \ml+system+ in the \ml+Unix+ module is simply defined as: 
+The function \ml+system+ in the \ml+Unix+ module is simply defined as: 
 
 \begin{lstlisting}
 let system cmd =
-  match fork() with
+  match fork () with
     0 -> 
       begin try
         execv "/bin/sh" [| "/bin/sh"; "-c"; cmd |]; assert false
       with _ -> exit 127 
       end
-  | id -> snd(waitpid [] id);;
+  | id -> snd (waitpid [] id);;
 \end{lstlisting}
 
 The assertion following the system call \ml+execv+ corrects an
@@ -465,13 +463,13 @@ As the system call did not return, no constraint could relate to the
 returned value, and of course, the assertion could not be
 carried out.
 
-The specifications of the standard C library specifies that the parent
-should be unaware of the \ml+sigint+ and \ml+siquit+ signals, and masks
+The specifications of the standard C library state that the parent
+should be unaware of the \ml+sigint+ and \ml+siquit+ signals and masks
 the \ml+sigchld+ signal during the command's execution.  
 That makes it possible to stop or kill a child process without
 affecting the main program's execution.
 
-We prefer to define the function \ml+system+ as specialization of a
+We prefer to define the function \ml+system+ as a specialization of the
 more general function \ml+exec_as_system+ which does not make it
 mandatory to carry out the order with the shell. We place it in the
 \ml+Misc+ module.
@@ -480,7 +478,7 @@ mandatory to carry out the order with the shell. We place it in the
 \begin{codefile}{misc.mli}
 val system : string -> process_status
 (** [system cmd] behaves as [Unix.system cmd] except that [sigchld] is
-blocked and [sigint] and [sigquit] are ignored during the excecution 
+blocked and [sigint] and [sigquit] are ignored during the execution 
 of the command [cmd] *)
 
 val exec_as_system : ('a -> process_status) -> 'a -> process_status
@@ -497,44 +495,44 @@ open Unix;;
 %
 \begin{listingcodefile}[style=numbers]{misc.ml}
 let exec_as_system exec args = 
-  let old_mask = sigprocmask SIG_BLOCK [sigchld ] in 
+  let old_mask = sigprocmask SIG_BLOCK [ sigchld ] in 
   let old_int = signal sigint Signal_ignore in 
   let old_quit = signal sigquit Signal_ignore in 
-  let reset() =
+  let reset () =
     ignore (signal sigint old_int); 
     ignore (signal sigquit old_quit);
     ignore (sigprocmask SIG_SETMASK old_mask) in
   let system_call () = 
-    match fork() with
+    match fork () with
     | 0 -> 
-        reset(); $\label{prog:sreset}$
+        reset (); $\label{prog:sreset}$
         begin try 
           exec args 
         with _ -> exit 127 
         end
     | k -> 
         snd (restart_on_EINTR (waitpid []) k) in
-  try_finalize system_call() reset();; $\label{prog:stry}$
+  try_finalize system_call () reset ();; $\label{prog:stry}$
 
 let system cmd = 
   exec_as_system (execv "/bin/sh") [| "/bin/sh"; "-c"; cmd |];;
 \end{listingcodefile}
 %
 
-Note that the signal change must be made before the \ml+fork+ call is
-executed.  Immediately thereafter only one of the two processes
-(generally the child) remains.  During the interval where the son
-takes control of the execution flow, the father could receive signals
-(in particular \ml+sigchld+) if the son finishes immediately.  As a
-result, it is necessary to supply signals with their initial value in
+Note that the signal change must be made before the call to \ml+fork+ is
+executed.  Immediately afterwards only one of the two processes
+(generally the child) will remain.  During the period where the child
+takes control of the flow of execution, the parent could receive signals
+(in particular \ml+sigchld+) if the child were to finish immediately.  As a
+result, it is necessary to supply signals with their initial values in
 the child before executing the command in line~\ref{prog:sreset}.
-Indeed, all ignored signals are preserved by \ml+fork+ and \ml+exec+,
-and their behavior is preserved by \ml+fork+.  The system call
-\ml+exec+ normally supplies signals with their default value, except
-in the specific instance where the default behavior is to ignore the
+Indeed, all ignored signals are preserved by \ml+fork+ and \ml+exec+
+and their behavior is preserved by \ml+fork+.  The
+\ml+exec+ system call normally supplies signals with their default values, except
+where the default behavior is to ignore the
 signal.
 
-Finally, the parent must supply signals with their initial value
+Finally, the parent must supply signals with their initial values
 immediately after executing the call, including error trapping, by 
 using the command \ml+try_finalize+ in line~\ref{prog:stry}.
 \end{example}
@@ -545,9 +543,9 @@ using the command \ml+try_finalize+ in line~\ref{prog:stry}.
 \subsection*{Legacy approach to time}
 
 Since the earliest versions of Unix, time has been counted in seconds.
-For compatability concerns, then, one can always measure time in seconds.
+For compatibility reasons, therefore, one can always measure time in seconds.
 The current time is reckoned in the number of seconds since January 1, 1970
-with \ml+00:00:00 GMT+.  It is returned by the function:
+at \ml+00:00:00 GMT+.  It is returned by the function:
 
 %
 \begin{listingcodefile}{tmpunix.mli}
@@ -555,8 +553,8 @@ val $\indexlibvalue{Unix}{time}$ : unit -> float
 \end{listingcodefile}
 %
 
-The system call \syscall{sleep} can pause the execution of a program
-for the number of seconds specified in the argument:
+The \syscall{sleep} system call can pause the execution of a program
+for the number of seconds specified in its argument:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{sleep}$ : int -> unit
@@ -573,14 +571,14 @@ val $\libvalue{Unix}{sigsuspend}$ : int list -> unit
 \end{listingcodefile}
 %
 
-The call \ml+sigsuspend l+ temporarily suspends the signals of the 
-list \ml+l+, then halts the execution of the program until the reception 
-of a signal, one not ignored or suspended (on return, the 
-mask of the signals is again returned to its old value by the system).
+The \ml+sigsuspend l+ system call temporarily suspends the signals in the 
+list \ml+l+ and then halts the execution of the program until the reception 
+of a signal which is not ignored or suspended (on completion, the 
+signal mask is returned to its old value).
 
 \begin{example}
 
-Now we may program the \ml+sleep+ function.
+Now we may program the \ml+sleep+ function:
 %
 \begin{codefile}{sleep.ml}
 open Sys;;
@@ -600,25 +598,25 @@ let sleep s =
 \end{listingcodefile}
 %
 
-Initially, the behavior of the signal sigalarm is to do nothing.  Note
-that \quotes{to do nothing} is the same as ignoring the signal.  In
-the second case, the process would not be awakened with the reception
-of the signal. The signal \ml+sigalarm+ is put in a non-blocking
-state.  Then one puts oneself on standby by suspending all the other
-signals which were not it already (\ml+old_mask+). After the alarm
-clock, one erases the preceding modifications. (Note that
-line~\ref{prog:ssigproc} could is placed immediately after
-line~\ref{prog:sold}, because the call to \ml+sigsuspend+ preserves
-the signals' mask.)
+Initially, the behavior of the \ml+sigalarm+ signal is to do nothing.  Note
+that \quotes{doing nothing} is the same as ignoring the signal.  In
+the second instance, the process would not be awakened by the reception
+of the signal. The \ml+sigalarm+ signal is put in a non-blocking
+state.  Then the process is put on standby by suspending all other
+signals which were not already suspended (\ml+old_mask+). After the alarm
+is signalled, the preceding modifications are erased. (Note that
+line~\ref{prog:ssigproc} could be placed immediately after
+line~\ref{prog:sold} because the call to \ml+sigsuspend+ preserves
+the signal mask.)
 
 \end{example}
 
 \subsection*{Modern times}
 
-In modern versions of Unix, time can also be measured in microseconds.
-In OCaml, time measured in microseconds are represented as floats.  
-The function \syscall{gettimeofday} is the equivalent of \ml+time+ 
-for modern systems.
+In more modern versions of Unix, time can also be measured in microseconds.
+In OCaml, time measured in microseconds is represented as a float.  
+The \syscall{gettimeofday} function is the equivalent of the \ml+time+ 
+function for modern systems.
 
 %
 \begin{listingcodefile}{tmpunix.mli}
@@ -626,8 +624,8 @@ val $\libvalue{Unix}{gettimeofday}$ : unit -> float
 \end{listingcodefile}
 
 \subsection*{Timers}
-In modern Unix each process is equipped with three timers, each
-measuring time in a different way.  The types of timers are:
+In present-day Unix each process is equipped with three timers, each
+measuring time from a different perspective.  The timers are:
 
 %
 \begin{mltypecases}
@@ -644,8 +642,8 @@ representing time:
 %
 \begin{itemize}
 \item The field \ml+it_interval+ indicates the length of the time 
-to be measured
-\item The \ml+field it_value+ is the current value of the timer; 
+being measured
+\item The field \ml+it_value+ is the current value of the timer; 
 when it returns \ml+null+ the signal \ml+sigvtalarm+ is sent and 
 the timer is reset to the value in \ml+it_interval+.
 \end{itemize}
@@ -668,7 +666,7 @@ val setitimer :
 %
 
 The value returned by \ml+settitimer+ is the old value of 
-the timer at the time of its modification.
+the timer at the time of the modification.
 
 \begin{exercise}[noanswer]
 
@@ -685,9 +683,9 @@ end
 \end{listingcodefile}
 %
 
-The function \ml+new_timer k f+ should create a new sand glass of the 
-type \ml+k+ starting the action \ml+f+, inactive with its creation; 
-the function \ml+set_timer t+ allowing to regulate the timer \ml+t+ 
+The function \ml+new_timer k f+ should create a new timer of the 
+timer-type \ml+k+ starting the action \ml+f+, inactive at its creation with 
+the function \ml+set_timer t+ allowing the regulation of the timer \ml+t+ 
 (returning the old value). 
 
 \end{exercise}
@@ -695,31 +693,31 @@ the function \ml+set_timer t+ allowing to regulate the timer \ml+t+
 \subsection* {Date calculations}
 
 Modern versions of Unix also provide libraries of functions dedicated to
-date handling, see the structure \ml+tm+ which makes it possible to
-represent dates and times according to a calendar (year, month, etc.) as
+date handling, see the structure \ml+tm+ which allows
+dates and times to be expressed according to a calendar (year, month, etc.) as
 well as providing conversion functions:
 \indexlibvalue{Unix}{gmtime}, \indexlibvalue{Unix}{localtime},
-\indexlibvalue{Unix}{mktime}, \etc
+\indexlibvalue{Unix}{mktime}, etc.
 
 \section{Problems with signals}
 
-The use of signals for interprocess communication, because of 
-their asynchronous nature, presents some limitations and difficulties:
+Owing to their asynchronous nature, the use of signals for interprocess communication 
+presents some limitations and difficulties:
 %
 \begin{itemize}
 
-\item Very little information is trasmitted--the signal 
+\item Very little information is transmitted -- the signal's
 type and nothing else.
 
 \item A signal may occur at any point during the execution 
-of the program.  Therefore, a function associated with the receipt 
+of the program, therefore, a function associated with the receipt 
 of a signal should not generally modify the data structures of 
-the main program, because the main program may be interrupted 
+the main program because the main program may be interrupted 
 unexpectedly with the modification of a structure.  If necessary,
-the entire program must be protected from this type of contention that
+the entire program must be protected from the type of contention that
 results from actions associated with a signal.
 
-\item The use of signals requires one to take into account the 
+\item The use of signals requires taking into account the 
 possibility that long system calls might stop the execution of the 
 main program, even if the signals keep their default behavior.
 
@@ -731,15 +729,15 @@ call interruption.
 %
 
 Signals offer only a limited form of asynchronous communication but
-carry all the difficulties and problems associated to it. If possible,
-it's therefore better not to use them. For example to wait for a small
+carry all the difficulties and problems associated with it. If possible,
+it is therefore better not to use them. For example, to wait for a small
 amount of time, \indexvalue{select} can be used instead of alarms. But
-in certain situations they must be taken into account (for example in
+in certain situations signals must be taken into account (for example in
 command line interpreters).
 
 Signals are possibly the least useful concept in the Unix system.  On
-certain older versions of Unix (in particular, System V) the behavior
-of a signal is initially automatically associated with
+certain older versions of Unix (System V, in particular) the behavior
+of a signal is initially associated with
 \ml+Signal_default+ when it is received.  This function can of course
 be made to perform the proper behavior, thus, in the \quotes{beep}
 example above, it would be necessary to write:
@@ -755,11 +753,11 @@ However, the problem takes place when signals are received between the
 instant the behavior is automatically trapped by \ml+Signal_default+
 and the moment the \ml+set_signal+ function is carried out.  
 Any signals received during this interval are not treated correctly 
-(according to to the type of the signal); they may be inadvertently 
-ignored, or might cause the process to crash, instead of carrying 
+(according to the type of the signal): they may be inadvertently 
+ignored or might cause the process to crash, instead of carrying 
 out the associated function.
 
-Other flavors of Unix (\textsc{bsd} or Linux) treat the 
+Other flavors of Unix (BSD or Linux) treat the 
 signals more consistently: the behavior associated with a 
 signal is not altered when it is received, and while a particular 
 signal is being handled, other signals of the same type are put on standby.
