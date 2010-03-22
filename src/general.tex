@@ -39,7 +39,7 @@ ocamlc -o prog unix.cma mod1.ml mod2.ml mod3.ml
 \end{lstlisting}
 %
 assuming that the program  \ml+prog+ is composed of the three modules  \ml+mod1+,
-\ml+mod2+ and \ml+mod3+. The modules can also be compiled separately~:
+\ml+mod2+ and \ml+mod3+. The modules can also be compiled separately:
 %
 \begin{lstlisting}
 ocamlc -c mod1.ml
@@ -47,7 +47,7 @@ ocamlc -c mod2.ml
 ocamlc -c mod3.ml
 \end{lstlisting}
 %
-then to link them~:
+then to link them:
 %
 \begin{lstlisting}
 ocamlc -o prog unix.cma mod1.cmo mod2.cmo mod3.cmo
@@ -60,7 +60,7 @@ compiler, replace \ml+ocamlc+ with \ml+ocamlopt+ and \ml+unix.cma+ with
 
 If the compilation tool  \ml+ocamlbuild+ is used, simply add the
 following line to the 
-\ml+_tags+ file~:
+\ml+_tags+ file:
 %
 \begin{lstlisting}
 <prog.{native,byte}> : use_unix
@@ -68,7 +68,7 @@ following line to the
 %
 The Unix system can also be accessed from the interactive system (the
 \quotes{toplevel}). If your platform supports dynamic linking of C
-libraries, start an \ml+ocaml+ toplevel and type in the directive~:
+libraries, start an \ml+ocaml+ toplevel and type in the directive:
 %
 \begin{lstlisting}
 #load "unix.cma";;
@@ -81,7 +81,7 @@ the pre-loaded system functions:
 ocamlmktop -o ocamlunix unix.cma
 \end{lstlisting}
 %
-The system can be started by~:
+The system can be started by:
 \begin{lstlisting}
 ./ocamlunix
 \end{lstlisting}
@@ -98,7 +98,7 @@ variables: bindings set with \texttt{setenv var=val} for the
 the \texttt{sh} shell.
 
 The arguments passed to the program are placed in the string array
-\ml+Sys.argv+~:
+\ml+Sys.argv+:
 %
 \begin{listingcodefile}{tmpsys.mli}
 val $\indexlibvalue{Sys}{argv}$ : string array
@@ -112,7 +112,7 @@ val $\indexlibvalue{Unix}{environment}$ : unit -> string array
 \end{listingcodefile}
 %
 A more convenient way of looking up the environment is to use the
-function \ml+Sys.getenv+~:
+function \ml+Sys.getenv+:
 %
 \begin{listingcodefile}{tmpsys.mli}
 val $\indexlibvalue{Sys}{getenv}$ : string -> string
@@ -208,7 +208,7 @@ program and causes it to terminate prematurely.  It is generally a
 good semantic for unforeseen errors in small applications to be
 fatal. However, it is appropriate to display the error clearly. To do
 this, the module \ml+Unix+ supplies the functional
-\ml+handle_unix_error+~:
+\ml+handle_unix_error+:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{handle\_unix\_error}$ : ('a -> 'b) -> 'a -> 'b

@@ -297,7 +297,7 @@ under different addresses.)
 
 Regarding the service numbers (\emph{port numbers}), the most
 common services are listed in the table \ml+/etc/services+. It can be
-read in a portable way using the \syscall{getservbyname} function~:
+read in a portable way using the \syscall{getservbyname} function:
 %
 \begin{codefile}{tmpunix.mli}
 type service_entry = Unix.service_entry
@@ -316,7 +316,7 @@ the \quotes{datagram} mode. The result of \ml+getservbyname+ is a
 record whose \ml+s_port+ field contains the desired number.
 
 \begin{example} To obtain the address of the FTP server
-\ml+pauillac.inria.fr+~:
+\ml+pauillac.inria.fr+:
 %
 \begin{lstlisting}
 ADDR_INET((gethostbyname "pauillac.inria.fr").h_addr_list.(0),
@@ -673,7 +673,7 @@ instance, a \ml+date+ server).
 Most servers delegate the service to a child sub-process: \ml+fork+ is called
 immediately after \ml+accept+ returns. The child process handles the
 connection. The parent process calls \ml+accept+ again immediately. We
-obtain the following library function~:
+obtain the following library function:
 %
 \begin{codefile}{misc.mli}
 val fork_treatment :

@@ -33,7 +33,7 @@ Pipes provide a mechanism suitable for this kind of communication. A
 pipe is made of two file descriptors. The first one
 represents the pipe's output. The second one represents
 the pipe's input. Pipes are created by the system call
-\syscall{pipe}~:
+\syscall{pipe}:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{pipe}$ : unit -> file_descr * file_descr
@@ -124,7 +124,7 @@ parent's and child's memory are disjoint. The pipe, allocated in system
 memory, still lives as there's still the descriptor \ml+fd_in+ of the
 parent open in read mode on the pipe's output. Following the same
 reasoning the parent closes its descriptor on the pipe's input. The
-result is as follows~:
+result is as follows:
 %
 \begin{myimage}[width="45\%"]
 \begin{tikzpicture}
@@ -141,7 +141,7 @@ descriptor \ml+fd_in+ of the parent.
 \end{example}
 
 When all the descriptors on a pipe's input are closed and the pipe is
-empty, a call to \ml+read+ on its output returns zero~:
+empty, a call to \ml+read+ on its output returns zero:
 end-of-file. And when all the descriptors on a pipe's output are
 closed, a call to \ml+write+ on its input kills the writing
 process. More precisely the kernel sends the signal \ml+SIGPIPE+ to
@@ -232,7 +232,7 @@ let generate k output =
   in 
   gen 2;;
 \end{listingcodefile}
-To output and input the integers, the following functions are used~:
+To output and input the integers, the following functions are used:
 %
 \begin{lstlisting}
 val $\libvalue{Pervasives}{output\_binary\_int}$ : out_channel -> int -> unit
@@ -251,7 +251,7 @@ representation\footnote{The representation used by these functions is
 these functions use buffered \textsc{i/o}, fewer system calls are
 performed, which results in better performance. The following functions
 create an \ml+in_channel+ or \ml+out_channel+ to buffer the
-\textsc{i/o} on the given descriptor~:
+\textsc{i/o} on the given descriptor:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{in\_channel\_of\_descr}$ : file_descr -> in_channel
@@ -289,7 +289,7 @@ let read_first_primes input count =
   read_primes [] count$\label{prog:pprime}$;;
 \end{listingcodefile}
 %
-And here is the concrete filter function~:  
+And here is the concrete filter function:  
 %
 \begin{listingcodefile}[style=numbers]{sieve.ml}
 let rec filter input =
@@ -369,7 +369,7 @@ parent, otherwise the child will wait indefinitely for new integers from the
 parent. This leads to a deadlock (closing the channel empties the
 buffer before closing the corresponding descriptor, therefore no data
 are lost).  Concretely, the line~\ref{prog:gen} of the \ml+sieve+
-function needs to be replaced by :
+function needs to be replaced by:
 \begin{lstlisting}
 let output = out_channel_of_descr fd_out in
 generate len output;
@@ -379,7 +379,7 @@ ignore(waitpid [] p);;
 Accordingly, we enclose the 
 lines~\ref{prog:sievewhile}--\ref{prog:sievedone} of the 
 \ml+filter+ function (represented by \ml+...+ below) with the
-following lines :
+following lines:
 \begin{lstlisting}
 try 
   ...
@@ -444,7 +444,7 @@ even if they are not in a parent/child relationship. This contrasts
 with regular pipes that limit communication between the pipe creator
 and its descendants.
 
-The system call \syscall{mkfifo} creates a named pipe~: 
+The system call \syscall{mkfifo} creates a named pipe: 
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{mkfifo}$ : string -> int -> unit
@@ -589,7 +589,7 @@ end of its standard input~---~for example, terminate.
 %% I commented out these examples, the problem is that you need
 %% more assumptions on foo bar gee files for them to be understandable.
 
-%% Here's an example~:
+%% Here's an example:
 %% %
 %% \begin{lstlisting}
 %% cat foo bar gee | grep buz
@@ -614,7 +614,7 @@ it tries to write on its standard output.
 
 \begin{exercise}
 Implement some of the other redirections provided by the shell
-\ml+sh+. Namely~: 
+\ml+sh+. Namely: 
 %
 \begin{lstlisting}
 >>      2>      2>>     2>1     <<
@@ -656,7 +656,7 @@ val $\libvalue{Unix}{dup}$ : file_descr -> file_descr
 %
 The call to \ml+dup fd+ returns a new descriptor pointing on the same
 file table entry as \ml+fd+. For example we can swap \ml+stdout+ and 
-\ml+stderr+ with~:
+\ml+stderr+ with:
 %
 \begin{codefile}{dup.ml}
 open Unix;;
@@ -685,7 +685,7 @@ We program a command \ml+compose+ such that
 \begin{lstlisting}
 compose cmd$\(_1\)$ cmd$\(_2\)$ ... cmd$\(_n\)$ 
 \end{lstlisting}
-behaves like the shell command~:
+behaves like the shell command:
 \begin{lstlisting}
 cmd$\(_1\)$ | cmd$\(_2\)$ | ... | cmd$\(_n\)$
 \end{lstlisting}
@@ -730,7 +730,7 @@ input to its standard output and executes the command. After the
 \ml+fork+ it inherits the standard input of its parent. The main
 process (the parent) connects the pipe's output to its standard input
 and continues the loop. Suppose (induction hypothesis) that at the
-beginning of the $i$th iteration, the situation is as follows~:
+beginning of the $i$th iteration, the situation is as follows:
 %
 \tikzset{
 fd/.style={draw,ellipse,font=\small},
@@ -765,7 +765,7 @@ process/.style={draw,rectangle,inner sep=1mm, rounded corners,
 Rounded boxes represent processes. Their standard input is on the
 left, their standard output on the right. The ellipses represent
 the initial standard input and output of the \ml+compose+ process.
-Just after the call to \ml+pipe+ and \ml+fork+ we have~:
+Just after the call to \ml+pipe+ and \ml+fork+ we have:
 %
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
@@ -784,7 +784,7 @@ Just after the call to \ml+pipe+ and \ml+fork+ we have~:
 \end{tikzpicture}
 \end{myimage}
 %
-When the parent calls \ml+dup2+, we get~:
+When the parent calls \ml+dup2+, we get:
 %
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
@@ -803,7 +803,7 @@ When the parent calls \ml+dup2+, we get~:
 \end{tikzpicture}
 \end{myimage}
 %
-When the child calls \ml+dup2+ and \ml+execv+, we get~:
+When the child calls \ml+dup2+ and \ml+execv+, we get:
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
 \node (ldots) at (0, 0) {\ldots};
@@ -837,7 +837,7 @@ zero otherwise.
 
 Note that we execute commands through the shell \ml+/bin/sh+. This
 prevents us from having to parse complex commands into tokens as
-in the following invocation~:
+in the following invocation:
 %
 \begin{lstlisting}
 compose "grep foo" "wc -l"
@@ -847,7 +847,7 @@ Adding this functionality to our program would complicate it needlessly.
 
 \section{Input/output multiplexing}
 
-In all the examples so far, processes communicate \emph{linearly}~:
+In all the examples so far, processes communicate \emph{linearly}:
 each process reads data coming from at most one other process. In this
 section we highlight and solve the problems occurring whenever a
 process needs to read data coming from \emph{many} processes.
@@ -867,7 +867,7 @@ Since there's only a single physical link between the client and the
 Unix machine, we need to multiplex the virtual connections between
 windows and processes by interleaving the data transmissions.
 Here's the protocol we are going to use. On the serial port, we send
-messages with the following structure~: 
+messages with the following structure: 
 %
 \begin{itemize}
 \item One byte indicating the process number or window number of the receiver.
@@ -940,7 +940,7 @@ data waiting to be displayed (in parallel algorithms, the situation
 where a process is perpetually denied access to a shared resource is
 called \emph{starvation}).
 
-Here is another approach~: we associate with each user process a
+Here is another approach: we associate with each user process a
 \emph{repeater} process. The repeater reads the output of the pipe
 connected to the standard output of the user process, transforms the
 data into messages and writes the result directly on the serial port
@@ -974,7 +974,7 @@ that they are performed in a single uninterruptible operation.
 Thus the kernel may choose to write only a part of a message from a
 repeater to \ml+/dev/ttya+, then write a full message from another
 repeater and finally write the remaining part of the first message.
-This will utterly confuse the demultiplexer on the client~: 
+This will utterly confuse the demultiplexer on the client: 
 it will interpret the second message as part of the data of the
 first and then interpret the rest of the data as a new message header.
 
@@ -1007,22 +1007,22 @@ This is a serious problem. To solve it, the designers of \textsc{bsd}
 Unix introduced a new system call, \syscall{select}, which is now
 available on most Unix variants. A call to \ml+select+ allows a
 process to wait (passively) on one or more input/output events.
-An event can be~:
+An event can be:
 %
 \begin{itemize}
-\item A read event~: there is data to read on that descriptor.
+\item A read event: there is data to read on that descriptor.
 
-\item A write event~: it is possible to write on that descriptor
+\item A write event: it is possible to write on that descriptor
   without blocking.
 
-\item An exceptional event~: an exceptional condition is
+\item An exceptional event: an exceptional condition is
   true on that descriptor. For example, on certain network connections
   high-priority data (\emph{out-of-band data}) can be sent that
   overtakes normal data waiting to be sent. Receiving this kind of 
   high-priority data is an exceptional condition.
 \end{itemize}
 %
-The \ml+select+ system call has the following signature~:
+The \ml+select+ system call has the following signature:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{select}$ : 
@@ -1031,7 +1031,7 @@ val $\libvalue{Unix}{select}$ :
 \end{listingcodefile}
 %
 The first three arguments are sets of descriptors represented by
-lists~: the first argument is the set of descriptors to watch for read
+lists: the first argument is the set of descriptors to watch for read
 events; the second argument is the set of descriptors to watch for
 write events; the third argument is the set of descriptors to watch
 for exceptional events. The fourth argument is a timeout in
@@ -1039,7 +1039,7 @@ seconds. If it is positive or zero, the call to \ml+select+ will return
 after that time, even if no event occurred. If it is negative, the call
 to \ml+select+ waits indefinitely until one of the requested events occurs.
 
-The \ml+select+ call returns a triplet of descriptor lists~: the first
+The \ml+select+ call returns a triplet of descriptor lists: the first
 component is the list of descriptors ready for reading, the second
 component those ready for writing and the third one those on which an
 exceptional condition occurred. If the timeout expires before any
@@ -1177,7 +1177,7 @@ The rest of this section shows how to implement this
 function. Fundamentally, it is just a matter of interfacing {\ocaml} with
 C (more information about this topic can be found in the relevant
 section of the {\ocaml} manual). The following code is written in the file
-\ml+single_write.c+~:
+\ml+single_write.c+:
 %
 \begin{listingcodefile}[style=numbers]{single_write.c}
 #include <errno.h>
@@ -1218,7 +1218,7 @@ block (if the descriptor is a pipe or a socket) we need to release the
 global lock on the {\ocaml} runtime immediately before the call
 (line~\ref{prog:enterbs}) and reacquire it right after
 (line~\ref{prog:leavebs}). This makes the function compatible with the
-\ml+Thread+ module (see chapter~\ref{sec/coprocessus})~: it allows
+\ml+Thread+ module (see chapter~\ref{sec/coprocessus}): it allows
 other threads to execute during the blocking call. 
 
 During the system call {\ocaml} may perform a garbage collection and
@@ -1231,7 +1231,7 @@ defined in \ml+unix_support.h+. If an error occurs during the system
 call (indicated by a negative return value) it is propagated to
 {\ocaml} by the function \ml+uerror+, defined in the {\ocaml} Unix library.
 
-To access this code from {\ocaml}, the file \ml+unix.mli+ declares~:
+To access this code from {\ocaml}, the file \ml+unix.mli+ declares:
 %
 \begin{codefile}{write.mli}
 open Sys
@@ -1251,7 +1251,7 @@ external unsafe_single_write :
   file_descr -> string -> int -> int -> int = "caml_single_write"
 \end{listingcodefile}
 %
-But in practice we verify the arguments before calling the function~: 
+But in practice we verify the arguments before calling the function: 
 \begin{listingcodefile}{write.ml}
 let single_write fd buf ofs len =
   if ofs < 0 || len < 0 || ofs > String.length buf - len
@@ -1262,7 +1262,7 @@ let single_write fd buf ofs len =
 This function has been available in the \ml+Unix+ module since version
 \texttt{3.08}. But if we had written the program above ourselves we would
 need to compile it as follows to use it (assuming the {\ocaml} code is
-in the files \ml+write.mli+ and \ml+write.ml+)~:
+in the files \ml+write.mli+ and \ml+write.ml+):
 %
 \begin{lstlisting}
 ocamlc -c single_write.c write.ml
@@ -1270,13 +1270,13 @@ ocamlc -custom -o prog unix.cma single_write.o write.cmo mod1.ml mod2.ml
 \end{lstlisting}
 %
 It is often more practical to build a library \ml+write.cma+ containing
-both the C and the {\ocaml} code~:
+both the C and the {\ocaml} code:
 %
 \begin{lstlisting}
 ocamlc -custom -a -o write.cma single_write.o write.cmo
 \end{lstlisting}
 %
-The library \ml+write.cma+ can then be used like \ml+unix.cma+~:
+The library \ml+write.cma+ can then be used like \ml+unix.cma+:
 %
 \begin{lstlisting}
 ocamlc -o main.byte unix.cma write.cma main.ml
