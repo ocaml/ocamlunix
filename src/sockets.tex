@@ -1000,7 +1000,7 @@ reading. Since channels are buffered, we must flush the channel in order to
 ensure that a request has been sent in its entirety.
 %
 The client can shutdown the connection abruptly by closing either of the
-channels (which will close the socket) or more ``cleanly'' by calling
+channels (which will close the socket) or more \quotes{cleanly} by calling
 \ml+shutdown_connection+. (If the server closes the connection, the client
 will be notified when it receives an end-of-file on the channel open for
 reading.)
