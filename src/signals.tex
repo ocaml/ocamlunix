@@ -56,7 +56,7 @@ Table~\ref{tab/signals} lists some of them with their default behaviors:
 \begin{tabular}{lll}
 Name & Event & Default Behavior \\
 \hline
-\ml+signup+ &
+\ml+sighup+ &
 Hang-up (end of connection) &
 Termination \\
 \ml+sigint+ &
@@ -70,7 +70,7 @@ Arithmetic error (division by zero) &
 Term.\ \& core dump \\
 \ml+sigkill+ &
 Very strong interruption (cannot be ignored) &
-Terminasion \\
+Termination \\
 \ml+sigsegv+ &
 Memory protection violation &
 Term.\ \& core dump \\
@@ -104,7 +104,7 @@ The signals received by a process come from several possible sources:
   In the same way, the \ml+sigquit+ signal is sent by typing \verb'ctrl-\'\footnote{These 
     are the default keystrokes, but it is possible to change them by 
     modifying the properties of the terminal, see section~\ref {sec/termio}.}.  
-  When the terminal is closed (either through voluntary disconnection or owing to a disconnected network link), the \ml+signup+ signal is sent.
+  When the terminal is closed (either through voluntary disconnection or owing to a disconnected network link), the \ml+sighup+ signal is sent.
 
 \item The user may issue the \ml+kill+ command.  This makes it possible 
   to send a specific signal to a specific process.  For example, 
