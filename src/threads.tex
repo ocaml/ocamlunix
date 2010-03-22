@@ -1177,7 +1177,7 @@ However, if we compare the efficiency of this version with the
 previous one, we find that it is twice as slow.  Communication of each
 integer requires a synchronization between two threads and therefore
 several system calls for acquiring and releasing locks.  On the other
-hand, communication via pipes uses buffered I/O that allows several
+hand, communication via pipes uses buffered \io{} that allows several
 thousand integers to be exahanged with each system call.
 
 To be fair, one should also provide buffered communication on

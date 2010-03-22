@@ -363,11 +363,11 @@ Misc.try_finalize treat () reset ()
 Any signal that is not ignored can potentially interrupt 
 certain system calls.  Generally speaking, these system calls are 
 known as \emph{slow} calls, which can take an arbitrary length of time (for
-example, terminal I/O, \syscall{select}~---~see below, \syscall{system}, \etc).
+example, terminal \io, \syscall{select}~---~see below, \syscall{system}, \etc).
 If an interruption occurs, the system call is not completed and
-returns exception \ml+EINTR+.  File I/O is not interruptible:
+returns exception \ml+EINTR+.  File \io{} is not interruptible:
 although these operations can suspend the running process to 
-execute another process for disk I/O, when this occurs the interruption
+execute another process for disk \io{}, when this occurs the interruption
 will always be brief if the disk functions correctly.  In particular, 
 the throughput of data depends only on the system, and not another user's
 process.

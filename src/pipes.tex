@@ -248,20 +248,20 @@ code the function converting integers to a bytewise
 representation\footnote{The representation used by these functions is
   unspecified but it is guaranteed to be platform-independent for a
   particular version of the language.}; second, since
-these functions use buffered \textsc{i/o}, fewer system calls are
+these functions use buffered \io, fewer system calls are
 performed, which results in better performance. The following functions
 create an \ml+in_channel+ or \ml+out_channel+ to buffer the
-\textsc{i/o} on the given descriptor:
+\io{} on the given descriptor:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{in\_channel\_of\_descr}$ : file_descr -> in_channel
 val $\indexlibvalue{Unix}{out\_channel\_of\_descr}$ : file_descr -> out_channel
 \end{listingcodefile}
 %
-They allow a program to perform buffered \textsc{i/o} on descriptors acquired
+They allow a program to perform buffered \io{} on descriptors acquired
 indirectly or that are not the result of opening a file. These
-functions are not here to mix buffered \textsc{i/o} with non-buffered
-\textsc{i/o}; this is possible but very brittle and highly
+functions are not here to mix buffered \io{} with non-buffered
+\io; this is possible but very brittle and highly
 discouraged~---~particularly for input. Note also that it is possible
 but very risky to create more than one \ml+in_channel+ (for example)
 on the same descriptor.
@@ -399,7 +399,7 @@ followed by \ml+flush Pervasives.stdout+. What can happen if
 to be added to solve the problem?
 \end{exercise}
 \begin{answer}
-Since the child process is an exact copy of the parent, \textsc{i/o}
+Since the child process is an exact copy of the parent, \io{}
 buffers of the standard library are duplicated when \ml+fork+ is
 executed. If the buffers are not emptied after each write,
 they must be emptied explicitly just before the call to
