@@ -736,10 +736,10 @@ be made to perform the proper behavior, thus, in the \quotes{beep}
 example above, it would be necessary to write:
 
 \begin{lstlisting}
-let rec beep () =
-  set_signal SIGALRM (Signal_handle beep);
-  output_char stdout `\007`; flush stdout;
-  alarm 30; ();;
+let rec beep _ =
+  set_signal sigalrm (Signal_handle beep);
+  output_char stdout '\007'; flush stdout;
+  ignore (alarm 30);;
 \end{lstlisting}
 
 However, the problem takes place when signals are received between the
