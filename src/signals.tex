@@ -108,7 +108,7 @@ The signals received by a process come from several possible sources:
 
 \item The user may issue the \ml+kill+ command.  This makes it possible 
   to send a specific signal to a specific process.  For example, 
-  \ml+kill -KILL 194+ sends the \ml+sigkill+ signal to the process with ID 194, which 
+  \ml+kill -KILL 194+ sends the \ml+sigkill+ signal to the process with id 194, which 
   causes the process to be killed.
 
 \item Another program (via a system call), requesting a
@@ -378,7 +378,7 @@ unwanted interruptions.
 
 A typical example is a parent waiting for the termination of a child.
 In this case, the parent executes \ml+waitpid [] pid+ where \ml+pid+ 
-is the process ID of the child.  This is a blocking system call and 
+is the process id of the child.  This is a blocking system call and 
 is therefore \emph{slow}, which means it could be stopped by the 
 arrival of a signal.  Specifically, the \ml+sigchld+ signal is sent 
 to the parent concerning the terminated child process.
@@ -750,7 +750,7 @@ Any signals received during this interval are not treated correctly
 ignored or might cause the process to crash, instead of carrying 
 out the associated function.
 
-Other flavors of Unix (BSD or Linux) treat the 
+Other flavors of Unix (\textsc{bsd} or Linux) treat the 
 signals more consistently: the behavior associated with a 
 signal is not altered when it is received, and while a particular 
 signal is being handled, other signals of the same type are put on standby.
