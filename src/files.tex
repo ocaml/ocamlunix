@@ -490,7 +490,7 @@ A process also has a file creation mask made up in the same fashion.
 As its names indicates, the mask specifies prohibitions (masked permissions):
 During file creation all the bits that have 1 in the creation mask  
 are set to 0 in the permissions of the created file. The mask may be  
-looked up and changed by the system call system \syscall{umask}~:
+looked up and changed by the system call \syscall{umask}~:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{umask}$ : int -> int
