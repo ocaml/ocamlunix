@@ -273,8 +273,8 @@ signal sigalrm (Signal_handle beep); ignore (alarm 30);;
 
 \subsection*{Checkpoints}
 
-Signals are useful for asynchronous communication -- indeed, it is their 
-raison d'\^etre -- but they are often impossible to 
+Signals are useful for asynchronous communication~---~indeed, it is their 
+raison d'\^etre~---~but they are often impossible to 
 circumvent and thus create some significant difficulties for the
 system programmer.
 
@@ -291,14 +291,14 @@ explained later in this chapter.
 However, OCaml does not treat signals in a strictly asynchronous
 fashion.  On receiving a signal, OCaml records the receipt of the
 signal but the signal handling code will only be executed at certain
-\emph{checkpoints}.  These are frequent enough to provide the illusion of
-asynchronous treatment.  The checkpoints typically occur during
+\emph{checkpoints}.  These are frequent enough to provide the illusion
+of asynchronous treatment.  The checkpoints typically occur during
 allocations, loop controls, or interactions with the system
 (particularly with system calls).  OCaml guarantees that a program
 that does not loop, does not allocate, and does not interact with the
 system will not interlace with the signal handler.  Specifically, the
-writing of an unallocated value (integer, boolean, \etc{} -- but not a
-float!) in a reference does not pose the problem of contention.
+writing of an unallocated value (integer, boolean, \etc{}~---~but not
+a float!) in a reference does not pose the problem of contention.
 
 \section{How to mask signals}
 
@@ -363,7 +363,7 @@ Misc.try_finalize treat () reset ()
 Any signal that is not ignored can potentially interrupt 
 certain system calls.  Generally speaking, these system calls are 
 known as \emph{slow} calls, which can take an arbitrary length of time (for
-example, terminal I/O, \syscall{select} -- see below, \syscall{system}, \etc).
+example, terminal I/O, \syscall{select}~---~see below, \syscall{system}, \etc).
 If an interruption occurs, the system call is not completed and
 returns exception \ml+EINTR+.  File I/O is not interruptible:
 although these operations can suspend the running process to 
@@ -432,13 +432,13 @@ original process) or when there are no more threads
 (\ml+ECHILD+ exception).  When the process receives the \ml+sigchld+ 
 signal, it is not possible to know the number of completed processes, 
 especially if the signal is received several times within a short 
-period of time -- the parent \quotes{sees} only one signal.  Note that it 
+period of time~---~the parent \quotes{sees} only one signal.  Note that it 
 is not important to guard against the \ml+EINTR+ signal because 
 \ml+waitpid+ is non-blocking when called with the \ml+WNOHANG+ option.
 
-In other cases, this signal cannot be ignored: the associated 
-action will release all completed threads, in a non-blocking way --
-one never knows how much time may have elapsed during the signal 
+In other cases, this signal cannot be ignored: the associated action
+will release all completed threads, in a non-blocking way~---~one
+never knows how much time may have elapsed during the signal
 generation.
 \end{example}
 
@@ -699,7 +699,7 @@ presents some limitations and difficulties:
 %
 \begin{itemize}
 
-\item Very little information is transmitted -- the signal's
+\item Very little information is transmitted~---~the signal's
 type and nothing else.
 
 \item A signal may occur at any point during the execution 

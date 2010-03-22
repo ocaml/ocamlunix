@@ -1251,7 +1251,7 @@ After measuring more finely, we see that it is the calls \ml+read+ and
 \ml+write+ which take most of the time. We conclude then that a system 
 call, while it does not have much to do (\ml+read+ read of one character),
 takes a minimum of about 4 micro-seconds of time (on the machine that was
-used for the test --a 2.8 GHz Pentium 4 ), let us say 1 to 10 microseconds.
+used for the test~---~a 2.8 GHz Pentium 4 ), let us say 1 to 10 microseconds.
 For the input/output blocks of small size, the duration of the system call
 is what predominates.  
   
@@ -1263,9 +1263,9 @@ the size of the caches used by the system and the time taken by the
 system to manage the transfer should predominate over the cost of 
 a system call. \footnote{In fact, {\ocaml} limits the size of data
 transfers to 16K (in the current version) in repeat multiple 
-\ml+write+ system calls to carry out the complete transfer---see the discussion
-in the section \ref{single_write}. But this limit is the at the same
-point as the size of the system caches and is not observable.}
+\ml+write+ system calls to carry out the complete transfer~---~see 
+the discussion in the section \ref{single_write}. But this limit is 
+the at the same point as the size of the system caches and is not observable.}
 
 Finally, for very large blocks (8M and more) the speed is slightly
 less than optimal.  Coming into play here is the time needed to
@@ -1376,7 +1376,7 @@ wq
 \end{myfigure}
 
 Moral:  A system call, even if it does very little work, costs
-dearly---much more dearly than a normal function call: roughly,
+dearly~---~much more dearly than a normal function call: roughly,
 2 to 20 microseconds for each system call, depending on the
 the architecture. It is therefore important to avoid 
 making system calls too frequently. If possible, read and write 

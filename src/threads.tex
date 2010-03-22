@@ -133,7 +133,7 @@ become a zombie as in the case of a Unix process created by \ml+fork+.
 
 We already know enough to propose an alternative to the preceding
 model for the concurrent server that used \quotes{fork} (or
-\quotes{double fork})---by using a thread rather than a child process.
+\quotes{double fork})~---~by using a thread rather than a child process.
 To establish such a server, we introduce a variant
 \ml+Misc.co_treatment+ of the function \ml+Misc.fork_treatment+
 defined in Chapter~\ref{sec/sockets}.
@@ -163,8 +163,8 @@ Note that all the difficulty of the co-server is hidden in the
 \ml+service+ function, which must handle the connection robustly until
 disconnection.  In the case of a concurrent server where the service
 is executed by another process, premature termination of the service
-due to a fatal error produces by default the desired behavior---closing
-the connection---because the system closes the file descriptors when a
+due to a fatal error produces by default the desired behavior~---~closing
+the connection~---~because the system closes the file descriptors when a
 process exits.  But in the case where the service is executed by a
 thread, the descriptors of the different threads are shared by default
 and not closed at the termination of the thread.  It is therefore up
@@ -210,7 +210,7 @@ exception.  From the viewpoint of the OCaml programmer, it behaves as
 if the signal was received at the moment when the call returns.
 
 A thread does not return, since it is executed asynchronously.  But
-its action can be observed---luckily!---by its side effects.  For
+its action can be observed~---~luckily!~---~by its side effects.  For
 example, one thread can place the result of a computation in a
 reference that another thread will consult after making sure that the
 calculation has finished.  We will illustrate this in the following
@@ -644,7 +644,7 @@ let tcp_farm_server n treat_connection addr =
 The only precaution to take is to ensure mutual exclusion around the
 \ml+accept+ so that only one of the threads accepts a connection at a
 time. The idea is that the \ml+treat_connection+ function performs a
-sequential treatment, but it is not a requirement---we can
+sequential treatment, but it is not a requirement~---~we can
 effectively combine a pool of threads with the creation of new
 threads, which can be dynamically adjusted depending on the load.
 \end{example}
