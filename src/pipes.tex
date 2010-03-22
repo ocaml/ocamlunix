@@ -395,8 +395,8 @@ Whenever a prime is found, the function \ml+print_prime+ evaluates
 output buffer and artificially limits the execution speed of the program.
 In fact \ml+print_newline ()+ executes \ml+print_char '\n'+
 followed by \ml+flush Pervasives.stdout+. What can happen if
-\ml+print_newline ()+ is replaced by \ml+print_char '\n'+ ? What needs
-to be added to solve the problem ?
+\ml+print_newline ()+ is replaced by \ml+print_char '\n'+? What needs
+to be added to solve the problem?
 \end{exercise}
 \begin{answer}
 Since the child process is an exact copy of the parent, \textsc{i/o}
