@@ -15,41 +15,41 @@
 The term \quotes{file} in Unix covers several types of objects:
 %
 \begin{itemize}
-\item Standard files: Finite sets of bytes containing 
-      text or binary information which we may call "ordinary" files.
+\item standard files: finite sets of bytes containing 
+      text or binary information which we may call "ordinary" files
 
-\item Directories
+\item directories
 
-\item Symbolic links
+\item symbolic links
 
-\item Specialized files (\emph{devices}), which give 
+\item specialized files (\emph{devices}), which give 
       specific types of access to computer peripherals
 
-\item Named pipes
+\item named pipes
 
-\item Sockets named in the Unix domain.
+\item sockets named in the Unix domain.
        
 \end{itemize}
 %
 The concept of a file simultaneously encompasses the data 
 contained in the file and information about the file (also
 called meta-data) such as file type, access privileges, latest
-access dates,{\etc}
+access dates, {\etc}
 
-\section{The File System}
+\section{The file system}
 
 As a first approximation, we may think of the file system as a tree. The
-root directory is represented by \ml+'/'+ . The branches are labelled by the names (of  
+root directory is represented by \ml+'/'+ . The branches are labelled by names (of  
 the files), which are made up of strings of any characters excluding 
 solely the characters  \ml+'\000'+ and \ml+'/'+,  but it is good practice
 to avoid the use of non-printing characters as well as spaces.
-The non-terminating nodes of the file system are
-called \emph{directories}: These nodes always contain two branches \ml+.+
-and {..} which respectively represents the directory itself and the directory's
+The non-terminal nodes of the file system are
+called \emph{directories}: these nodes always contain two branches \ml+.+
+and {..} which respectively represent the directory itself and the directory's
 parent. The other nodes are sometimes called "files",
 as opposed to directories, but this is ambiguous, as we can also  
 designate any node as a "file". To avoid all ambiguity 
-we refer to them as \quotes{ordinary files}.
+we refer to them as \quotes{non-directory files}.
 
 The nodes of the file system are represented by paths. These may refer to
 the top of the file hierarchy or to a directory (usually the current
@@ -613,7 +613,7 @@ let iter_dir f dirname =
   with End_of_file -> closedir d
 \end{listingcodefile}
 
-\section {Complete example : search in a file hierarchy}
+\section {Complete example: search in a file hierarchy}
 \label{ex/find}
 
 The unix command \ml+find+ allows the recursive search of files 
@@ -978,7 +978,7 @@ applies equally to the information about the file.
 \end{itemize}
 
 
-\section{Reading and Writing}
+\section{Reading and writing}
 
 The system calls \syscall{read} and \syscall{write} allow the reading
 and writing of bytes in a file. For historical reasons, the system call \ml+write+ 
@@ -1405,7 +1405,7 @@ makes programs more portable~: we just need to implement this layer
 with the system calls provided by another operating system to port the
 all the programs that use this library on this new platform.
 
-\section{Complete Example:  A small input-output library}
+\section{Complete example:  A small input-output library}
 
 Here is an implementation of a part of the {\ocaml} \ml+Pervasives+ library to illustrate read/write
 techniques by buffer. The interface is the following:
