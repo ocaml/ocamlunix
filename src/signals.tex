@@ -432,7 +432,7 @@ original process) or when there are no more threads
 (\ml+ECHILD+ exception).  When the process receives the \ml+sigchld+ 
 signal, it is not possible to know the number of completed processes, 
 especially if the signal is received several times within a short 
-period of time -- the parent `sees' only one signal.  Note that it 
+period of time -- the parent \quotes{sees} only one signal.  Note that it 
 is not important to guard against the \ml+EINTR+ signal because 
 \ml+waitpid+ is non-blocking when called with the \ml+WNOHANG+ option.
 

@@ -63,7 +63,7 @@ The \libmodule{Filename} library handles file paths in a portable
 manner. Notably \libvalue{Filename}{concat} concatenates paths without
 using the character \ml+'/'+, allowing the code to function equally
 well on other architectures (for example the path separation character
-under Windows is \texttt{'\char `\\'}).  Similarly, the \ml+Filename+
+under Windows is \ml+'\'+).  Similarly, the \ml+Filename+
 module provides the string values \libvalue{Filename}{current\_dir\_name} and
 \libvalue{Filename}{parent\_dir\_name} to represent the branches
 \ml+.+ and \ml+..+.  The functions \libvalue{Filename}{basename} and
