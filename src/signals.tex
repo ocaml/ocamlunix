@@ -265,7 +265,9 @@ to create \quotes{beep} sounds every 30 seconds, regardless of
 the activity of the main program (calculations or input/output).
 
 \begin{lstlisting}
-let beep _ = output_char stdout '\007'; flush stdout; ignore (alarm 30);;
+let beep _ = 
+  output_char stdout '\007'; flush stdout; 
+  ignore (alarm 30);;
 ...
 signal sigalrm (Signal_handle beep); ignore (alarm 30);;
 \end{lstlisting}
@@ -574,9 +576,7 @@ list \ml+l+ and then halts the execution of the program until the reception
 of a signal which is not ignored or suspended (on completion, the 
 signal mask is returned to its old value).
 
-\begin{example}
-
-Now we may program the \ml+sleep+ function:
+\begin{example} Now we may program the \ml+sleep+ function:
 %
 \begin{codefile}{sleep.ml}
 open Sys;;
