@@ -259,6 +259,7 @@ let main_loop () =
 \end{example}
 
 \begin{example} 
+\label{ex/beep}
 To carry out periodic tasks (animations, \etc) interlaced with
 the execution of the main program.  For example, here is how
 to create \quotes{beep} sounds every 30 seconds, regardless of
@@ -733,7 +734,7 @@ certain older versions of Unix (System V, in particular) the behavior
 of a signal is initially associated with
 \ml+Signal_default+ when it is received.  This function can of course
 be made to perform the proper behavior, thus, in the \quotes{beep}
-example above, it would be necessary to write:
+example on page~\pageref{ex/beep}, it would be necessary to write:
 
 \begin{lstlisting}
 let rec beep _ =
