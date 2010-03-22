@@ -24,7 +24,7 @@ Regular files are not a satisfactory communication medium for processes
 running in parallel. Take for example a reader/writer situation in
 which one process writes data and the other reads them. If a file is used
 as the communication medium, the reader can detect that the file
-doesn't grow any more (\ml+read+ returns zero), but it doesn't know
+does not grow any more (\ml+read+ returns zero), but it does not know
 whether the writer is finished or simply busy computing
 more data. Moreover, the file keeps track of all the data transmitted,
 requiring needless disk space.
@@ -642,7 +642,7 @@ input of that pipe.
 \end{answer}
 
 Swapping two descriptors requires care. The naive sequence
-\ml+dup2 fd1 fd2;+ \ml+dup2 fd2 fd1+ doesn't work. Indeed, the second
+\ml+dup2 fd1 fd2;+ \ml+dup2 fd2 fd1+ does not work. Indeed, the second
 redirection has no effect since after the first one both descriptors
 \ml+fd1+ and \ml+fd2+ already point to the same file table entry.  The
 initial value pointed by \ml+fd2+ was lost. This is like swapping the
@@ -883,7 +883,7 @@ auxiliary processes \ml+read+ and \ml+write+ to communicate with the
 client.
 
 Demultiplexing (transmission from the client to the user processes)
-doesn't pose any particular problem. We just need a process that reads
+does not pose any particular problem. We just need a process that reads
 messages on the serial port and writes the extracted data on the pipe
 connected to the standard input of the receiving user process.
 %
@@ -931,7 +931,7 @@ of the data.
 \end{tikzpicture}
 \end{myimage}
 % 
-This doesn't work, because reading a pipe can block. For example, if we
+This does not work, because reading a pipe can block. For example, if we
 try to read the output of the shell but it has nothing to
 display at that moment, the multiplexer process will block, and waiting
 characters from the editor will be ignored.
