@@ -1389,7 +1389,7 @@ of programs are more naturally written with character by character
 input (eg reading a line from a file, lexical analysis \etc), and
 displaying some characters at once (eg displaying a name). 
 To satisfy the needs of these programs, most systems provide
-input-output libraries with an additional layer of software between
+input/output libraries with an additional layer of software between
 the application and the operating system. For example, in {\ocaml} the
 \ml+Pervasives+ module of the standard library defines the abstract
 types \libtype{Pervasives}{in\_channel} and
@@ -1405,7 +1405,7 @@ makes programs more portable: we just need to implement this layer
 with the system calls provided by another operating system to port the
 all the programs that use this library on this new platform.
 
-\section{Complete example: a small input-output library}
+\section{Complete example: a small input/output library}
 
 Here is an implementation of a part of the {\ocaml} \ml+Pervasives+ library to illustrate read/write
 techniques by buffer. The interface is the following:

@@ -993,7 +993,7 @@ val $\indexlibvalue{Unix}{shutdown\_connection}$ : Pervasives.in_channel -> unit
 \end{listingcodefile}
 %
 The \ml+open_connection+ function opens a socket to the given address and
-creates a pair of input-output channels (from the \ml+Pervasives+ module) on
+creates a pair of input/output channels (from the \ml+Pervasives+ module) on
 this socket. The communication with the server is done by writing requests on
 the channel open for writing and by reading responses on the channel open for
 reading. Since channels are buffered, we must flush the channel in order to
@@ -1017,7 +1017,7 @@ This primitive takes as arguments a function \ml+f+, used to handle
 requests, and the address of the socket on which the service is to be
 established.  Each connection to the server creates a new socket (as
 does the function \ml+accept+); after being cloned, the child process
-creates a pair of input-output channels (from the \ml+Pervasives+
+creates a pair of input/output channels (from the \ml+Pervasives+
 library) and passes them to the function \ml+f+ to handle the
 connection. The function \ml+f+ reads the requests on the channel open
 for reading and responds to the client on the channel open for
