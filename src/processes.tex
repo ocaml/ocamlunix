@@ -15,7 +15,7 @@
 A process is an executing program on the operating system.  It
 consists of a program (machine code) and a state of the program
 (current control point, variable values, call stack, open file
-descriptors, etc.).
+descriptors, \etc).
 
 This section presents the Unix system calls to create new processes
 and make them run other programs.
@@ -147,7 +147,7 @@ second result can be:
 code (the argument passed to \ml+exit+).
 
 \mltypecase{WSIGNALED (s)} the child process was killed by a signal
-(ctrl-C, \ml+kill+, etc.; see below for more information on the
+(ctrl-C, \ml+kill+, \etc; see below for more information on the
 signals); \ml+s+ identifies which signal.
 
 \mltypecase{WSTOPPED (s)} the child process was halted by the signal
@@ -218,7 +218,7 @@ function \ml+fork_search+ fails.
 In addition to the synchronization between processes, the \ml+wait+
 call also ensures recovery of all resources used by the child
 processes.  When a process terminates, it moves into a \quotes{zombie}
-state, where most, but not all, of its resources (memory, etc.) have
+state, where most, but not all, of its resources (memory, \etc) have
 been freed. It continues to occupy a slot in the process table to
 transmit its return value to the parent via the \ml+wait+ call.
 Once the parent calls \ml+wait+, the zombie process is removed from
@@ -277,7 +277,7 @@ send the current environment unchanged.
 The calls \ml+execve+, \ml+execv+, and \ml+execvp+ never return a
 result: either everything works error-free and the process and the
 process starts another program; or else an error occurs (file not
-found, etc.), and the call triggers the exception \ml+Unix_error+.
+found, \etc), and the call triggers the exception \ml+Unix_error+.
 
 \begin{example}
 The following three forms are equivalent:

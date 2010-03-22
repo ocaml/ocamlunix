@@ -217,7 +217,7 @@ like the command \ml+mv f1 f2+).
 The other method of accessing a file is through a file descriptor.  A
 descriptor contains a pointer to a file in addition to other
 information like the current read/write position in the file,
-the permissions of the file (read permission, write permission etc)
+the permissions of the file (read permission, write permission \etc)
 and the wrappers which control the behavior of the read and write
 process (writes appending or overwriting blocking reads or
 non-blocking).  The descriptors are represented by values of abstract
@@ -618,7 +618,7 @@ let iter_dir f dirname =
 
 The unix command \ml+find+ allows the recursive search of files 
 in the hierarchy according to certain criteria (file  name, type and
-permissions) etc. Here we propose to develop  part of
+permissions) \etc{} Here we propose to develop  part of
 a library function \ml+Findlib.find+ which will allow us to 
 make such searches and a command \ml+find+ providing a restricted
 version of the unix command \ml+find+ does not implement any but the options
@@ -1386,7 +1386,7 @@ character by character.
 In examples such as \ml+file_copy+, it is not difficult to do
 input/ouput with large blocks. On the other hand, other types 
 of programs are more naturally written with character by character
-input (eg reading a line from a file, lexical analysis etc), and
+input (eg reading a line from a file, lexical analysis \etc), and
 displaying some characters at once (eg displaying a name). 
 To satisfy the needs of these programs, most systems provide
 input-output libraries with an additional layer of software between
@@ -1760,7 +1760,7 @@ it would be better to read the file starting from the end: with
 \ml+lseek+, we read the last 4096 characters:  We scan them for 
 the end of line;hr.  If there are at least $n$, we output and display
 the corresponding lines.  Otherwise, we start again with the preceding
-4096 characters, etc.
+4096 characters, \etc
 
 To add the option \ml+-f+,it suffices to at once display the last 
 $n$ lines, to position the cursor at the end of the file and to
@@ -1824,13 +1824,14 @@ the name of the file to which it points.
 \subsection*{Special files}
 \label{sec/speciaux}
 
-Special files may be of type \quotes{character} or of 
-type \quotes{block}.  The first are for reading and writing characters: we cannot 
-read or write characters expect in sequence. These character devices are 
-typically terminals, the peripherals are, printers,
-etc. The block devices, typically disks, are a permanent or temporary resource;
-characters are read in blocks given in absolute form or relative with respect to the current position
-Among the special files, we may distinguish:
+Special files may be of type \quotes{character} or of type
+\quotes{block}.  The first are for reading and writing characters: we
+cannot read or write characters expect in sequence. These character
+devices are typically terminals, the peripherals are, printers, \etc{}
+The block devices, typically disks, are a permanent or temporary
+resource; characters are read in blocks given in absolute form or
+relative with respect to the current position. Among the special files,
+we may distinguish:
 \begin{mltypecases}
 \mltypecase{/dev/null} This is the black hole which swallows everything 
 that is put into it and from which nothing comes out. Extremely useful for ignoring  
@@ -1861,7 +1862,7 @@ correspond to the  peripherals should be able to have dynamic parameters
 or commands. Examples of such possibilities: To 
 rewind the tape, rewind or fast forward; for a terminal 
 terminal, choice of line editing mode, special characters 
-, serial connection parameters (speed, parity, etc).
+, serial connection parameters (speed, parity, \etc).
 These operations are made in Unix through the system call  
 \syscall{ioctl} which group together all the particular cases. However, this
 system call is not provided by {\ocaml}; it is  

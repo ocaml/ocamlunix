@@ -969,8 +969,8 @@ data into messages and writes the result directly on the serial port
 Since each user process has its output transmitted independently,
 blocking problems are solved. However the protocol may not be
 respected. Two repeaters may try to write a message at the same time
-and the Unix kernel does not guarantee the atomicity of writes,
-i.e. that they are performed in a single uninterruptible operation.
+and the Unix kernel does not guarantee the atomicity of writes,\ie{} 
+that they are performed in a single uninterruptible operation.
 Thus the kernel may choose to write only a part of a message from a
 repeater to \ml+/dev/ttya+, then write a full message from another
 repeater and finally write the remaining part of the first message.

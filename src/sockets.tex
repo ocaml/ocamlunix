@@ -307,9 +307,9 @@ type service_entry = Unix.service_entry
 val $\libvalue{Unix}{getservbyname}$ : string -> string -> service_entry
 \end{listingcodefile}
 %
-The first argument is the service name (i.e. \ml+ftp+ for FTP servers,
+The first argument is the service name (\ie{} \ml+ftp+ for FTP servers,
 \ml+smtp+ for email, \ml+nntp+ for the News server, \ml+talk+ and
-\ml+ntalk+ for the commands of that name, etc.). The second argument
+\ml+ntalk+ for the commands of that name, \etc). The second argument
 is the name of the protocol: usually \ml+"tcp"+ if the service is
 using the \quotes{stream} mode or \ml+"udp"+ if the service uses
 the \quotes{datagram} mode. The result of \ml+getservbyname+ is a
@@ -1021,7 +1021,7 @@ creates a pair of input-output channels (from the \ml+Pervasives+
 library) and passes them to the function \ml+f+ to handle the
 connection. The function \ml+f+ reads the requests on the channel open
 for reading and responds to the client on the channel open for
-writing. Once the service has been provided (i.e. once \ml+f+ has
+writing. Once the service has been provided (\ie{} once \ml+f+ has
 returned), the child process closes the socket and exits. If the
 client closes the connection cleanly, the child will get an
 end-of-file on the channel open for reading. If the client does it
@@ -1082,7 +1082,7 @@ the \textsc{x} server:
 \item a 16 bit integer specifying the number $n$ of vertices of the polygon
 \item a 32 bit integer identifying the window on which to draw
 \item a 32 bit integer identifying the \quotes{graphic context}
-\item a \quotes{form} byte, indicating whether the polygon is convex, etc.
+\item a \quotes{form} byte, indicating whether the polygon is convex, \etc
 \item a byte indicating whether the coordinates of the vertices are absolute or
   relative
 \item $4n$ bytes coding the coordinates of the polygon's vertices,
@@ -1287,7 +1287,7 @@ server and the client are immediately readable by a human being. In
 particular, one can use \ml+telnet+ to talk \quotes{directly} to a server
 of this type\footnote{ One just needs to run \ml+telnet machine service+,
   where \ml+machine+ is the name of the machine on which the server is running
-  and \ml+service+ is the name of the service (\ml+smtp+, \ml+nntp+, etc.).}:
+  and \ml+service+ is the name of the service (\ml+smtp+, \ml+nntp+, \etc).}:
 one types the requests just as a client would, and one sees the responses
 displayed. This greatly facilitates development. Of course, the work involved
 in coding and decoding the requests and responses is also more important than
