@@ -75,7 +75,7 @@
 \newstyle{.chapter A} { color: black  } % number
 \newstyle{.section} { font-size: 140\%; margin-top: 1.5em; text-align:left}
 \newstyle{.section A} { color: black } % number
-\newstyle{.subsection} { font-style: italic; margin-top: 2em; text-align:left}
+\newstyle{.subsection} { font-weight: bold; margin-top: 1em; text-align:left}
 \newstyle{.paragraph} { font-weight: bold; margin-top: 1em; margin-bottom:-1em}
 \newstyle{P}{ padding-top : 1em }
 
