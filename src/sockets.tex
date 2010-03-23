@@ -345,7 +345,7 @@ Once the connection is established, one can send data to the server using
 from the server with \indexvalue{read}. Sockets behave the same as pipes
 for read and write operations: \ml+read+ blocks if no data is available
 and can return fewer bytes than requested; if the server closes the
-connection \ml+read+ returns 0 and \ml+write+ raises a \ml+SIGPIPE+
+connection \ml+read+ returns 0 and \ml+write+ raises a \ml+sigpipe+
 signal.
 
 \ml+connect+ binds the socket to a local address chosen by the
@@ -380,7 +380,7 @@ The first argument is the descriptor of the socket to close. The second argument
 is one of:
 \begin{mltypecases}
 \mltypecase{SHUTDOWN\_RECEIVE} closes the socket for reading; \ml+write+
-on the other end of the connection will raise a \ml+SIGPIPE+ signal.
+on the other end of the connection will raise a \ml+sigpipe+ signal.
 
 \mltypecase{SHUTDOWN\_SEND} closes the socket for writing; \ml+read+ on the
 other end of the connection returns an end of file indicator.
@@ -505,7 +505,7 @@ The server prematurely closes the connection. The client (child) tries
 to write on the socket \ml+sock+ and receives the \ml+sigpipe+ signal
 which kills it. It is the expected behaviour. However, the client dies
 immediately, without being able to indicate that the connection was
-lost. To retrieve this information, one can ignore the \ml+SIGPIPE+
+lost. To retrieve this information, one can ignore the \ml+sigpipe+
 signal with the effect of sending the client an \ml+EPIPE+ error which
 will then be handled by the handler \ml+handle_unix_error+: one must
 insert the following line after the line~\ref{prog:add_signal_ignore}.
@@ -887,7 +887,7 @@ perfectly acceptable since nothing is reading the output of this
 command.
 
 Finally, the server-side command can exit (either voluntarily or via a signal)
-before having read the end of file. The client receives a \ml+SIGPIPE+ signal
+before having read the end of file. The client receives a \ml+sigpipe+ signal
 (in which case the client will die immediately) or an \ml+EPIPE+ exception (if
 the signal is ignored) when it tries to write on the connection.
 
@@ -1025,7 +1025,7 @@ writing. Once the service has been provided (\ie{} once \ml+f+ has
 returned), the child process closes the socket and exits. If the
 client closes the connection cleanly, the child will get an
 end of file on the channel open for reading. If the client does it
-abruptly, the child might receive a \ml+SIGPIPE+ when trying to write
+abruptly, the child might receive a \ml+sigpipe+ when trying to write
 on the closed socket.  As for the parent, it has probably already
 handled another request! The \ml+establish_server+ usually never
 terminates, except in case of an error (e.g. of the {\ocaml} runtime

@@ -179,7 +179,7 @@ connection.
 One solution consists of raising an exception to signify a fatal stop
 (for example an \ml+Exit+ exception), causing finalization code to be
 executed as it is handled.  For similar reasons, it is essential to
-block the \ml+SIGPIPE+ signal during the handling of a service by a
+block the \ml+sigpipe+ signal during the handling of a service by a
 thread, replacing the immediate termination of the thread by the
 raising of an \ml+EPIPE+ exception.
 

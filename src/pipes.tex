@@ -144,9 +144,9 @@ When all the descriptors on a pipe's input are closed and the pipe is
 empty, a call to \ml+read+ on its output returns zero:
 end of file. And when all the descriptors on a pipe's output are
 closed, a call to \ml+write+ on its input kills the writing
-process. More precisely the kernel sends the signal \ml+SIGPIPE+ to
+process. More precisely the kernel sends the signal \ml+sigpipe+ to
 the process calling \ml+write+ and the default handler of this signal
-terminates the process. If the signal handler of \ml+SIGPIPE+ is
+terminates the process. If the signal handler of \ml+sigpipe+ is
 changed, the call to \ml+write+ fails with an \ml+EPIPE+ error.
 
 \section{Complete example: parallel sieve of Eratosthenes}
@@ -355,7 +355,7 @@ If \ml+k+ is not given, all processes continue indefinitely until one or
 more are killed. The death of a process results in the death of its child
 as described above. It also closes the output of the pipe connected to
 its parent. This will in turn kill the parent at the next write on the
-pipe (the parent will receive a \ml+SIGPIPE+ signal whose default
+pipe (the parent will receive a \ml+sigpipe+ signal whose default
 handler terminates the process).
 
 \begin{exercise}
