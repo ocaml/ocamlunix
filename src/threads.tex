@@ -83,9 +83,9 @@ following to the \ml+_tags+ file:
 %
 If your installation does not support native threads, you can refer to
 section~\ref{sec/thread-implementation} or the manual for instructions
-how to use simulated (\quotes{VM-level}) threads.  The text and examples in
-this chapter assume native threads and do not apply, in general, to
-VM-level threads.
+how to use simulated (\quotes{\textsc{vm}-level}) threads.  The text
+and examples in this chapter assume native threads and do not apply,
+in general, to \textsc{vm}-level threads.
 
 \section{Creation and termination of threads}
 
@@ -906,7 +906,7 @@ the condition whenever the situation \emph{might} be what the other
 thread is waiting for.  An awakened thread, therefore, cannot assume
 that the condition it was waiting is now satisfied.  It must, in
 general, re-test the state of its shared data, and if necessary wait
-on the condition again.  This does not consitute busy-waiting, because
+on the condition again.  This does not constitute busy-waiting, because
 it only happens when another thread signals the condition.
 
 Here is another justification for this approach: when a thread has
@@ -1098,9 +1098,9 @@ arguments, and occurs when exactly one of them occurs.  We distinguish
 between the offer of an event and its occurrence.  The call
 \ml+sync (choose [e1; e2])+ synchronizes by offering a choice of two events
 \ml+e1+ and \ml+e2+, but only one of the two events will effectively
-occur (the offer of the other event will be simultaneously cancelled).
+occur (the offer of the other event will be simultaneously canceled).
 The \ml+wrap_abort+ primitive allows an event to handle being
-cancelled.
+canceled.
 %
 \begin{listingcodefile}{tmpevent.mli}
 val $\indexlibvalue{Event}{wrap\_abort}$ : 'a event -> (unit -> unit) -> 'a event
@@ -1178,7 +1178,7 @@ previous one, we find that it is twice as slow.  Communication of each
 integer requires a synchronization between two threads and therefore
 several system calls for acquiring and releasing locks.  On the other
 hand, communication via pipes uses buffered \io{} that allows several
-thousand integers to be exahanged with each system call.
+thousand integers to be exchanged with each system call.
 
 To be fair, one should also provide buffered communication on
 channels, using the channel only to exchange a packet of integers.

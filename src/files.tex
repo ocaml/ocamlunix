@@ -39,7 +39,7 @@ access dates, {\etc}
 \section{The file system}
 
 As a first approximation, we may think of the file system as a tree. The
-root directory is represented by \ml+'/'+ . The branches are labelled by names (of  
+root directory is represented by \ml+'/'+ . The branches are labeled by names (of  
 the files), which are made up of strings of any characters excluding 
 solely the characters  \ml+'\000'+ and \ml+'/'+,  but it is good practice
 to avoid the use of non-printing characters as well as spaces.
@@ -292,7 +292,7 @@ The result of these three calls is a \emph{record} of type
 & The device number of the device where the file is located. \\
 \ml+st_ino : int+ 
 & The file's inode number in its partition. 
-The tuple \ml+(st_dev, st_ino)+ uniquely identifies the file
+The pair \ml+(st_dev, st_ino)+ uniquely identifies the file
 within the file system. \\
 \ml+st_kind : file_kind+ & 
 The file type. The file type \ml+file_kind+ is an enumerated type
@@ -1029,7 +1029,7 @@ position is advanced by the number of bytes read or written.
 
 In the case of a write, the number of bytes actually written
 is normally the number of bytes requested, but there are many
-exceptions to this behaviour: (i) In the case where it is not possible
+exceptions to this behavior: (i) In the case where it is not possible
 to write the bytes (for example, if the disk is full); (ii) When
 the write is on a descriptor of files opened on a pipe or
 a lock file placed in non-blocking input/output mode, the write
@@ -1066,7 +1066,7 @@ Assume \ml+fd+ is linked to an open descriptor which is writing.
 write fd "Hello world!" 3 7
 \end{lstlisting}
 %
-write the characters \quotes{"lo worl"} in the corresponding file,
+writes the characters \ml+"lo worl"+ in the corresponding file,
 and returns 7.
 \end{example}
 
@@ -1085,7 +1085,7 @@ Secondly, the number of bytes read may be less than the number of bytes
 requested.  When one reads from a special file such as a terminal, or
 from a communication devices such as a pipe or a lock file. For example,
 when we read from a terminal, \ml+read+ blocks until an entire line is available.
-(This is the default behaviour of a terminal;
+(This is the default behavior of a terminal;
 we can also place the terminal in character-by-character read mode instead of
 line-by-line. See section~\ref{sec/speciaux} and the type \libtype{Unix}{terminal\_io}
 for all the details.)
@@ -1484,10 +1484,10 @@ let open_in filename =
 At the opening of a file in read mode, we create a buffer of
 reasonable size (large enough so as not to make too many
 system calls; small enough so as not to waste memory). We
-then initialise the field \ml+in_fd+ with a Unix file descriptor
+then initialize the field \ml+in_fd+ with a Unix file descriptor
 opened in read mode on the file in question. The 
 buffer is initially empty (It does not contain any characters from the file); 
-the field \ml+in_end+ is therefore initialised to zero.
+the field \ml+in_end+ is therefore initialized to zero.
 %
 \begin{listingcodefile}{io.ml}
 let input_char chan =
@@ -1734,7 +1734,7 @@ Thus the call \ml+lseek+ is useless for writing
 on such a descriptor. On the other hand, it is well taken into account
 by the read. 
 
-The behaviour of \ml+lseek+ is unpredictable on certain type of files
+The behavior of \ml+lseek+ is unpredictable on certain type of files
 for which direct access is meaningless: communication devices (pipes, lock files),
 but also most special files (peripherals), such as for example the terminal.
 For most implementations of Unix, an \ml+lseek+ on such files 
@@ -1783,7 +1783,7 @@ on a file descriptor depends on the underlying media.
 However this uniformity breaks when one needs to access all the
 features provided by a given media. General operations (opening,
 writing, reading, \etc) remain uniform on most descriptors but even,
-on certain special files, these may have an ad-hoc behaviour defined
+on certain special files, these may have an ad hoc behavior defined
 by the kind of peripheral and its parameters. There are also
 operations that work only with certain kind of media.
 
@@ -1851,7 +1851,7 @@ same interface.
 system parameters organized as a file system.
 \end{mltypecases}
 
-The special files have a behaviour sufficient variable in response
+The special files have a behavior sufficient variable in response
 to system calls generated on files. Most special files 
 (terminals, tape drives, disks, \ldots) follow 
 \ml+read+ and \ml+write+ in the obvious manner (but sometimes with 
@@ -2560,7 +2560,7 @@ that is to say, so that it displays the file's contents
 if the archive had extracted it beforehand and if the file 
 corresponds to a file in the archive.
 
-Behind the apparent trivial appearance of this generalisation are hidden 
+Behind the apparent trivial appearance of this generalization are hidden 
 some difficulties, for the symbolic links are file paths some of which
 may not correspond exactly with the paths in the archive which clearly
 point outside the archive (they may contain the path \ml+..+). Further, symbolic

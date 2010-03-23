@@ -15,7 +15,7 @@
 Signals, or software interrupts, are external, asynchronous events
 used to alter the course of a program.  These may occur at any
 time during the execution of a program.  Because of this,
-they differ from other methods of interprocess communication, where
+they differ from other methods of inter-process communication, where
 two processes must be explicitly directed to wait for external messages;
 for example, by calling \indexvalue{read} on a pipe.
 
@@ -187,7 +187,7 @@ Forking a process (with the system call \indexvalue{fork}) preserves
 signal behavior: the initial definitions for the child are those of 
 the parent at the time when \ml+fork+ was executed.  The \indexvalue{exec} 
 system call sets all the behaviors to \ml+Signal_default+ except that
-signals ignored before are still ignored afterwards.
+signals ignored before are still ignored afterward.
 
 \begin{example}
 Occasionally one wants to log-off or end a session while allowing 
@@ -465,7 +465,7 @@ returned value, and of course, the assertion could not be
 carried out.
 
 The specifications of the standard C library state that the parent
-should be unaware of the \ml+sigint+ and \ml+siquit+ signals and masks
+should be unaware of the \ml+sigint+ and \ml+sigquit+ signals and masks
 the \ml+sigchld+ signal during the command's execution.  
 That makes it possible to stop or kill a child process without
 affecting the main program's execution.
@@ -521,7 +521,7 @@ let system cmd =
 %
 
 Note that the signal change must be made before the call to \ml+fork+ is
-executed.  Immediately afterwards only one of the two processes
+executed.  Immediately afterward only one of the two processes
 (generally the child) will remain.  During the period where the child
 takes control of the flow of execution, the parent could receive signals
 (in particular \ml+sigchld+) if the child were to finish immediately.  As a
@@ -603,7 +603,7 @@ the second instance, the process would not be awakened by the reception
 of the signal. The \ml+sigalarm+ signal is put in a non-blocking
 state.  Then the process is put on standby by suspending all other
 signals which were not already suspended (\ml+old_mask+). After the alarm
-is signalled, the preceding modifications are erased. (Note that
+is signaled, the preceding modifications are erased. (Note that
 line~\ref{prog:ssigproc} could be placed immediately after
 line~\ref{prog:sold} because the call to \ml+sigsuspend+ preserves
 the signal mask.)
@@ -641,7 +641,7 @@ representing time:
 \item The field \ml+it_interval+ indicates the length of the time 
 being measured
 \item The field \ml+it_value+ is the current value of the timer; 
-when it returns \ml+0+ the signal \ml+sigvtalarm+ is sent and 
+when it returns \ml+0+ the signal \ml+sigvtalrm+ is sent and 
 the timer is reset to the value in \ml+it_interval+.
 \end{itemize}
 %
@@ -665,7 +665,7 @@ the timer at the time of the modification.
 
 \begin{exercise}[noanswer]
 
-To manage serveral timers, write a module having the following interface:
+To manage several timers, write a module having the following interface:
 %
 \begin{listingcodefile}{timers.mli}
 module type Timer = sig
@@ -695,7 +695,7 @@ dates and times to be expressed according to a calendar (year, month,
 
 \section{Problems with signals}
 
-Owing to their asynchronous nature, the use of signals for interprocess communication 
+Owing to their asynchronous nature, the use of signals for inter-process communication 
 presents some limitations and difficulties:
 %
 \begin{itemize}

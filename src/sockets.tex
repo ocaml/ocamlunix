@@ -253,7 +253,7 @@ type $\libtype{Unix}{sockaddr}$ =
 \end{lstlisting}
 The \ml+ADDR_UNIX (f)+ address is an address in the Unix domain. The
 string \ml+f+ is the name of the corresponding file in the machine's
-filesystem.
+file system.
 
 \ml+ADDR_INET (a,p)+ is an address in the Internet domain. The first argument,
 \ml+a+, is the Internet address of a machine; the second argument, \ml+p+, is a
@@ -261,7 +261,7 @@ service number (\emph{port number}) in this machine.
 
 Internet addresses are represented by the abstract type \ml+inet_addr+. Two
 functions enable the conversion of strings of the form \ml+128.93.8.2+ to
-values of type \ml+inet_addr+, and vice-versa:
+values of type \ml+inet_addr+, and vice versa:
 %
 \begin{codefile}{tmpunix.mli}
 type inet_addr = Unix.inet_addr
@@ -307,9 +307,9 @@ type service_entry = Unix.service_entry
 val $\libvalue{Unix}{getservbyname}$ : string -> string -> service_entry
 \end{listingcodefile}
 %
-The first argument is the service name (\ie{} \ml+ftp+ for FTP servers,
-\ml+smtp+ for email, \ml+nntp+ for the News server, \ml+talk+ and
-\ml+ntalk+ for the commands of that name, \etc). The second argument
+The first argument is the service name (\ie{} \ml+"ftp"+ for FTP servers,
+\ml+"smtp"+ for email, \ml+"nntp"+ for the News server, \ml+"talk"+ and
+\ml+"ntalk"+ for the commands of that name, \etc). The second argument
 is the name of the protocol: usually \ml+"tcp"+ if the service is
 using the \quotes{stream} mode or \ml+"udp"+ if the service uses
 the \quotes{datagram} mode. The result of \ml+getservbyname+ is a
@@ -503,7 +503,7 @@ terminates normally.
 % socket; however, it is the child that writes on the socket.
 The server prematurely closes the connection. The client (child) tries
 to write on the socket \ml+sock+ and receives the \ml+sigpipe+ signal
-which kills it. It is the expected behaviour. However, the client dies
+which kills it. It is the expected behavior. However, the client dies
 immediately, without being able to indicate that the connection was
 lost. To retrieve this information, one can ignore the \ml+sigpipe+
 signal with the effect of sending the client an \ml+EPIPE+ error which
@@ -679,7 +679,7 @@ obtain the following library function:
 val fork_treatment :
  file_descr -> (file_descr * sockaddr -> unit) ->
  file_descr * sockaddr -> unit
-(** same as [sequential_treament] but the treatment is concurrently
+(** same as [sequential_treatment] but the treatment is concurrently
  performed by a forked child process of the server. The parent process
  will have to free the child when completed. *)
 \end{codefile}
@@ -722,7 +722,7 @@ technique. % It might be a good idea here to reference
 val double_fork_treatment :
 file_descr -> (file_descr * sockaddr -> unit) ->
 file_descr * sockaddr -> unit
-(** same as [fork_treament] but the treatment is performed after a double
+(** same as [fork_treatment] but the treatment is performed after a double
    fork. The forked process will be freed automatically on
    completion. *)
 \end{codefile}
@@ -959,7 +959,7 @@ contrast, this would generally result in an error on a socket of
 
 \subsection*{Low level reads and writes}
 
-The \syscall{recv} and \syscall{send} generalise the \indexvalue{read} and
+The \syscall{recv} and \syscall{send} generalize the \indexvalue{read} and
 \indexvalue{write} system calls respectively (but they only work on socket
 descriptors).
 %
@@ -1055,7 +1055,7 @@ protocol.\footnote{The \textsc{rfc}s are available via anonymous \textsc{ftp}
 
 The first family of protocols aims at transmitting the data in a
 compact form as close as possible to its in-memory representation, in
-order to minimise the conversion work needed, and to make most of the
+order to minimize the conversion work needed, and to make most of the
 available network bandwidth. Typical examples of protocols of this
 type are: the \textsc{x}-window protocol, which governs the exchanges
 between the \textsc{x} server and the \textsc{x} applications, and the
@@ -1064,7 +1064,7 @@ between the \textsc{x} server and the \textsc{x} applications, and the
 Integers or floating point numbers are usually transmitted as the 1,2,4 or 8
 bytes of their binary representation. For strings, we send the length of the
 string first, in the form of an integer, and then the byte content of the
-string. For structured objects (tuples,records), we send the fields in order,
+string. For structured objects (tuples, records), we send the fields in order,
 simply concatenating their representations. For structured objects of variable
 size (arrays), we first send the number of elements that follow. The client
 can easily recreate in memory the structure of the transmitted data, provided
@@ -1119,7 +1119,7 @@ The aim of those two primitives is to enable saving any structured object to a
 disk file, and then restoring it; but they are equally applicable to the
 transmission of any object through a pipe or a socket. These primitives can
 handle any kind of {\ocaml} object except for functions: they preserve sharing
-and circulariies inside transmitted objects; and they can communicate between
+and circularities inside transmitted objects; and they can communicate between
 architectures of different \emph{endianness}.
 
 \begin{example}

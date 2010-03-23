@@ -169,7 +169,7 @@ val $\indexlibvalue{Pervasives}{at\_exit}$ : (unit -> unit) -> unit
 \end{listingcodefile}
 %
 The last function to be registered is called first. A function registered with
-\ml+at_exit+ cannot be subsequently cancelled. However, this is not a
+\ml+at_exit+ cannot be subsequently canceled. However, this is not a
 real restriction: we can easily get the same effect with functions
 whose execution depends on a global variable.
 
@@ -189,7 +189,7 @@ exception $\libexn{Unix}{Unix\_error}$ of error * string * string
 The second argument of the \ml+Unix_error+ exception is the name of
 the system call that raised the error. The third argument identifies,
 if possible, the object on which the error occurred; for example, for
-a system call taking a filename as an argument, this filename will be
+a system call taking a file name as an argument, this file name will be
 in the third position in \ml+Unix_error+. Finally, the first argument
 of the exception is an error code indicating the nature of the
 error. It belongs to the concrete enumerated type \ml+error+

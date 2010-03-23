@@ -1129,7 +1129,7 @@ If there is data on an input descriptor we \ml+read+ this input into a
 buffer, add a message header and write the result on the serial
 port. If \ml+read+ returns zero this indicates that the corresponding
 pipe was closed. The terminal emulator on the client will receive a
-message with zero bytes, signalling that the user process
+message with zero bytes, signaling that the user process
 with that number died; it can then close the corresponding window.
 
 If there is data on the serial port, we read the two-byte message
