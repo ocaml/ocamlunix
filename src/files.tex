@@ -550,11 +550,11 @@ contrast to \quotes{static} (that which the file system specifies).
 
 Only the kernel can write in directories (when files are
 created). Thus opening a directory in write mode is prohibited. In
-certain versions of unix a directory may be opened in read
+certain versions of Unix a directory may be opened in read
 only mode and read with \indexvalue{read}, but other versions
 prohibit it. While this is possible, it is preferable 
 not to do so because the format of directory entries vary
-depending on the unix version and is often complex. The following functions
+depending on the Unix version and is often complex. The following functions
 allow reading a directory sequentially in a manner that is
 portable:
 %
@@ -616,12 +616,12 @@ let iter_dir f dirname =
 \section {Complete example: search in a file hierarchy}
 \label{ex/find}
 
-The unix command \ml+find+ allows the recursive search of files 
+The Unix command \ml+find+ allows the recursive search of files 
 in the hierarchy according to certain criteria (file  name, type and
 permissions) \etc{} Here we propose to develop  part of
 a library function \ml+Findlib.find+ which will allow us to 
 make such searches and a command \ml+find+ providing a restricted
-version of the unix command \ml+find+ does not implement any but the options
+version of the Unix command \ml+find+ does not implement any but the options
 \ml+-follow+ and \ml+-maxdepth+.
 
 We specify the following interface for the library \ml+Findlib+:
