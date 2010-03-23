@@ -770,7 +770,7 @@ the disconnection.
 setsockopt_optint sock SO_LINGER (Some 5);;
 \end{lstlisting}
 %
-This option turns \indexvalue{close} into a blocking operation on the
+This option turns \ml+close+ into a blocking operation on the
 \ml+sock+, which blocks until all the data issued for send has been actually
 transmitted or until a 5 second timeout has expired.
 %

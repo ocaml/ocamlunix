@@ -447,7 +447,7 @@ and its descendants.
 The system call \syscall{mkfifo} creates a named pipe: 
 %
 \begin{listingcodefile}{tmpunix.mli}
-val $\indexlibvalue{Unix}{mkfifo}$ : string -> int -> unit
+val $\libvalue{Unix}{mkfifo}$ : string -> int -> unit
 \end{listingcodefile}
 %
 The first argument is the name of the pipe, and the second one represents the
@@ -1283,7 +1283,7 @@ ocamlc -o main.byte unix.cma write.cma main.ml
 \end{lstlisting}
 
 The semantics of \ml+single_write+ is as close as possible to the
-system call \syscall{write}. The only remaining difference is when the
+system call \ml+write+. The only remaining difference is when the
 original string is very long (greater than \ml+UNIX_BUFFER_SIZE+); the
 call may then not write all the data and must be iterated.  The
 atomicity of \ml+write+ (guaranteed for regular files) is thus not

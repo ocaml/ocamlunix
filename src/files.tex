@@ -196,10 +196,10 @@ Here are some examples of system calls that operate on the file name level.
 \syscall{unlink}, \syscall{link}, \syscall{symlink} and \syscall{rename} 
 %
 \begin{listingcodefile}{tmpunix.mli}
-val $\indexlibvalue{Unix}{unlink}$ : string -> unit
-val $\indexlibvalue{Unix}{link}$ : string -> string -> unit
-val $\indexlibvalue{Unix}{symlink}$ : string -> string -> unit
-val $\indexlibvalue{Unix}{rename}$ : string -> string -> unit
+val $\libvalue{Unix}{unlink}$ : string -> unit
+val $\libvalue{Unix}{link}$ : string -> string -> unit
+val $\libvalue{Unix}{symlink}$ : string -> string -> unit
+val $\libvalue{Unix}{rename}$ : string -> string -> unit
 \end{listingcodefile}
 %
 The call \ml+unlink f+ erases the file \ml+f+ given in the argument (like
@@ -370,7 +370,7 @@ The call  \syscall{chown} changes the owner (second argument) and
 the group (third argument) of a file (first
 argument).  Only the super user can make these changes.
 If the program has an open files descriptor on a file, one should
-use \syscall{fchown} through the descriptor instead of \syscall{chown}
+use \syscall{fchown} through the descriptor instead of \ml+chown+
 on the file name.
 %
 \begin{listingcodefile}{tmpunix.mli}

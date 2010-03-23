@@ -401,7 +401,7 @@ calling thread and not the entire program.  (The \ml+Thread+ module
 redefines this function, because in the case of simulated threads
 calling the one in the \ml+Unix+ module would block the whole program
 and therefore all the threads.  It is therefore necessary to use
-\indexlibvalue{Thread}{select} from the \ml+Thread+ module and not
+\libvalue{Thread}{select} from the \ml+Thread+ module and not
 \ml+Unix.select+, even if the two are equivalent in the case of native
 threads.)
 
