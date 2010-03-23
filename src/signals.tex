@@ -291,13 +291,13 @@ for access to this global variable may therefore ensue.  Generally, the solution
 is to block signals during the treatment of these critical sections as 
 explained later in this chapter.  
 
-However, OCaml does not treat signals in a strictly asynchronous
-fashion.  On receiving a signal, OCaml records the receipt of the
+However, {\ocaml} does not treat signals in a strictly asynchronous
+fashion.  On receiving a signal, {\ocaml} records the receipt of the
 signal but the signal handling code will only be executed at certain
 \emph{checkpoints}.  These are frequent enough to provide the illusion
 of asynchronous treatment.  The checkpoints typically occur during
 allocations, loop controls, or interactions with the system
-(particularly with system calls).  OCaml guarantees that a program
+(particularly with system calls). {\ocaml} guarantees that a program
 that does not loop, does not allocate, and does not interact with the
 system will not interlace with the signal handler.  Specifically, the
 writing of an unallocated value (integer, boolean, \etc{}~---~but not
@@ -613,7 +613,7 @@ the signal mask.)
 \subsection*{Modern times}
 
 In more modern versions of Unix, time can also be measured in microseconds.
-In OCaml, time measured in microseconds is represented as a float.  
+In {\ocaml}, time measured in microseconds is represented as a float.  
 The \syscall{gettimeofday} function is the equivalent of the \ml+time+ 
 function for modern systems.
 

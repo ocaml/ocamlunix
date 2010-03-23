@@ -206,7 +206,7 @@ is restarted automatically when a signal is received: it is
 effectively interrupted by a signal, the handler is invoked, then the
 call is restarted.  The call therefore does not return until the
 thread has really terminated, and the call never raises the \ml+EINTR+
-exception.  From the viewpoint of the OCaml programmer, it behaves as
+exception.  From the viewpoint of the {\ocaml} programmer, it behaves as
 if the signal was received at the moment when the call returns.
 
 A thread does not return, since it is executed asynchronously.  But
@@ -1290,7 +1290,7 @@ Luckily, since that is the only way to start other programs!
 Inversely, one can do \ml+fork+ (not followed by \ml+exec+), and then launch
 several threads in the child and the parent, without any problem.
 
-\paragraph {Native and simulated implementation in OCaml}
+\paragraph {Native and simulated implementation in {\ocaml}}
 \label{sec/thread-implementation}
 
 When the underlying operating system has threads, {\ocaml} can provide
