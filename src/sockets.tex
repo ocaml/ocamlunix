@@ -172,7 +172,7 @@ Data representation & byte stream & packets & packets \\
 
 The \quotes{stream} mode is very similar to communication using pipes.
 It is the most widely used mode, in particular when used to
-transmit unstructured byte sequences (\emph{e.g.} \ml+rsh+).  The
+transmit unstructured byte sequences (\eg{} \ml+rsh+).  The
 \quotes{segmented packets} mode structures the transmitted data into packets:
 each write delimits a packet, each read reads at most a packet. It is well
 suited to communication via messages. The \quotes{datagram} mode is the
@@ -180,7 +180,7 @@ closest to the hardware capabilities of an Ethernet network: transmissions
 are packet based, and there is no guarantee that a packet will arrive at
 destination. It is the most economical mode in terms of network resources. Some
 programs use it to transmit data that is not of crucial importance
-(\emph{e.g.} \ml+biff+); others, to get more network performance, with the
+(\eg{} \ml+biff+); others, to get more network performance, with the
 understanding that they must manage data loss themselves.
 
 %
@@ -953,7 +953,7 @@ memorized and becomes the address used for sending and receiving (messages
 coming in from another address are ignored).
 
 Sockets of this type can be connected several times to change their target and
-disconnected by connecting them to an invalid address, e.g. \ml+0+.  By
+disconnected by connecting them to an invalid address, \eg{} \ml+0+.  By
 contrast, this would generally result in an error on a socket of
 \ml+SOCK_STREAM+ type.
 
@@ -1028,7 +1028,7 @@ end of file on the channel open for reading. If the client does it
 abruptly, the child might receive a \ml+sigpipe+ when trying to write
 on the closed socket.  As for the parent, it has probably already
 handled another request! The \ml+establish_server+ usually never
-terminates, except in case of an error (e.g. of the {\ocaml} runtime
+terminates, except in case of an error (\eg{} of the {\ocaml} runtime
 or the system during the establishment of the service).
 
 \section{Examples of protocols}
