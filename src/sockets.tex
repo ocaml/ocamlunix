@@ -363,7 +363,7 @@ There are two ways to disconnect a connection. The first is to call
 of the connection, and deallocates the socket. This behavior is
 sometimes too abrupt. For instance, a client might want to close the
 connection in the client to server direction, in order to indicate an
-end-of-file to the server, but still keep the connection open in the
+end of file to the server, but still keep the connection open in the
 server to client direction, so that the server can finish sending
 pending data. The \syscall{shutdown} system call enables this kind of
 gradual termination of the connection.
@@ -383,7 +383,7 @@ is one of:
 on the other end of the connection will raise a \ml+SIGPIPE+ signal.
 
 \mltypecase{SHUTDOWN\_SEND} closes the socket for writing; \ml+read+ on the
-other end of the connection returns an end-of-file indicator.
+other end of the connection returns an end of file indicator.
 
 \mltypecase{SHUTDOWN\_ALL} closes the socket for reading and writing;
 unlike \ml+close+, the socket itself is not deallocated.
@@ -414,13 +414,13 @@ protocol, which is specific to each application program that calls
 \ml+client+.
 
 We use a library function \ml+retransmit+ that copies data arriving on one
-descriptor to another descriptor. It terminates when the end-of-file is
+descriptor to another descriptor. It terminates when the end of file is
 reached on the input descriptor, without closing the descriptors. Note that
 \ml+retransmit+ may be interrupted by a signal.
 \begin{codefile}{misc.mli}
 val retransmit : file_descr -> file_descr -> unit
 (** [retransmit fdin fdout] copies the contents of fdin into fdout, until
-it receives end-of-file in fdin. It does not close descriptors at the
+it receives end of file in fdin. It does not close descriptors at the
 end. *)
 \end{codefile}
 \begin{listingcodefile}{misc.ml}
@@ -480,7 +480,7 @@ and the default protocol, and connect it to the indicated address.
 The process is then cloned using \ml+fork+. The child process copies
 the data on its standard input to the socket; once the end of the data
 on the standard input is reached, it closes the connection for write,
-thus transmitting an end-of-file to the server, and terminates. The
+thus transmitting an end of file to the server, and terminates. The
 parent process copies the data read on the socket to its standard
 output. Once the end of the file is detected on the socket, it
 synchronizes with the child process using \ml+wait+, and terminates.
@@ -490,12 +490,12 @@ the server.
 \begin{itemize}
 
 \item
-The client receives an end-of-file on its standard input. The client
+The client receives an end of file on its standard input. The client
 (child) then closes the connection in the client to server direction
-and terminates. In turn, the server upon receiving the end-of-file on
+and terminates. In turn, the server upon receiving the end of file on
 its standard input, should, after a small amount of processing, close
 the connection. On the other end of the socket \ml+sock+, the client
-(parent) finally receives an end-of-file on the connection and
+(parent) finally receives an end of file on the connection and
 terminates normally.
 
 \item
@@ -875,10 +875,10 @@ command. (Note that the handling of the service cannot be done sequentially.)
 Remark: the connection is closed without any intervention of the
 \ml+server+ program.  First case: the client closes its connection in
 the client to server direction.  The command dispatched by the server
-receives an end-of-file on its standard input. It finishes what it has
+receives an end of file on its standard input. It finishes what it has
 to do, and calls \ml+exit+ when it is done. This closes the standard
 outputs which are the last descriptors open for writing on the
-connection. (The client will then receive the end-of-file on the
+connection. (The client will then receive the end of file on the
 connection.) Second case: the client ends prematurely and closes the
 connection in the server to client direction. The server might then
 receive the \ml+sigpipe+ signal while trying to send data to the
@@ -887,7 +887,7 @@ perfectly acceptable since nothing is reading the output of this
 command.
 
 Finally, the server-side command can exit (either voluntarily or via a signal)
-before having read the end-of-file. The client receives a \ml+SIGPIPE+ signal
+before having read the end of file. The client receives a \ml+SIGPIPE+ signal
 (in which case the client will die immediately) or an \ml+EPIPE+ exception (if
 the signal is ignored) when it tries to write on the connection.
 
@@ -1002,7 +1002,7 @@ ensure that a request has been sent in its entirety.
 The client can shutdown the connection abruptly by closing either of the
 channels (which will close the socket) or more \quotes{cleanly} by calling
 \ml+shutdown_connection+. (If the server closes the connection, the client
-will be notified when it receives an end-of-file on the channel open for
+will be notified when it receives an end of file on the channel open for
 reading.)
 
 In a symmetric fashion, a service can be established with the
@@ -1024,7 +1024,7 @@ for reading and responds to the client on the channel open for
 writing. Once the service has been provided (\ie{} once \ml+f+ has
 returned), the child process closes the socket and exits. If the
 client closes the connection cleanly, the child will get an
-end-of-file on the channel open for reading. If the client does it
+end of file on the channel open for reading. If the client does it
 abruptly, the child might receive a \ml+SIGPIPE+ when trying to write
 on the closed socket.  As for the parent, it has probably already
 handled another request! The \ml+establish_server+ usually never
@@ -1369,7 +1369,7 @@ where \textit{\ml+sp+} represents a space and \textit{\ml+crlf+} the
 string \ml+"\r\n"+ (\quotes{return} followed by
 \quotes{linefeed}). The response to a simplified request is also
 simplified: the content of the {\URL} is sent directly, without any
-headers, and the end of the request is signaled by the end-of-file,
+headers, and the end of the request is signaled by the end of file,
 which closes the connection. This form of request, inherited from
 version 0.9 of the protocol, limits the connection to the current
 request.
@@ -1616,7 +1616,7 @@ serving multiple requests per connection.\footnote{The \http/1.0
 With complex requests, the server precedes every response with a
 header describing the format of the response and an optional size of
 the transmitted document. The end of the document is no longer
-indicated by an end-of-file, since it can be deduced from its
+indicated by an end of file, since it can be deduced from its
 size. The connection may stay open to handle more requests. These are
 of the following form:
 %
@@ -1635,7 +1635,7 @@ $\textit{field}$ : $\textit{value}$ $\textit{crlf}$
 Superfluous spaces are also allowed around the \ml+':'+
 separator. In fact, a space can always be replaced by a tab or a
 sequence of spaces. The header fields can also span several lines: in
-this case, and in this case only, the \textit {\ml+crlf+} end-of-line
+this case, and in this case only, the \textit {\ml+crlf+} end of line
 lexeme is immediately followed by a space \textit{\ml+sp+}. Finally,
 uppercase and lowercase letters are equivalent in the keyword of
 fields and in the values of certain fields composed of keywords.

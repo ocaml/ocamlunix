@@ -1106,9 +1106,10 @@ let n = read stdin buffer 0 100 in
 \begin{example} 
 
 The function \ml+really_read+ below has the same interface as
-\ml+read+, but makes additional read attempts if necessary 
-to try to get the requested number of bytes. It raises the exception \ml+End_of_file+
-if it encounters the end of the file while doing this.
+\ml+read+, but makes additional read attempts if necessary to try to
+get the requested number of bytes. It raises the exception
+\ml+End_of_file+ if it encounters the end of the file while doing
+this.
 
 %
 \begin{lstlisting}
@@ -1682,9 +1683,9 @@ depending on the value of the third argument, which indicates the
 type of position desired:
 %
 \begin{mltypecases}
-\mltypecase{SEEK\_SET} Absolute position. The second argument is 
-the index into the file, in characters, to position the pointer at. The first character of a file 
-is at position zero. 
+\mltypecase{SEEK\_SET} Absolute position. The second argument is the
+index into the file, in characters, to position the pointer at. The
+first character of a file is at position zero.
 
 \mltypecase{SEEK\_CUR} Position relative to the current position. 
 The second argument is a displacement relative to the  

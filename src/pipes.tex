@@ -142,7 +142,7 @@ descriptor \ml+fd_in+ of the parent.
 
 When all the descriptors on a pipe's input are closed and the pipe is
 empty, a call to \ml+read+ on its output returns zero:
-end-of-file. And when all the descriptors on a pipe's output are
+end of file. And when all the descriptors on a pipe's output are
 closed, a call to \ml+write+ on its input kills the writing
 process. More precisely the kernel sends the signal \ml+SIGPIPE+ to
 the process calling \ml+write+ and the default handler of this signal
@@ -582,7 +582,7 @@ on its standard input.
 What happens if \ml+cmd1+ terminates before \ml+cmd2+? When \ml+cmd1+
 terminates, all its open descriptors are closed.  This means that there's no
 open descriptor on the input of the pipe. When \ml+cmd2+ has read all
-the data waiting in the pipe, the next read returns an end-of-file;
+the data waiting in the pipe, the next read returns an end of file;
 \ml+cmd2+ will then do what it is assigned to do when it reaches the
 end of its standard input~---~for example, terminate. 
 
@@ -1138,11 +1138,11 @@ header which gives us the number \ml+i+ of the receiver and the number
 write them on the output \ml+i+ connected to the standard input of the
 corresponding user process. However, if \ml+n+ is 0, we close the
 output $i$. The idea is that the terminal emulator at the other end
-sends a message with \ml+n = 0+ to indicate an end-of-file on the
+sends a message with \ml+n = 0+ to indicate an end of file on the
 standard input of the receiving user process.
 
 We get out of the loop when \ml+really_read+ raises the exception
-\ml+End_of_file+, which indicates an end-of-file on the
+\ml+End_of_file+, which indicates an end of file on the
 serial port.
 \end{example}
 
