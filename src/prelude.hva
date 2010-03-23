@@ -76,8 +76,11 @@
 \newstyle{.section} { font-size: 140\%; margin-top: 1.5em; text-align:left}
 \newstyle{.section A} { color: black } % number
 \newstyle{.subsection} { font-weight: bold; margin-top: 1em; text-align:left}
-\newstyle{.paragraph} { font-weight: bold; margin-top: 1em; margin-bottom:-1em}
+\newstyle{.paragraph} { font-weight: bold; display:inline-block; 
+		        padding-top: 1em}
 \newstyle{P}{ padding-top : 1em }
+\newstyle{.paragraph + P}{ padding-top : 0em; padding-left:1em; 
+		           display: inline; }
 
 %% Table of contents
 \newstyle{.li-toc UL .li-toc}{ padding-top:1ex;}
@@ -105,17 +108,16 @@
 \let \oldindexenv\indexenv
 \def \indexenv {\preindexhook \oldindexenv} 
 
+%% Fancy breaks
+\newcommand{\myfancybreak}{\@open{DIV}{class="fancybreak"}*\ *\ *\@close{DIV}}
+\newstyle{DIV.fancybreak}{ text-align:center; padding-top:1em }
+
 %% Examples
 \setenvclass{example}{example}
 \newenvironment{example}%
-{\@open{DIV}{class="example"}\par\textbf{Example}\quad}%
-{\@close{DIV}}
-\newstyle{DIV.example}{ margin-top: 1em; 
-			margin-bottom: 1em;
-			padding-bottom: 1em;
-			border-width: thin; 
-		        border-bottom-style: solid;
-                        border-top-style: solid;}
+{\@open{DIV}{class="example"}\paragraph{Example}}
+{\myfancybreak\@close{DIV}}
+%\newstyle{DIV.example}{ }
 
 %% Code listings
 \setenvclass{lstlisting}{mylisting}
@@ -148,36 +150,22 @@
 {\stepcounter{exercise}%
  \renewcommand{\exerciseanswer}{#1}%
  \@open{DIV}{class="exercise"}%
- \par\textbf{Exercise~\theexercise}\label{ex\theexercise}\quad}
+ \paragraph{Exercise~\theexercise}\label{ex\theexercise}}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
  {\hfill\ahrefloc{exans\theexercise}{Answer}.}%
- \@close{DIV}}
+ \myfancybreak\@close{DIV}}
 
 \setenvclass{exercise}{exercise}
-\newstyle{DIV.exercise}{margin-top: 1em; 
-			margin-bottom: 1em;
-			padding-bottom: 1em;
-			border-width: thin; 
-		        border-bottom-style: solid;
-                        border-top-style: solid;}
-
 
 \newenvironment{answer}{%
  \begin{cutflow}{Answer of exercise~\theexercise}%
  \cutname{exercise\theexercise .html}%
  \@open{DIV}{class="answer"}%
- \par\textbf{Answer of \ahrefloc{ex\theexercise}{exercise~\theexercise}}\quad%
+ \paragraph{Answer of \ahrefloc{ex\theexercise}{exercise~\theexercise}}
  \label{exans\theexercise}}
-{\@close{DIV}\end{cutflow}}
+{\myfancybreak\@close{DIV}\end{cutflow}}
 
 \setenvclass{answer}{answer}
-\newstyle{DIV.answer}{margin-top: 1em; 
-		      margin-bottom: 1em;
-	              padding-bottom: 1em;
-		      border-width: thin; 
-		      border-top-style: solid;
-		      border-bottom-style: solid;}
-
 
 %% Figures, tables, captions and floats
 \newsavebox{\@caption}

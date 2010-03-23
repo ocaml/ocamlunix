@@ -142,9 +142,8 @@
 %% Examples
 
 \newenvironment{example}
-{\vskip\onelineskip\hrule\vskip 0.5\onelineskip%
- \begingroup\noindent\textbf{Example}\quad}
-{\vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
+{\begingroup\paragraph{Example}}
+{\endgroup\vskip 0.5\onelineskip\fancybreak{*\ *\ *}\vskip 0.5\onelineskip}
 
 %% Code listings
 \RequirePackage{fink} % Maintains the current tex input filename in \finkfile
@@ -199,11 +198,10 @@
 \newenvironment{exercise}[1][]
 {\stepcounter{exercise}%
  \renewcommand{\exerciseanswer}{#1}%
- \vskip\onelineskip\hrule\vskip 0.5\onelineskip%
- \begingroup\noindent\textbf{Exercise~\theexercise}\label{ex\theexercise}\quad}
+ \begingroup\paragraph{Exercise~\theexercise}\label{ex\theexercise}}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
  {\hfill Answer page~\pageref{exans\theexercise}.}%
- \vskip 0.5\onelineskip\endgroup\hrule\vskip\onelineskip}
+ \endgroup\vskip 0.5\onelineskip\fancybreak{*\ *\ *}\vskip 0.5\onelineskip}
 
 \newenvironment{answer}{%
  \renewcommand{\verbatim@processline}%
