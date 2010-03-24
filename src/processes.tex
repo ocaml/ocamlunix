@@ -418,7 +418,6 @@ Add the ability to execute the commands in the background, if they're
 followed by \ml+&+.
 \end{exercise}
 \begin{answer}
-
 In the case where the command line ends with \ml+&+, one may simply
 not call \ml+wait+ in the parent process, and immediately go to the
 next iteration of the loop.  The only difficulty: the parent may now

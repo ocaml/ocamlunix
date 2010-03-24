@@ -740,7 +740,6 @@ Although the \ml+find+ function above is sufficiently
 restricted, the library function \ml+FindLib.find+ is
 far more general, as the following exercise demonstrates.
 \begin{exercise}
-
 Use the library function \ml+FindLib+ to write a program
 \ml+find_but_CVS+ equivalent to the Unix command 
 \begin{lstlisting}
@@ -1212,7 +1211,6 @@ not being able to open the input file because it does not exist,
 the process does not have read permission on the file and
 the failure of a write for lack of disk space.
 
-
 \begin{exercise} 
 Add an option \ml+-a+ to the program, such that 
 \ml+file_copy -a f1 f2+ appends the contents of \ml+f1+ to the end of
@@ -1601,7 +1599,6 @@ which behaves like a series of \ml+output_char+ on each
 character of the string, but is more efficient.
 \end{exercise}
 \begin{answer}
-
 The idea is to copy the string to be output into the buffer. We need to 
 take into account the case where there is not enough space in the buffer
 (in that case the buffer needs to emptied), and also the case where the string is  
@@ -1744,7 +1741,6 @@ In some implementations, \ml+lseek+ on a pipe or on a lock file
 triggers an error.
 
 \begin{exercise}
-
 The command \ml+tail+ displays the $n$ last lines of a file.
 How should it be efficiently implemented if the file in question is
 a normal file? How should it be done to cope with other types of files?
