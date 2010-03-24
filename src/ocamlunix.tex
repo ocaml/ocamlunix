@@ -99,18 +99,25 @@
 \date{\textbf{DRAFT} of \today}
 
 \begin{document}
-\frontmatter*
-\pagestyle{mynoheaders}
+
+%% Title page, copyright page with abstract
+\pagestyle{empty}
 \input{front.tex}
-\input{intro.tex}
+
+\frontmatter
+\pagestyle{myheaders}
+
+%% Table of contents
+\ifhtmlelse%
+{\tableofcontents\cutname{toc.html}}%
+{\tableofcontents*}
 
 \mainmatter
-\pagestyle{myheaders}
 \ifnothtml{\counterwithout{figure}{chapter}} % have to do that here 
 \ifnothtml{\counterwithout{table}{chapter}} % have to do that here 
 
-%% Main chapters 
-
+%% Chapters 
+\input{intro.tex}
 \input{general.tex}
 \input{files.tex}
 \input{processes.tex}
@@ -121,13 +128,16 @@
 \input{more.tex}
 
 \backmatter
+
+%% Exercise answers
 \ifnothtml{\chapter{Exercise answers}\inputexerciseanswers}
-\pagestyle{mynoheaders}
+
+%% References
 \input{references.tex}
 
 \appendix
-\pagestyle{myheaders}
 
+%% Index
 \renewcommand{\preindexhook} {
   \ifhtml{\aname{htocindex}{}} %% how can I put that in the title?
   \ifhtmlelse{Links}{Pages} in bold refer to the description of 
@@ -138,34 +148,18 @@
 \ifhtml{\addcontentsline{toc}{chapter}{\ahrefloc{htocindex}{Index}}}
 \cutname{docindex.html}
 
+%% Add a blank page
+\pagestyle{empty}
+\newpage
+\mbox{}
 
-
-\begin{codefile}{tmpunix.ml}
-include Unix;;
-\end{codefile}
-
-\begin{codefile}{tmpsys.ml}
-include Sys;;
-\end{codefile}
-
-\begin{codefile}{tmppervasives.ml}
-include Pervasives;;
-\end{codefile}
-
-\begin{codefile}{tmpevent.ml}
-include Event;;
-\end{codefile}
-
-\begin{codefile}{tmpmutex.ml}
-include Mutex;;
-\end{codefile}
-
-\begin{codefile}{tmpthread.ml}
-include Thread;;
-\end{codefile}
-
-\begin{codefile}{tmpcondition.ml}
-include Condition;;
-\end{codefile}
+%% Include standard implementation in .ml to check against our signatures. 
+\begin{codefile}{tmpunix.ml}include Unix;;\end{codefile}
+\begin{codefile}{tmpsys.ml}include Sys;;\end{codefile}
+\begin{codefile}{tmppervasives.ml}include Pervasives;;\end{codefile}
+\begin{codefile}{tmpevent.ml}include Event;;\end{codefile}
+\begin{codefile}{tmpmutex.ml}include Mutex;;\end{codefile}
+\begin{codefile}{tmpthread.ml}include Thread;;\end{codefile}
+\begin{codefile}{tmpcondition.ml}include Condition;;\end{codefile}
 \end{document}
 

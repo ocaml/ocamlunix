@@ -18,7 +18,7 @@
 
 %% Inactive or different in HTML
 \newenvironment{titlingpage}{}{}
-\newcommand{\frontmatter*}{}
+\newcommand{\frontmatter}{}
 \newcommand{\mainmatter}{}
 \newcommand{\backmatter}{}
 \newcommand{\vfill}{}

@@ -109,9 +109,16 @@
   \def\chaptermark##1{\markboth{##1}{}}%
   \def\sectionmark##1{\markright{##1}}}
 
-\makepagestyle{mynoheaders}
-\makeevenfoot{mynoheaders}{\thepage}{}{}
-\makeoddfoot{mynoheaders}{}{}{\thepage}
+\makepagestyle{mypagefooter}
+\makeevenhead{mypagefooter}{}{}{}
+\makeoddhead{mypagefooter}{}{}{}
+\makeevenfoot{mypagefooter}{\thepage}{}{}
+\makeoddfoot{mypagefooter}{}{}{\thepage}
+
+\nouppercaseheads
+
+\aliaspagestyle{chapter}{mypagefooter}
+\aliaspagestyle{title}{empty}
 
 %% Table of contents
 \setpnumwidth{0pt}
