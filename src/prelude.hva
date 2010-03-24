@@ -82,10 +82,18 @@
 \newstyle{.paragraph + P}{ padding-top : 0em; display: inline; }
 
 %% Table of contents
-\newstyle{.li-toc UL .li-toc}{ padding-top:1ex;}
-\newstyle{UL.toc LI} { padding-top:1.5em }
+% Don't show links unless hovered
 \newstyle{.li-toc A} { color: black }
 \newstyle{.li-toc A:hover} { color: blue }
+
+% Chapter
+\newstyle{.toc .li-toc} { padding-top: 1.5em}
+\newstyle{.toc .li-toc A}{ font-weight: bold } 
+
+% Section
+\newstyle{.toc .li-toc .toc .li-toc} { padding-top: 0.5ex }
+\newstyle{.toc .li-toc .toc .li-toc A }{ margin-left:1.5em; 
+	                                 font-weight: normal }
 
 \setcounter{cuttingdepth}{0}
 
