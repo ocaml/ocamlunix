@@ -26,7 +26,7 @@ will suppose that we are within the scope of the directives
 \ml+open+, in order to be truly complete.
 
 The \ml+Sys+ and \ml+Unix+ modules can redefine certain
-identifiers of module \ml+Pervasives+, hiding previous
+identifiers of the \ml+Pervasives+ module, hiding previous
 definitions. For example,  \ml+Pervasives.stdin+  is different from 
 \ml+Unix.stdin+. The previous definitions can always be obtained
 through a prefix.
@@ -65,10 +65,11 @@ following line to the
 \begin{lstlisting}
 <prog.{native,byte}> : use_unix
 \end{lstlisting}
-%
-The Unix system can also be accessed from the interactive system (the
-\quotes{toplevel}). If your platform supports dynamic linking of C
-libraries, start an \ml+ocaml+ toplevel and type in the directive:
+% 
+The Unix system can also be accessed from the interactive system,
+also known as the \quotes{toplevel}. If your platform supports dynamic
+linking of C libraries, start an \ml+ocaml+ toplevel and type in the
+directive:
 %
 \begin{lstlisting}
 #load "unix.cma";;
@@ -104,8 +105,8 @@ The arguments passed to the program are placed in the string array
 val $\indexlibvalue{Sys}{argv}$ : string array
 \end{listingcodefile}
 %
-The environment of the entire program is obtained by the function
-\ml+Unix.environment+ :
+The environment of the program is obtained by the function
+\ml+Unix.environment+:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{environment}$ : unit -> string array
@@ -138,7 +139,7 @@ let echo () =
       done;
       print_newline ();
     end;;
-echo();;
+echo ();;
 \end{listingcodefile}
 \end{example}
 
@@ -361,9 +362,11 @@ priority over module \ml+Unix+.
 
 \paragraph{Examples}
 
-The course consists of numerous examples. These may be compiled with 
-{\ocaml}, version {\ocamlversion}.  Some programs will have to be
-slightly modified in order to work with an older version. 
+The course consists of numerous examples. These may be compiled with
+{\ocaml}, 
+version {\ocamlversion}$\!\!\!$.  %% To get rid of that space !
+Some programs will have to be slightly modified in order to work with 
+an older version.
 
 The examples are essentially of two kinds: very general functions that
 can be reused, called \quotes{library functions}, and small
