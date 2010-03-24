@@ -125,7 +125,9 @@
 		       white-space:pre; margin-right:auto;
 		       margin-left:0ex; text-align:left;} 
 \newstyle{.mylisting b}{ font-family:monospace; font-weight : bold }
-\newstyle{.mylisting FONT} { font-family:monospace; font-size: 70\% }
+\newstyle{.mylisting FONT} { font-family:monospace; 
+		             font-size: 70\% !important;
+		             margin-left: -3.1em }
 \newstyle{.mylisting A} { font-family:monospace; color : \#0000A0 }
 
 \lstnewenvironment{listingcodefile}[2][]{\lstset{#1}}{}
