@@ -386,10 +386,9 @@ is therefore \emph{slow}, which means it could be stopped by the
 arrival of a signal.  Specifically, the \ml+sigchld+ signal is sent 
 to the parent concerning the terminated child process.
 
-The module \ml+Misc+ contains the function
-\ml+restart_on_EINTR+ of type \ml+('a -> 'b) -> 'a -> 'b+ which
-makes it possible to repeat a system call when it is stopped
-by a signal, \ie{} when the \ml+EINTR+ exception is raised.
+The module \ml+Misc+ contains the function \ml+restart_on_EINTR+ which
+makes it possible to repeat a system call when it is stopped by a
+signal, \ie{} when the \ml+EINTR+ exception is raised.
 
 %
 \begin{codefile}{misc.mli}
@@ -403,8 +402,7 @@ let rec restart_on_EINTR f x =
   try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x
 \end{listingcodefile}
 \label{restart_on_EINTR}%
-To wait on a child correctly one simply writes
-\ml+restart_on_EINTR (waitpid flags) pid+.
+To wait on a child correctly, call \ml+restart_on_EINTR (waitpid flags) pid+.
 
 \begin{example}
 The parent can also recover children asynchronously, specifically
