@@ -77,10 +77,9 @@
 \newstyle{.section A} { color: black } % number
 \newstyle{.subsection} { font-weight: bold; margin-top: 1em; text-align:left}
 \newstyle{.paragraph} { font-weight: bold; display:inline-block; 
-		        padding-top: 1em}
+		        padding-top: 1em; padding-right: 1em}
 \newstyle{P}{ padding-top : 1em }
-\newstyle{.paragraph + P}{ padding-top : 0em; padding-left:1em; 
-		           display: inline; }
+\newstyle{.paragraph + P}{ padding-top : 0em; display: inline; }
 
 %% Table of contents
 \newstyle{.li-toc UL .li-toc}{ padding-top:1ex;}
