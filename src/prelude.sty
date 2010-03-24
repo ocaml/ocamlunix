@@ -114,30 +114,13 @@
 \makeoddfoot{mynoheaders}{}{}{\thepage}
 
 %% Table of contents
-% No title for toc
-\renewcommand{\tocheadstart}{}
-\renewcommand{\aftertoctitle}{}
-\renewcommand{\printtoctitle}[1]{}
 \setpnumwidth{0pt}
-\setrmarg{0pt}
-\renewcommand{\cftchapterfont}{\hfill\bfseries\normalsize}
-\setlength{\cftbeforechapterskip}{4\smallskipamount}
-\renewcommand{\cftchapterpresnum}{\hfill}
-\settowidth{\cftchapternumwidth}{A\quad}
-\renewcommand{\cftchapteraftersnum}{\hspace*{10pt}}
-\renewcommand{\cftchapteraftersnumb}{}
-\newlength{\spacelength} % to align with chapter (why ?)
-\settowidth{\spacelength}{\small\space}
-\renewcommand{\cftchapterleader}{\hspace{-\spacelength}}
-\renewcommand{\cftchapterpagefont}{\footnotesize\quad}
-\renewcommand{\cftsectionfont}{\hfill\rmfamily\footnotesize}
-%\setlength{\cftbeforesectionskip}{0.5\smallskipamount}
-\settowidth{\cftsectionnumwidth}{A\quad}
-\renewcommand{\cftsectionpresnum}{\hfill}
-\renewcommand{\cftsectionaftersnumb}{}%{\itshape}
-\renewcommand{\cftsectionaftersnum}{\hspace*{10pt}}
-\renewcommand{\cftsectionleader}{} 
-\renewcommand{\cftsectionpagefont}{\rmfamily\footnotesize\quad}
+\renewcommand{\cftchapterpagefont}{\rmfamily\scriptsize\quad}
+\renewcommand{\cftchapterleader}{}
+\renewcommand{\cftchapterafterpnum}{\cftparfillskip}
+\renewcommand{\cftsectionpagefont}{\rmfamily\scriptsize\quad}
+\renewcommand{\cftsectionleader}{}
+\renewcommand{\cftsectionafterpnum}{\cftparfillskip}
 
 %% Examples
 
