@@ -180,6 +180,38 @@
 {\endlist}
 \newcommand{\mltypecase}[1]{\item[\texttt{#1}]}
 
+%% Enumerate, itemize
+
+\tightlists
+\renewenvironment{enumerate}[1][\arabic]
+                 {\begin{list}{#1{enumi}.}
+                     {\usecounter{enumi}
+                       \setlength{\topsep}{\medskipamount}
+                       \setlength{\partopsep}{0pt}
+                       \setlength{\labelwidth}{2ex}
+                       \setlength{\labelsep}{1ex}
+                       \setlength{\parsep}{0pt}
+                       \setlength{\itemindent}{0em}
+                       \setlength{\listparindent}{\parindent}
+                       \setlength{\itemsep}{\medskipamount}
+                       \setlength{\leftmargin}{0ex}
+                       \setlength{\rightmargin}{0em}}}
+                 {\end{list}}
+
+\renewenvironment{itemize}[1][\arabic]
+                 {\begin{list}{\textbullet}
+                     {\setlength{\topsep}{\medskipamount}
+                       \setlength{\partopsep}{0pt}
+                       \setlength{\labelwidth}{2ex}
+                       \setlength{\labelsep}{1ex}
+                       \setlength{\parsep}{0pt}
+                       \setlength{\itemindent}{0em}
+                       \setlength{\listparindent}{\parindent}
+                       \setlength{\itemsep}{\medskipamount}
+                       \setlength{\leftmargin}{0ex}
+                       \setlength{\rightmargin}{0em}}}
+                 {\end{list}}
+
 %% Exercises
 \newoutputstream{ans}
 \openoutputfile{\jobname.ans}{ans}
