@@ -226,12 +226,12 @@ let eval f x = try Value (f x) with z -> Exception z
 let coexec (f : 'a -> 'b) (x : 'a) : unit -> 'b = 
   let result = ref (Exception Exited) in 
   let p = Thread.create (fun x -> result := eval f x) x in
-  function() -> 
+  function () -> 
     match join p; !result with 
     | Value v -> v
     | Exception exn -> raise exn;;
 
-let v1 = coexec succ 4 and v2 = coexec succ 5 in v1()+v2();;
+let v1 = coexec succ 4 and v2 = coexec succ 5 in v1 () + v2 ();;
 \end{listingcodefile}
 
 The system can suspend one thread in order to give control temporarily
@@ -270,7 +270,7 @@ let rec psearch k cond v =
   let slice i = Array.sub v (i * k) (min k (n - i * k)) in 
   let slices = Array.init (n/k) slice in 
   let found = ref false in
-  let pcond v = if !found then Thread.exit(); cond v in
+  let pcond v = if !found then Thread.exit (); cond v in
   let search v = if simple_search pcond v then found := true in $\label{prog:search}$
   let proc_list = Array.map (Thread.create search) slices in
   Array.iter Thread.join proc_list; 
@@ -570,7 +570,7 @@ synchronization can easily be managed with a lock.
 %
 \begin{listingcodefile}{cthread.ml}
 type counter = { lock : Mutex.t; mutable counter : int }
-let newcounter() = { lock = Mutex.create(); counter = 0 }
+let newcounter () = { lock = Mutex.create (); counter = 0 }
 let addtocounter c k = 
   Mutex.lock c.lock; 
   c.counter <- c.counter + k; 
@@ -631,7 +631,7 @@ open Unix;;
 \begin{listingcodefile}{farm.ml}
 let tcp_farm_server n treat_connection addr = 
   let server_sock = Misc.install_tcp_server_socket addr in 
-  let mutex = Mutex.create() in
+  let mutex = Mutex.create () in
   let rec serve () =
     let client = 
       Misc.run_with_lock mutex 
@@ -721,7 +721,7 @@ open Misc;;
 \end{codefile}
 %
 \begin{listingcodefile}{thurl.ed}
-let strlock = Mutex.create();;
+let strlock = Mutex.create ();;
 let regexp_match r string =
   Misc.run_with_lock strlock (unsafe_regexp_match r) string;;
 \end{listingcodefile}
@@ -923,8 +923,8 @@ a \ml+non_empty+ condition.
 type 'a t = 
   { queue : 'a Queue.t; lock : Mutex.t; non_empty : Condition.t }
 let create () = 
-  { queue = Queue.create(); 
-    lock = Mutex.create(); non_empty = Condition.create() }
+  { queue = Queue.create (); 
+    lock = Mutex.create (); non_empty = Condition.create () }
 
 let add e q = 
   Mutex.lock q.lock; 
@@ -980,8 +980,8 @@ type 'a t =
       
 let create k = 
   if  k > 0 then
-    { queue = Queue. create(); size = k; lock = Mutex. create(); 
-      non_empty = Condition. create(); non_full = Condition.create() }
+    { queue = Queue.create (); size = k; lock = Mutex.create (); 
+      non_empty = Condition.create (); non_full = Condition.create () }
   else failwith "Tqueue.create: empty size";;
 \end{listingcodefile}
 %
@@ -1156,7 +1156,7 @@ r th/crible.ml
 \end{codefile}
 %
 \begin{listingcodefile}{theventcrible.ed}
-let pipe () = let c = Event.new_channel() in c, c
+let pipe () = let c = Event.new_channel () in c, c
 let out_channel_of_descr x = x
 let in_channel_of_descr x = x
 
@@ -1202,11 +1202,11 @@ type 'a buffered =
       mutable q : 'a Queue.t; 
       size : int }
 
-let pipe () = let c = Event.new_channel() in c, c;;
+let pipe () = let c = Event.new_channel () in c, c;;
 
 let size = 1024;;
 let out_channel_of_descr chan = 
-  { c = chan; q = Queue.create(); size = size };;
+  { c = chan; q = Queue.create (); size = size };;
 let in_channel_of_descr = out_channel_of_descr;;
 
 let input_int chan = 
@@ -1219,7 +1219,7 @@ let input_int chan =
 
 let flush_out chan = 
   if Queue.length chan.q > 0 then Event.sync (Event.send chan.c chan.q);
-  chan.q <- Queue.create();;
+  chan.q <- Queue.create ();;
 
 let output_int chan x = 
   if Queue.length chan.q = size then flush_out chan;

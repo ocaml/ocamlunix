@@ -434,10 +434,10 @@ end. *)
 let retransmit fdin fdout =
   let buffer_size = 4096 in
   let buffer = String.create buffer_size in
-  let rec copy() =
+  let rec copy () =
     match read fdin buffer 0 buffer_size with
       0 -> ()
-    | n -> ignore (write fdout buffer 0 n); copy() in
+    | n -> ignore (write fdout buffer 0 n); copy () in
   copy ();;
 \end{listingcodefile}
 The serious matters start here.
@@ -459,7 +459,7 @@ let client () =
       exit 2 in
   let sock = socket PF_INET SOCK_STREAM 0 in
   connect sock (ADDR_INET(server_addr, port_number));
-  match fork() with
+  match fork () with
   | 0 -> $\label{prog:add_signal_ignore}$
       Misc.retransmit stdin sock;
       shutdown sock SHUTDOWN_SEND;
@@ -467,7 +467,7 @@ let client () =
   | _ ->
       Misc.retransmit sock stdout;
       close stdout;
-      wait();;
+      wait ();;
 
 handle_unix_error client ();;
 \end{listingcodefile}
@@ -840,7 +840,7 @@ let server () =
   end;
   let port = int_of_string Sys.argv.(1) in
   let args = Array.sub Sys.argv 2 (Array.length Sys.argv - 2) in
-  let host = (gethostbyname(gethostname())).h_addr_list.(0) in $\label{prog:gethost}$
+  let host = (gethostbyname(gethostname ())).h_addr_list.(0) in $\label{prog:gethost}$
   let addr = ADDR_INET (host, port) in
   let treat sock (client_sock, client_addr as client) =
     (* log information *)
@@ -1863,8 +1863,8 @@ responses which are documents in HTML format.
 %%     output_string chan "\r\n" in
 %%   List.iter pr header;;
 %% let error_report err mes reply =
-%%   prerr_newline();
-%%   print_header Pervasives.stderr [err, mes]; prerr_newline();
+%%   prerr_newline ();
+%%   print_header Pervasives.stderr [err, mes]; prerr_newline ();
 %%   print_header Pervasives.stderr reply.header.fields;
 %%   error err mes;;
 %% let print_chunk chan len =

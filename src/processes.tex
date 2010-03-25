@@ -40,7 +40,7 @@ from \ml+fork+, a program can thus determine if it is in the parent
 process or the child and behave accordingly: 
 %
 \begin{lstlisting}
-match fork() with
+match fork () with
 | 0 ->   (* code run only in the child  *)
 | pid -> (* code run only in the parent *)
 \end{lstlisting}
@@ -450,7 +450,7 @@ let shell () =
    while true do
      let cmd = input_line Pervasives.stdin in
      let words, ampersand = parse_command_line cmd in
-     match fork() with
+     match fork () with
      | 0 -> exec_command words
      | pid_son ->
          if ampersand then ()

@@ -780,7 +780,7 @@ let main () =
   let error (e,c,b) = 
     errors:= true; prerr_endline (b ^ ": " ^ error_message e) in
   Findlib.find error action false max_int [ "." ];;
-handle_unix_error main()
+handle_unix_error main ()
 \end{listingcodefile}
 \end{answer}
 
@@ -1343,10 +1343,10 @@ CAMLprim value speed_write
   numbytes = Long_val(len);
   if (numbytes > LONG_BUFFER_SIZE) numbytes = LONG_BUFFER_SIZE;
   /* memmove (iobuf, &Byte(buf, Long_val(ofs)), numbytes); */
-  /* enter_blocking_section(); */
+  /* enter_blocking_section (); */
   /* ret = write(Int_val(fd), iobuf, (int) numbytes); */
   ret = write(Int_val(fd), &Byte(buf, Long_val(ofs)), (int) numbytes);
-  /* leave_blocking_section(); */
+  /* leave_blocking_section (); */
   if (ret == -1) uerror("write", Nothing);
   CAMLreturn (Val_int(ret));
 }
@@ -1375,14 +1375,14 @@ let copy () =
     (* put file in cache *)
     file_copy 10 file "/dev/null";
     for i = 23 downto 0 do 
-      let start = let t = Unix.times() in t.tms_utime +. t.tms_stime in
+      let start = let t = Unix.times () in t.tms_utime +. t.tms_stime in
       let block = power 2 i in
       for i = 1 to 10 do file_copy block file tmp done;
-      let stop = let t = Unix.times() in t.tms_utime +. t.tms_stime in
+      let stop = let t = Unix.times () in t.tms_utime +. t.tms_stime in
       let time = stop -. start in
       let speed = mega_octets /. time in
       Printf.printf "%9d %.2f" block speed; 
-      print_newline();
+      print_newline ();
     done;
       exit 0
   end else begin
@@ -1657,7 +1657,7 @@ let output_string chan s =
 \end{listingcodefile}
 %
 \begin{codefile}{ex2.ml}
-let ex2() = 
+let ex2 () = 
   if Array.length Sys.argv < 3 then begin 
      prerr_string "Usage: test <sources> <dest>"; 
      exit 2;
@@ -1672,7 +1672,7 @@ let ex2() =
    prerr_endline "Closing";
    close_out fdout;;
 
-handle_unix_error ex2();;
+handle_unix_error ex2 ();;
 \end{codefile}
 %
 \begin{codefile}{ex2.test}
@@ -2413,10 +2413,10 @@ let rec really_read fd buffer start length =
 let buffer_size = block_size;;
 let buffer = String.create buffer_size;;
 
-let end_of_file_error() = 
+let end_of_file_error () = 
   error "Corrupted archive" "unexpected end of file"
 let without_end_of_file f x = 
-  try f x with End_of_file -> end_of_file_error()
+  try f x with End_of_file -> end_of_file_error ()
       
 let read_header fd = 
   let len = read fd buffer 0 buffer_size in
@@ -2477,7 +2477,7 @@ go along without keeping them:
 \begin{listingcodefile}{tarlib.ml}
 let list tarfile =
   let fd = openfile tarfile [ O_RDONLY ] 0o0 in
-  let add r () = print_string r.header.name; print_newline() in
+  let add r () = print_string r.header.name; print_newline () in
   fold add () fd; 
   close fd
 \end{listingcodefile}
@@ -2527,7 +2527,7 @@ let copy_file file output =
   let rec copy_loop len =
     if len > 0 then
       match read file.descr buffer 0 (min buffer_size len) with
-        0 -> end_of_file_error()
+        0 -> end_of_file_error ()
       | r -> ignore (write output buffer 0 r); copy_loop (len-r) in
   copy_loop file.header.size
 \end{listingcodefile}
@@ -2703,7 +2703,7 @@ let rec print top prefix inode  =
     Some r ->  Printf.printf "-> %s" r.header.name; 
   | None -> () 
   end;
-  print_newline();
+  print_newline ();
   List.iter (function n, i -> 
     if n <> "." && n <> ".." then  print top (prefix ^ n) i) list;;
 \end{codefile}
@@ -2732,7 +2732,7 @@ the archive. The archive represented by its root is modified through side effect
 let find_and_copy tarfile filename =
   let fd = openfile tarfile [ O_RDONLY ] 0 in
   let records = List.rev (fold (fun x y -> x :: y) [] fd) in
-  let archive = root() in
+  let archive = root () in
   List.iter (add archive) records;
   let inode = 
     try find false archive (explode filename)
@@ -2796,7 +2796,7 @@ open Tarlib;;
 \end{codefile}
 %
 \begin{listingcodefile}{untarlib.ml}
-let warning mes = prerr_string mes;prerr_newline();;
+let warning mes = prerr_string mes;prerr_newline ();;
 open Filename
 let mkpath p perm =
   let normal_path =
@@ -2844,7 +2844,7 @@ let file_exists f = try ignore (stat f); true with _ -> false;;
 
 let untar_file_collect_dirs file dirs =
   let fh = file.header in
-  if !verbose then begin print_string fh.name; print_newline() end;
+  if !verbose then begin print_string fh.name; print_newline () end;
   match fh.kind with
   | CHR (_,_) | BLK(_,_) | FIFO -> 
       warning (fh.name ^ "Ignoring special files");
@@ -2999,7 +2999,7 @@ let write_file len source fdout =
         close fdin; if len > 0 then error ()
     | r -> 
         let len = len - r  in
-        if len < 0 then (close fdin; error()); 
+        if len < 0 then (close fdin; error ()); 
         ignore (write fdout buffer 0 r); copy_loop len in
   copy_loop len;;
 
@@ -3117,7 +3117,7 @@ let build tarfile files =
 To finish there is nothing left to do except to analyze the command line.
 %
 \begin{listingcodefile}{tar.ml}
-let usage() = 
+let usage () = 
   prerr_endline "Usage: tar -cvf tarfile file1 [ file2 ... ] ";
   exit 2;;
 
@@ -3125,7 +3125,7 @@ let tar () =
   let argn = Array.length Sys.argv in
   if argn > 3 && Sys.argv.(1) = "-cvf" then
     build Sys.argv.(2) (Array.sub Sys.argv 3 (argn-3))
-  else usage();;
+  else usage ();;
 
 let _ = 
   try handle_unix_error tar () 

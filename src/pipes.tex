@@ -713,7 +713,7 @@ let compose () =
   | _ ->
       let rec wait_for_children retcode =
         try
-          match wait() with
+          match wait () with
           | (pid, WEXITED n) -> wait_for_children (retcode lor n)
           | (pid, _)         -> wait_for_children 127
         with
@@ -1199,9 +1199,9 @@ CAMLprim value caml_single_write
   if (len > 0) {
     numbytes = len > UNIX_BUFFER_SIZE ? UNIX_BUFFER_SIZE : len;
     memmove (iobuf, &Byte(buf, ofs), numbytes);
-    caml_enter_blocking_section(); $\label{prog:enterbs}$
+    caml_enter_blocking_section (); $\label{prog:enterbs}$
     ret = write(Int_val(fd), iobuf, numbytes);
-    caml_leave_blocking_section(); $\label{prog:leavebs}$
+    caml_leave_blocking_section (); $\label{prog:leavebs}$
     if (ret == -1) uerror("single_write", Nothing);
   }
   CAMLreturn (Val_int(ret));
@@ -1316,15 +1316,15 @@ let buffer_size = 10240
 
 let copy fdin fdout = 
   let buffer = String.create buffer_size in
-  let rec copy()  =
+  let rec copy ()  =
     let len = 1 + Random.int (buffer_size - 1) in
     let n = Misc.restart_on_EINTR (read fdin buffer 0) len in
     if n > 0 then
       begin
         Misc.really_write fdout buffer 0 n;
-        copy()
+        copy ()
       end in
-  copy()
+  copy ()
 
 let main () =
   let eintr _ = () in
