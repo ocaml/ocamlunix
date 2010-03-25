@@ -188,7 +188,7 @@
 {\@open{DIV}{class="caption"}Figure \themyfigure~---~\usebox{\@caption}%
  \@close{DIV}\@close{DIV}}
 
-\newstyle{DIV.figure}{ margin-top:1em; margin-bottom:1em;
+\newstyle{DIV.figure}{ margin-top:1em;
                        padding-bottom:1em;
 	               border-width: thin; 
 		       border-bottom-style: solid;
