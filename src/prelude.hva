@@ -159,7 +159,7 @@
  \@open{DIV}{class="exercise"}%
  \paragraph{Exercise~\theexercise}\label{ex\theexercise}}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
- {\hfill\ahrefloc{exans\theexercise}{Answer}.}%
+ {\ahrefloc{exans\theexercise}{Answer}.}%
  \myfancybreak\@close{DIV}}
 
 \setenvclass{exercise}{exercise}

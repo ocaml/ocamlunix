@@ -131,9 +131,11 @@
 
 %% Examples
 
+\newcommand{\myfancybreak}{\medskip\fancybreak{*\ *\ *}\medskip}
+
 \newenvironment{example}
 {\begingroup\paragraph{Example}}
-{\endgroup\vskip 0.5\onelineskip\fancybreak{*\ *\ *}\vskip 0.5\onelineskip}
+{\myfancybreak\endgroup}
 
 %% Code listings
 
@@ -215,8 +217,8 @@
  \renewcommand{\exerciseanswer}{#1}%
  \begingroup\paragraph{Exercise~\theexercise}\label{ex\theexercise}}
 {\ifthenelse{\equal{\exerciseanswer}{noanswer}}{}%
- {\hfill Answer page~\pageref{exans\theexercise}.}%
- \endgroup\vskip 0.5\onelineskip\fancybreak{*\ *\ *}\vskip 0.5\onelineskip}
+ {Answer page~\pageref{exans\theexercise}.}%
+ \myfancybreak\endgroup}
 
 \newenvironment{answer}{%
  \renewcommand{\verbatim@processline}%
