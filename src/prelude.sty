@@ -166,19 +166,9 @@
 {\codefilename{#1}\writeverbatim{code}}
 {\endwriteverbatim}
 
-\newenvironment{mltypecases}%
-{\list{}{%
-    \setlength{\labelsep}{1em}
-    \setlength{\itemindent}{1em}
-    \setlength{\leftmargin}{2.5em}
-    \setlength{\labelwidth}{\leftmargin}
-    \addtolength{\labelwidth}{-\labelsep}
-    \setlength{\listparindent}{\parindent}
-    \setlength{\topsep}{0.5\onelineskip}
-    \setlength{\parsep}{\parskip}
-    \setlength{\itemsep}{0.5\onelineskip}}}%
-{\endlist}
-\newcommand{\mltypecase}[1]{\item[\texttt{#1}]}
+\newenvironment{mltypecases}
+{\begin{flushleft}}
+{\end{flushleft}}
 
 %% Enumerate, itemize
 

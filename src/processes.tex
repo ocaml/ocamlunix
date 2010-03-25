@@ -142,18 +142,20 @@ The first result is the child process id handled by \ml+wait+. The
 second result can be:
 %
 \begin{mltypecases}
-\mltypecase{WEXITED (r)} the child process terminated normally (via
+\begin{tabular}{@{}lp{0.8\textwidth}}
+\ml+WEXITED r+ & The child process terminated normally (via
 \ml+exit+ or by reaching the end of the program); \ml+r+ is the return
-code (the argument passed to \ml+exit+).
-
-\mltypecase{WSIGNALED (s)} the child process was killed by a signal
+code (the argument passed to \ml+exit+).\\
+%
+\ml+WSIGNALED s+ & The child process was killed by a signal
 (ctrl-C, \ml+kill+, \etc; see below for more information on the
-signals); \ml+s+ identifies which signal.
-
-\mltypecase{WSTOPPED (s)} the child process was halted by the signal
+signals); \ml+s+ identifies which signal.\\
+%
+\ml+WSTOPPED s+ & The child process was halted by the signal
 \ml+s+; this occurs only in very special cases where a process
 (typically a debugger) is currently monitoring the execution of
 another (by calling \ml+ptrace+).
+\end{tabular}
 \end{mltypecases}
 %
 If one of the child processes has already terminated by the time the

@@ -207,17 +207,21 @@ The first argument specifies the communication domain to which the
 socket is to be bound:
 %
 \begin{mltypecases}
-\mltypecase{PF\_UNIX} the Unix domain
-\mltypecase{PF\_INET} the Internet domain
+\begin{tabular}{@{}ll}
+\ml+PF_UNIX+ & The Unix domain. \\
+\ml+PF_INET+ & The Internet domain.
+\end{tabular}
 \end{mltypecases}
 %
 The second argument specifies the desired communication mode:
 %
 \begin{mltypecases}
-\mltypecase{SOCK\_STREAM} byte streams, reliable
-\mltypecase{SOCK\_DGRAM}  packets, unreliable
-\mltypecase{SOCK\_RAW} direct access to the lower layers of the network
-\mltypecase{SOCK\_SEQPACKET} packets, reliable
+\begin{tabular}{@{}ll}
+\ml+SOCK_STREAM+ & Byte streams, reliable. \\
+\ml+SOCK_DGRAM+ & Packets, unreliable. \\
+\ml+SOCK_RAW+ & Direct access to the lower layers of the network. \\
+\ml+SOCK_SEQPACKET+ & Packets, reliable.
+\end{tabular}
 \end{mltypecases}
 % 
 The third argument is the number of the communication protocol to
@@ -381,15 +385,18 @@ val $\libvalue{Unix}{shutdown}$ : file_descr -> shutdown_command -> unit
 The first argument is the descriptor of the socket to close. The second argument
 is one of:
 \begin{mltypecases}
-\mltypecase{SHUTDOWN\_RECEIVE} closes the socket for reading; \ml+write+
-on the other end of the connection will raise a \ml+sigpipe+ signal.
-
-\mltypecase{SHUTDOWN\_SEND} closes the socket for writing; \ml+read+ on the
-other end of the connection returns an end of file indicator.
-
-\mltypecase{SHUTDOWN\_ALL} closes the socket for reading and writing;
+\begin{tabular}{@{}lp{0.7\textwidth}}
+\ml+SHUTDOWN_RECEIVE+ & Closes the socket for reading; \ml+write+
+on the other end of the connection will raise a \ml+sigpipe+ signal. \\
+%
+\ml+SHUTDOWN_SEND+ & Closes the socket for writing; \ml+read+ on the
+other end of the connection returns an end of file indicator. \\
+%
+\ml+SHUTDOWN_ALL+ & Closes the socket for reading and writing;
 unlike \ml+close+, the socket itself is not deallocated.
+\end{tabular}
 \end{mltypecases}
+%
 In fact, the deallocation of a socket can take some time whether done abruptly
 or cleanly.
 
@@ -974,15 +981,19 @@ Their interface is similar to \ml+read+ and \ml+write+ but they also take a list
 of flags with the following semantics:
 %
 \begin{mltypecases}
-\mltypecase{MSG\_OOB} to send an exceptional value
-
-\mltypecase{MSG\_DONTROUTE} indicates short-circuiting the default routing table
-
-\mltypecase{MSG\_PEEK} examines the data without reading it.
-\end{mltypecases}
+\begin{tabular}{@{}ll}
+\ml+MSG_OOB+ & To send an exceptional value. \\
+\ml+MSG_DONTROUTE+ & Indicates short-circuiting the default routing
+table. \\
 %
-These primitives may be used in connection-oriented mode instead of \ml+read+ and
-\ml+write+ or in pseudo connected mode instead of \ml+recvfrom+ and \ml+sendto+.
+\ml+MSG_PEEK+ & Examines the data without reading it.
+\end{tabular}
+\end{mltypecases}
+% 
+These primitives may be used in connection-oriented mode instead of
+\ml+read+ and \ml+write+ or in pseudo connected mode instead of
+\ml+recvfrom+ and \ml+sendto+.
+
 \section{High level primitives}
 
 The example of the universal client-server is frequent enough that the
@@ -1759,11 +1770,12 @@ temporary or permanent redirection.
 %
 The following options can be added:
 \begin{mltypecases}
-\mltypecase{-N} to not download the {\URL} if the file \ml+./mi/ui+
-does not exist or is older than the {\URL}.
-
-\mltypecase{-r} to download recursively all the {\URL}s embedded in the
+\begin{tabular}{@{}lp{0.8\textwidth}}
+\ml+-N+ & To not download the {\URL} if the file \ml+./mi/ui+
+does not exist or is older than the {\URL}. \\
+\ml+-r+ & To download recursively all the {\URL}s embedded in the
 responses which are documents in HTML format.
+\end{tabular}
 \end{mltypecases}
 \end{exercise}
 

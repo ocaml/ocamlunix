@@ -814,9 +814,11 @@ The list of opening modes (second argument) should contain
 exactly one of the three following flags:
 %
 \begin{mltypecases}
-\mltypecase{O\_RDONLY}  open in read-only mode 
-\mltypecase{O\_WRONLY}  open in write-only mode 
-\mltypecase{O\_RDWR} open in read and write mode 
+\begin{tabular}{@{}ll}
+\ml+O_RDONLY+ & Open in read-only mode. \\
+\ml+O_WRONLY+ & Open in write-only mode. \\
+\ml+O_RDWR+ & Open in read and write mode.
+\end{tabular}
 \end{mltypecases}
 %
 These flags specify whether the file is being read from, written
@@ -831,29 +833,29 @@ The list of opening modes may contain more than one or many flags
 among them the following:
 %
 \begin{mltypecases}
-\mltypecase{O\_APPEND} open in append mode 
-\mltypecase{O\_CREAT} create the file if it does not exist
-\mltypecase{O\_TRUNC} truncate the file to zero if it already exists 
-\mltypecase{O\_EXCL}  fail if the file already exists 
+\begin{tabular}{@{}ll}
+\ml+O_APPEND+ & Open in append mode. \\
+\ml+O_CREAT+ & Create the file if it does not exist. \\
+\ml+O_TRUNC+ & Truncate the file to zero if it already exists. \\
+\ml+O_EXCL+ & Fail if the file already exists.
+\end{tabular}
 \end{mltypecases}
-\medskip
 \begin{mltypecases}
-\mltypecase{O\_NONBLOCK}  open in non-blocking mode 
+\begin{tabular}{@{}ll}
+\ml+O_NONBLOCK+ &  Open in non-blocking mode. \\
+\ml+O_NOCTTY+ & Do not function in console mode.
+\end{tabular}
 \end{mltypecases}
-\medskip
 \begin{mltypecases}
-\mltypecase{O\_NOCTTY} do not function in console mode 
+\begin{tabular}{@{}ll}
+\ml+O_SYNC+  & Perform the writes in synchronous mode. \\
+\ml+O_DSYNC+ & Perform the data writes in synchronous mode. \\
+\ml+O_RSYN+ & Perform the reads in synchronous mode. 
+\end{tabular}
 \end{mltypecases}
-\medskip
-\begin{mltypecases}
-\mltypecase{O\_SYNC}  perform the writes in synchronous mode 
-\mltypecase{O\_DSYNC} perform the data writes in synchronous mode 
-\mltypecase{O\_RSYNC} perform the reads in synchronous mode 
-\end{mltypecases}
-
-
-The first group defines the following behavior according to
-whether the file exist or not.
+% 
+The first group defines the following behavior according to whether
+the file exist or not.
 \begin{itemize}
 \item \ml+O_APPEND+ specifies that the read/write cursor 
 should be positioned at the end of the file before the first write,
@@ -877,23 +879,26 @@ as well as through the system call of the same name).
 
 \item \ml+O_EXCL+ specifies that \ml+openfile+ should fail if the file 
 already exists.  This flag, when used in conjunction with \ml+O_CREAT+
-allows the use of files as (\emph{locks}).\footnote{ This is not possible if the lock file 
-is located on a  \textsc{nfs} partition, because \textsc{nfs}
-does not implement the option \ml+O_CREAT+ of \ml+open+.} correctly.
-A process which wants to take the lock calls \ml+openfile+ on the 
-file with the modes \ml+O_EXCL+ and \ml+O_CREAT+. If the file
-already exists, this signifies that another process has the lock.
-In this case, \ml+openfile+ triggers an error and it is necessary
-to wait a little and then re-try. If the file does not exist 
-\ml+openfile+ returns without error and the file is created. preventing
-the other processes from taking the lock. To release the lock
-the process that has it calls \ml+unlink+ on it. The creation
-of a file is an atomic operation. If two processes attempt 
-to create the same file in parallel with the options \ml+O_EXCL+
-and \ml+O_CREAT+, only one of the two can carry it out.
-Clearly, this method is not very satisfactory because 
-for one part the process that does not have the lock has to wait. 
-For another, a process may terminate abnormally and leave the lock blocked.
+allows the use of files as (\emph{locks}).
+%
+\footnote{This is not possible if the lock file is located on a
+  \textsc{nfs} partition, because \textsc{nfs} does not implement the
+  option \ml+O_CREAT+ of \ml+open+.}
+%
+correctly.  A process which wants to take the lock calls \ml+openfile+
+on the file with the modes \ml+O_EXCL+ and \ml+O_CREAT+. If the file
+already exists, this signifies that another process has the lock.  In
+this case, \ml+openfile+ triggers an error and it is necessary to wait
+a little and then re-try. If the file does not exist \ml+openfile+
+returns without error and the file is created. preventing the other
+processes from taking the lock. To release the lock the process that
+has it calls \ml+unlink+ on it. The creation of a file is an atomic
+operation. If two processes attempt to create the same file in
+parallel with the options \ml+O_EXCL+ and \ml+O_CREAT+, only one of
+the two can carry it out.  Clearly, this method is not very
+satisfactory because for one part the process that does not have the
+lock has to wait.  For another, a process may terminate abnormally and
+leave the lock blocked.
 \end{itemize}
 
 
@@ -1674,30 +1679,31 @@ val $\libvalue{Unix}{lseek}$ : file_descr -> int -> seek_command -> int
 \end{listingcodefile}
 %
 
-The first argument is the first descriptor and the 
-second argument is the position offset specifier. This is interpreted differently 
-depending on the value of the third argument, which indicates the 
-type of position desired:
+The first argument is the first descriptor and the second argument is
+the position offset specifier. This is interpreted differently
+depending on the value of the third argument, which indicates the type
+of position desired:
 %
 \begin{mltypecases}
-\mltypecase{SEEK\_SET} Absolute position. The second argument is the
+\begin{tabular}{@{}lp{0.8\textwidth}}
+\ml+SEEK_SET+ & Absolute position. The second argument is the
 index into the file, in characters, to position the pointer at. The
-first character of a file is at position zero.
-
-\mltypecase{SEEK\_CUR} Position relative to the current position. 
+first character of a file is at position zero. \\
+%
+\ml+SEEK_CUR+ & Position relative to the current position. 
 The second argument is a displacement relative to the  
 current position. This may be negative to move backwards or positive
-to move forwards.
-
-\mltypecase{SEEK\_END} Position relative to the end of file. The 
+to move forwards. \\
+%
+\ml+SEEK_END+ & Position relative to the end of file. The 
 second argument is a displacement relative to the end of file.
-As for \mltypecase{SEEK\_CUR}, this may be negative as well as positive.
+As for \ml+SEEK_CUR+, this may be negative as well as
+positive.
+\end{tabular}
 \end{mltypecases}
 %
-
-
-The value returned by \ml+lseek+ is the absolute position of the read/write cursor 
-(after it has actually been positioned).
+The value returned by \ml+lseek+ is the absolute position of the
+read/write cursor (after it has actually been positioned).
 
 An error is triggered if the absolute position requested is negative.
 On the other hand, the position requested could well be located after
@@ -1830,21 +1836,22 @@ resource; characters are read in blocks given in absolute form or
 relative with respect to the current position. Among the special files,
 we may distinguish:
 \begin{mltypecases}
-\mltypecase{/dev/null} This is the black hole which swallows everything 
-that is put into it and from which nothing comes out. Extremely useful for ignoring  
-the results of a process: we redirect its output to \ml+/dev/null+ (see the
-chapter \ref{sec/pipes}).
-
-\mltypecase{/dev/tty*}  These are the terminals.
-
-\mltypecase{/dev/pty*} These are the pseudo-terminals: They 
-are not real terminals but provide the
-same interface.
-
-\mltypecase{/dev/hd*} These are the disks.  
-
-\mltypecase{/proc} Under Linux, enable reading and writing of some  
-system parameters organized as a file system.
+\begin{tabular}{@{}lp{0.8\textwidth}}
+\ml+/dev/null+ & This is the black hole which swallows
+  everything we put into and from which nothing comes out. Extremely
+  useful for ignoring the results of a process: we redirect its output
+  to \ml+/dev/null+ (see the chapter~\ref{sec/pipes}).\\
+%
+\ml+/dev/tty*+ & These are the terminals. \\
+%
+\ml+/dev/pty*+ & These are the pseudo-terminals: They are not real
+  terminals but provide the same interface. \\
+%
+\ml+/dev/hd*+ & These are the disks. \\
+%
+\ml+/proc+ & Under Linux, system parameters organized as a
+  file system. Allows to read and write them.
+\end{tabular}
 \end{mltypecases}
 
 The special files have a behavior sufficient variable in response

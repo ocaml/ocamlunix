@@ -325,19 +325,20 @@ give the mask of blocked signals in its initial state.  The argument
 \ml+sigs+ is a list of signals whose interpretation depends on \ml+cmd+:
 
 \begin{mltypecases}
-\mltypecase{SIG\_BLOCK} the signals \ml+sigs+ are added
-to the list of blocked signals.
-
-\mltypecase{SIG\_UNBLOCK} the signals \ml+sigs+ are removed
-from signal mask.
-
-\mltypecase{SIG\_SETMASK} the signals \ml+sigs+ are exactly the 
+\begin{tabular}{@{}ll}
+\ml+SIG_BLOCK+ & The signals \ml+sigs+ are added
+to the list of blocked signals. \\
+%
+\ml+SIG_UNBLOCK+ & The signals \ml+sigs+ are removed
+from signal mask. \\
+%
+\ml+SIG_SETMASK+ & The signals \ml+sigs+ are exactly the 
 signals to be blocked.
+\end{tabular}
 \end{mltypecases}
 %
 A typical usage of \ml+sigprocmask+ is to mask certain
 signals temporarily.
-
 %
 \begin{lstlisting}
 let old_mask = sigprocmask cmd sigs in 
@@ -622,13 +623,14 @@ val $\libvalue{Unix}{gettimeofday}$ : unit -> float
 
 \subsection*{Timers}
 In present-day Unix each process is equipped with three timers, each
-measuring time from a different perspective.  The timers are:
-
+measuring time from a different perspective. The timers are:
 %
 \begin{mltypecases}
-\mltypecase{ITIMER\_REAL} real time (\ml+sigalrm+)
-\mltypecase{ITIMER\_VIRTUAL} user time (\ml+sigvtalrm+)
-\mltypecase{ITIMER\_PROF} user time and system time (\ml+sigprof+)
+\begin{tabular}{@{}ll}
+\ml+ITIMER_REAL+ & Real time (\ml+sigalrm+). \\
+\ml+ITIMER_VIRTUAL+ & User time (\ml+sigvtalrm+). \\
+\ml+ITIMER_PROF+ & User time and system time (\ml+sigprof+).
+\end{tabular}
 \end{mltypecases}
 % 
 The state of a timer is described by the \ml+interval_timer_status+

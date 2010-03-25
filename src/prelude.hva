@@ -142,15 +142,13 @@
 \setenvclass{listingcodefile}{mylisting}
 \newenvironment{codefile}[1]{\begin{latexonly}}{\end{latexonly}}
 
-
 \newenvironment{mltypecases}%
-%% too much problems with DL's, use itemize
-{\@open{DIV}{class="mltypecases"}\begin{itemize}} 
-{\end{itemize}\@close{DIV}}
-\newcommand{\mltypecase}[1]{\item\@open{CODE}{}#1\@close{CODE}\quad}
-\setenvclass{mltypecases}{mltypecases}
-\newstyle{.mltypecases UL} { padding-top: 1ex; margin-left: 1em;}
-\newstyle{.mltypecases LI} { list-style-type : none; padding-top: 1ex; }
+{\@open{DIV}{class="mltypecases"}} 
+{\@close{DIV}}
+
+\newstyle{.mltypecases TD:first-child}{ padding-left:0em }
+\newstyle{.mltypecases TABLE}{ border-spacing:0px 6px !important; 
+		               margin-top: 0em; }
 
 %% Exercises
 \newcounter{exercise}
