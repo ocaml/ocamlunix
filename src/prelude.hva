@@ -212,7 +212,7 @@
 		 padding-top: 0em;
 		 height:0px;}
 
-\newstyle{.caption} { margin-top: 0em; }
+\newstyle{.caption} { margin-top: 1.5em; }
 
 
 
@@ -226,8 +226,7 @@
 {\stepcounter{myimage}%
 \@open{DIV}{class="image"}\imgsrc[#1]{\imagebase\themyimage.png}\@close{DIV}}%
 {}
-\newstyle{.image} { display: block; text-align: center; 
-		   margin-top:1em; margin-bottom: 1em;}
+\newstyle{.image} { display: block; text-align: center; margin-top:1em; }
 
 %% Bibliography
 \newstyle{.thebibliography DL}{ margin-top : 1em;}
