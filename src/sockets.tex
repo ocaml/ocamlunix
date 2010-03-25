@@ -1201,7 +1201,14 @@ these are values paired with a representation of their type, enabling
 type checking at runtime. Refer to \cite{Dynamiques} for a more
 detailed presentation.
 
-\subsection*{Remote Procedure Call}
+\subsection*{Remote procedure call}
+
+Another typical application of this type of protocol is remote
+procedure call (\textsc{rpc}). A user on machine A wants to run a
+program \ml+f+ on a machine B. This is obviously not directly
+possible. This could be programmed on a case by case basis, using the
+system to open a connection to the machine B to execute the call,
+relaying the response to the machine A and the user.
 
 \begin{myfigure}
 \begin{myimage}[width="80\%"]
@@ -1235,16 +1242,9 @@ detailed presentation.
 \draw [->, dashed] (User2) to [bend left=5] (Callg);
 \end{tikzpicture}
 \end{myimage}
-\caption{Remote Procedure Call}
+\caption{Remote procedure call}
 \label{fig/rpc}
 \end{myfigure}
-
-Another typical application of this type of protocol is remote
-procedure call (\textsc{rpc}). A user on machine A wants to run a
-program \ml+f+ on a machine B. This is obviously not directly
-possible. This could be programmed on a case by case basis, using the
-system to open a connection to the machine B to execute the call,
-relaying the response to the machine A and the user.
 
 In fact, since this is a common situation, there is an \textsc{rpc} service
 that does that. It is a client-server (client on the machine A, server on the
@@ -1507,6 +1507,25 @@ handle_unix_error (handle_error geturl) ();;
 
 \subsection*{{\normalfont\http} relay}
 
+We now propose to write an {\http} relay (or \emph{proxy}), which is a
+server for {\http} requests that handles all {\http} requests by
+redirecting them to the destination machine (or another relay...) and
+forwards the responses to the calling machine.
+% 
+We have illustrated the role of a relay in figure
+\ref{fig/relais}. When a {\http} client uses a relay, it addresses its
+requests to the relay rather than addressing them directly to the
+various {\http} servers located around the world. A relay has multiple
+advantages.
+% 
+A relay can store the most recent requests or the most frequent
+requests for later reuse without querying the remote server, either to
+avoid overloading it or in the absence of a network connection.  A
+relay can also filter specific pages (to remove advertisements or
+images, \etc). Using a relay can also simplify writing applications by
+allowing interaction with a single server for all the web pages in the
+world.
+
 \begin{myfigure}
 \begin{myimage}[width="70\%"]
 \begin{tikzpicture}[
@@ -1530,25 +1549,6 @@ handle_unix_error (handle_error geturl) ();;
 \caption{{\http} relay}
 \label{fig/relais}
 \end{myfigure}
-
-We now propose to write an {\http} relay (or \emph{proxy}), which is a
-server for {\http} requests that handles all {\http} requests by
-redirecting them to the destination machine (or another relay...) and
-forwards the responses to the calling machine.
-% 
-We have illustrated the role of a relay in figure
-\ref{fig/relais}. When a {\http} client uses a relay, it addresses its
-requests to the relay rather than addressing them directly to the
-various {\http} servers located around the world. A relay has multiple
-advantages.
-% 
-A relay can store the most recent requests or the most frequent
-requests for later reuse without querying the remote server, either to
-avoid overloading it or in the absence of a network connection.  A
-relay can also filter specific pages (to remove advertisements or
-images, \etc). Using a relay can also simplify writing applications by
-allowing interaction with a single server for all the web pages in the
-world.
 
 The \ml+proxy+ command launches the server on the port passed as an
 argument, or, if it is omitted, the default port for the {\http}

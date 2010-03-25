@@ -93,6 +93,11 @@ the path \ml+l+, then the path \ml+p/s/q+ represents the file \ml+l/q+
 if \ml+l+ is an absolute link or the file \ml+p/l/q+ if \ml+l+ is a
 relative link.
 
+Figure~\ref{fig/hierarchy} gives an example of a file hierarchy.  The
+symbolic link \ml+11+ referred to by the file path \ml+/tmp/bar+,
+where the value is the relative path \ml+./gnu+, does not refer to any
+existing file in the hierarchy (in this instant).
+
 \begin{myfigure}
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
@@ -157,11 +162,6 @@ relative link.
 \caption{An example of a file hierarchy}
 \label{fig/hierarchy}
 \end{myfigure}
-
-Figure~\ref{fig/hierarchy} gives an example of a file hierarchy.  The
-symbolic link \ml+11+ referred to by the file path \ml+/tmp/bar+,
-where the value is the relative path \ml+./gnu+, does not refer to any
-existing file in the hierarchy (in this instant).
 
 In general, a recursive traversal of the hierarchy will be complete
 if the following two rules are followed:
@@ -1260,7 +1260,39 @@ bytes. Why not read byte by byte? Or megabyte by megabyte?
 It is done for reasons of efficiency. Figure~\ref{fig/copy-speed}
 shows the speed of copy, in bytes per second of the program
 \ml+file_copy+, when we vary the size of the blocks (the variable
-\ml+buffer_size+) from 1 byte to 8 megabytes the speed doubles each time.
+\ml+buffer_size+) from 1 byte to 8 megabytes the speed doubles each
+time.
+
+\begin{myfigure}
+\begin{myimage}[width="100\%"]
+\begin{tikzpicture}[font=\tiny]
+\pgfsetplotmarksize{0.8pt}
+\draw plot[only marks,mark=*] file {data/speed-log.data};
+
+% x-axis
+\draw (0,-1) -- (7,-1);
+\foreach \x in {0,...,7} { \draw (\x,-1) -- (\x,-0.95); };
+\node at (0,-1.3) {\phantom{$^{2}$}1\phantom{$^{2}$}};
+\node at (1,-1.3) {\phantom{$^{2}$}10\phantom{$^{2}$}};
+\node at (2,-1.3) {\phantom{$^{2}$}100\phantom{$^{2}$}};
+\foreach \x in {3,...,7} { \node at (\x,-1.3) {\phantom{$^{\x}$}10$^\x$}; };
+\node at (8.5, -1.3) {Size (bytes)\phantom{1$^{1}$}};
+
+% y-axis
+\draw (-0.5,-0.5) -- (-0.5, 2.5);
+\foreach \y in {-1,...,3} { \draw (-0.5,\y) -- (-0.45,\y); };
+\node[anchor=east] at (-0.5,-1) {0.1\phantom{$^{3}$}};
+\node[anchor=east] at (-0.5,0) {1\phantom{$^{3}$}};
+\node[anchor=east] at (-0.5,1) {10\phantom{$^{3}$}};
+\node[anchor=east] at (-0.5,2) {100\phantom{$^{3}$}};
+\node[anchor=east] at (-0.5,3) {10$^{3}$};
+
+\node[anchor=east] at (-0.5,3.5) {Speed (MB/s)};
+\end{tikzpicture}
+\end{myimage}
+\caption{Copy speed as a function of block size}
+\label{fig/copy-speed}
+\end{myfigure}
 
 For small block sizes, the copy speed is almost proportional
 to the block size. While the amount of data transferred is the same
@@ -1363,37 +1395,6 @@ handle_unix_error copy ();;
 wq
 \end{codefile}
 % $
-
-\begin{myfigure}
-\begin{myimage}[width="100\%"]
-\begin{tikzpicture}[font=\tiny]
-\pgfsetplotmarksize{0.8pt}
-\draw plot[only marks,mark=*] file {data/speed-log.data};
-
-% x-axis
-\draw (0,-1) -- (7,-1);
-\foreach \x in {0,...,7} { \draw (\x,-1) -- (\x,-0.95); };
-\node at (0,-1.3) {\phantom{$^{2}$}1\phantom{$^{2}$}};
-\node at (1,-1.3) {\phantom{$^{2}$}10\phantom{$^{2}$}};
-\node at (2,-1.3) {\phantom{$^{2}$}100\phantom{$^{2}$}};
-\foreach \x in {3,...,7} { \node at (\x,-1.3) {\phantom{$^{\x}$}10$^\x$}; };
-\node at (8.5, -1.3) {Size (bytes)\phantom{1$^{1}$}};
-
-% y-axis
-\draw (-0.5,-0.5) -- (-0.5, 2.5);
-\foreach \y in {-1,...,3} { \draw (-0.5,\y) -- (-0.45,\y); };
-\node[anchor=east] at (-0.5,-1) {0.1\phantom{$^{3}$}};
-\node[anchor=east] at (-0.5,0) {1\phantom{$^{3}$}};
-\node[anchor=east] at (-0.5,1) {10\phantom{$^{3}$}};
-\node[anchor=east] at (-0.5,2) {100\phantom{$^{3}$}};
-\node[anchor=east] at (-0.5,3) {10$^{3}$};
-
-\node[anchor=east] at (-0.5,3.5) {Speed (MB/s)};
-\end{tikzpicture}
-\end{myimage}
-\caption{copy speed as a function of block size}
-\label{fig/copy-speed}
-\end{myfigure}
 
 Moral:  A system call, even if it does very little work, costs
 dearly~---~much more dearly than a normal function call: roughly,
@@ -2243,7 +2244,7 @@ A \ml+tar+ archive is a set of records, with each
 record representing a file.  A record is composed of a header
 which encodes the information about the file (its name, type, size, owner \etc) 
 and the contents of the file.
-The header consists of a block (512 bytes) as shown in the figure~\ref {fig/tar}.
+The header consists of a block (512 bytes) as shown in the table~\ref {fig/tar}.
 \begin{mytable}
 \begin{tabular}{rrlll}
 Offset & Length & Code Type & Name & Description \\

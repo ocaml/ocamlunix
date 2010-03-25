@@ -477,7 +477,13 @@ We mentioned above a problem of concurrent access to mutable
 resources. In particular, the following scenario illustrates the
 problem of access to shared resources.  Consider a counter $c$ and two
 processes $p$ and $q$, each incrementing the counter in parallel.
-%
+
+Assume the scenario described in figure~\ref {fig/competition}.
+Thread $p$ reads the value of counter $c$, then gives control to $q$.
+In its turn, $q$ reads the value of $c$, then writes the value $k+1$
+to $c$.  The thread $p$ resumes control and writes the value $k+1$ to
+$c$. The final value of $c$ is therefore $k+1$ instead of $k+2$.
+
 \begin{myfigure}
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}
@@ -505,12 +511,6 @@ processes $p$ and $q$, each incrementing the counter in parallel.
 \caption {Competition for access to a shared resource.}
 \label{fig/competition}
 \end{myfigure}
-%
-Assume the scenario described in figure~\ref {fig/competition}.
-Thread $p$ reads the value of counter $c$, then gives control to $q$.
-In its turn, $q$ reads the value of $c$, then writes the value $k+1$
-to $c$.  The thread $p$ resumes control and writes the value $k+1$ to
-$c$. The final value of $c$ is therefore $k+1$ instead of $k+2$.
 
 This classic problem can be resolved by using locks that
 prevent arbitrary interleaving of $p$ and $q$.
