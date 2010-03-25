@@ -193,7 +193,7 @@ if possible, the object on which the error occurred; for example, for
 a system call taking a file name as an argument, this file name will be
 in the third position in \ml+Unix_error+. Finally, the first argument
 of the exception is an error code indicating the nature of the
-error. It belongs to the concrete enumerated type \ml+error+
+error. It belongs to the variant type \ml+error+
 %
 \begin{lstlisting}
 type $\libtype{Unix}{error}$ = E2BIG | EACCES | EAGAIN | ...  | EUNKNOWNERR of int

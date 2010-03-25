@@ -248,8 +248,8 @@ including, among others, the \ml+p_proto+ field which is the number of the proto
 
 \section{Addresses}
 
-Several socket operations use socket addresses. They are values of concrete type
-\ml+sockaddr+:
+Several socket operations use socket addresses. They are values of the
+variant type \ml+sockaddr+:
 \begin{lstlisting}
 type $\libtype{Unix}{sockaddr}$ =
   | ADDR_UNIX of string
@@ -1134,9 +1134,9 @@ and circularities inside transmitted objects; and they can communicate between
 architectures of different \emph{endianness}.
 
 \begin{example}
-If \textsc{x}-window were written in {\ocaml}, we would have a concrete type
+If \textsc{x}-window were written in {\ocaml}, we would have a variant type
 \ml+request+ representing requests that can be sent to the server, and another
-concrete type \ml+reply+ of eventual server responses:
+variant type \ml+reply+ of eventual server responses:
 %
 \begin{lstlisting}
 type request =
