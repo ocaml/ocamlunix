@@ -159,7 +159,6 @@ delimited blocks of bytes). The mode constrains the protocol used to
 transmit data. Here are three examples of possible modes and their
 properties:
 %
-\smallskip
 \begin{center}
 \begin{tabular}{lll}
 Mode & Reliable & Data representation \\
@@ -170,7 +169,6 @@ Segmented packets & yes & packets \\
 \hline
 \end{tabular}
 \end{center}
-\smallskip
 %
 The \quotes{stream} mode is very similar to communication using pipes.
 It is the most widely used mode, in particular when used to
@@ -1261,7 +1259,7 @@ machine) by going through the same RPC server. The work has been shared by the
 From the perspective of the user program, everything happens virtually as if it
 were a simple function call (hatched arrows).
 
-\subsection*{\quotes{text} protocols}
+\subsection*{\quotes{Text} protocols}
 
 Network services where the efficiency of the protocol is not crucial often use
 another type of protocol: \quotes{text} protocols, which are in fact
@@ -1272,6 +1270,8 @@ lines of text, often starting with a numerical code to facilitate the decoding
 of the response. Some protocols of this type:
 \begin{center}
 \begin{tabular}{lll}
+Name & Descr. & Purpose \\
+\hline
 \textsc{smtp} (Simple Mail Transfer Protocol)
 &\rfc{821}
 &Electronic mail
@@ -1292,7 +1292,8 @@ of the response. Some protocols of this type:
 \\
 \http-1.1 (HyperText Transfer Protocol)
 & \rfc{2068}
-&Web navigation\\
+&Web navigation\smallskip\\
+\hline
 \end{tabular}
 \end{center}
 The great advantage of these protocols is that the exchanges between the

@@ -283,22 +283,26 @@ difference between  \ml+stat+ and \ml+lstat+ can be seen in symbolic links
 about the file that the link refers to. 
 %
 The result of these three calls is a \emph{record} of type
-\ml+stats+ described in the table~\ref
-{fig/stats}.
-
+\ml+stats+ described in the table~\ref{fig/stats}.
+%
 \begin{mytable}
 \begin{tabular}{lp{9cm}}
+Field name & Description \\
+%
+\hline
 \ml+st_dev : int+ 
 & The device number of the device where the file is located. \\
+%
 \ml+st_ino : int+ 
 & The file's inode number in its partition. 
 The pair \ml+(st_dev, st_ino)+ uniquely identifies the file
 within the file system. \\
+%
 \ml+st_kind : file_kind+ & 
 The file type. The file type \ml+file_kind+ is an enumerated type
 whose constructors are:  
-\begin{center}
-\begin{tabular}{ll}
+\begin{mltypecases}
+\begin{tabular}{@{}ll}
 \ml+S_REG+ & regular file \\
 \ml+S_DIR+ & directory \\
 \ml+S_CHR+ & character device  \\
@@ -307,23 +311,33 @@ whose constructors are:
 \ml+S_FIFO+ & named pipe \\
 \ml+S_SOCK+ & socket 
 \end{tabular}
-\end{center}
+\end{mltypecases}
 \\
+%
 \ml+st_perm : int+ & Access rights for the file \\
+%
 \ml+st_nlink : int+ 
 & For a directory: the number of entries in the directory. For others:
 the number of hard links for this file. \\
+%
 \ml+st_uid : int+ & The user id of the file's owner. \\
+%
 \ml+st_gid : int+ & The group id of the file. \\
+%
 \ml+st_rdev : int+ 
 & The associated major device number (through special files). \\
+%
 \ml+st_size : int+ & The size of the file, in bytes. \\
-\ml+st_atime : int+ & The date the file's contents were last accessed..
-(In seconds after January 1, 1970 midnight). \\
+%
+\ml+st_atime : int+ & The date the file's contents were last accessed.
+(In seconds after January 1, 1970 midnight.) \\
+%
 \ml+st_mtime : int+ & The date the file was last modified. (Idem.) \\
+%
 \ml+st_ctime : int+ & The date of the last change in the state of the file:
 Either a  successful write to the file, or a successful change in access rights 
-or change  of the owner, of the group, or the number of links.
+or change  of the owner, of the group, or the number of links. \smallskip\\
+\hline
 \end{tabular}
 \caption{Fields of the \ml+stats+ structure}
 \label{fig/stats}
@@ -418,8 +432,9 @@ special bits.  Access right are thus represented by a vector of bits:
 %
 where the order of bits in each of the user, group and other fields 
 the read (\ml+r+), write  (\ml+w+) and execution rights of the file are indicated.
-(\ml+x+). The permissions on a file result from the union of these respective permissions:
-\begin{center}
+(\ml+x+). The permissions on a file result from the union of these
+respective permissions, see table~\ref{tab/permbits}.
+\begin{mytable}
 \begin{tabular}{lcl}
 Bit (octal) & Notation \ml+ls -l+ & Right \\
 \hline
@@ -443,7 +458,8 @@ Bit (octal) & Notation \ml+ls -l+ & Right \\
 \ml+0o4000+ & \ml+--s------+ & the bit \ml+s+ on the user (\ml+set-uid+)\\
 \hline
 \end{tabular}
-\end{center}
+\caption{Permission bits}\label{tab/permbits}
+\end{mytable}
 
 The meaning of read and write permissions is clearer than 
 that of the execution rights. Execution rights on a directory
@@ -2234,8 +2250,8 @@ Offset & Length & Code Type & Name & Description \\
 \hline
   0&   100 & string  &  \ml+name+   & file name \\
 100&     8 & octal   &  \ml+perm+   & file access modes\\
-108&     8 & octal   &  \ml+uid+    & \textsc{id} of user\\
-116&     8 & octal   &  \ml+gid+    & \textsc{id} of group of the user\\
+108&     8 & octal   &  \ml+uid+    & id of user\\
+116&     8 & octal   &  \ml+gid+    & id of group of the user\\
 124&    12 & octal   &  \ml+size+   & file size (in bytes)\\
 136&    12 & octal   &  \ml+mtime+  & Date of last modification\\
 148&     8 & octal   &  \ml+checksum+ & Header checksum \\
@@ -2246,14 +2262,16 @@ Offset & Length & Code Type & Name & Description \\
 297&    32 & string  &  \ml+group+  & Name of user's group\\
 329&     8 & octal   &\emph{\ml+major+}  & Peripheral major number\\
 337&     8 & octal   &\emph{\ml+minor+}  & Peripheral minor number\\
-345&   167 &         &         & Padding
+345&   167 &         &         & Padding \smallskip\\
+\hline 
 \end{tabular}
-\medskip
-\begin{flushleft}\small
-\textbf{Note.}\quad Field lengths are in number of bytes. All
-fields are encoded with character strings terminated with the null character \ml+'\000'+; excepting the field \ml+kind+ and \ml+size+
-(\ml+'\000'+ optional).
+\begin{flushleft}
+\small\textbf{Note.}\quad Field lengths are in number of
+bytes. All fields are encoded with character strings terminated with
+the null character \ml+'\000'+; excepting the field \ml+kind+ and
+\ml+size+ (\ml+'\000'+ optional).
 \end{flushleft}
+\ifnothtml{\vspace{-\onelineskip}}
 \caption {Header structure}
 \label{fig/tar}
 \end{mytable}
@@ -2262,19 +2280,21 @@ The contents are represented by a number of whole blocks following the header.
 The records are given one after another. If necessary, the file is padded
 with empty blocks in order to reach a minimum of 20 blocks. 
 
-As tar archives are designed to be written to unreliable media
-and retrieved many years later, the header contains a \ml+checksum+ field
-which allows the archives to be found when the header is damaged (or to
-use more than one file as an archive.) The checksum value is the sum of the character
-codes in the header (from this, we hypothesize that the 
-\ml+checksum+ field which is not yet calculated consists of blanks
-terminated by the null character). 
+As tar archives are designed to be written to unreliable media and
+retrieved many years later, the header contains a \ml+checksum+ field
+which allows the archives to be found when the header is damaged (or
+to use more than one file as an archive.) The checksum value is the
+sum of the character codes in the header (from this, we hypothesize
+that the \ml+checksum+ field which is not yet calculated consists of
+blanks terminated by the null character).
 
 The \ml+kind+ field encodes the file type in a byte.
-Significant values are the characters indicated in the table below. \footnote
-{This field can also take different values to encode pathological cases, for example,
-when the value of a field exceeds the place reserved for it in the header or
-in the extensions of the \ml+tar+ command.}: 
+Significant values are the characters indicated in the table 
+below\footnote {This field can also take different values to encode
+  pathological cases, for example, when the value of a field exceeds
+  the place reserved for it in the header or in the extensions of the
+  \ml+tar+ command.}:
+%
 \begin{center}
 \begin{tabular}{cccccccc}
 \ml+'\0'+ or \ml+'0'+ & 

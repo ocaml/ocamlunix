@@ -201,22 +201,18 @@
  \@open{DIV}{class="table"}}
 {\@open{DIV}{class="caption"}Table \themytable~---~\usebox{\@caption}%
  \@close{DIV}\@close{DIV}}
-\newstyle{DIV.table} { margin-top:1em; margin-bottom:1em;
-                       padding-bottom:1em;
-	               border-width: thin; 
-		       border-bottom-style: solid;
-                       border-top-style: solid;
-                       text-align: center; }
+\newstyle{DIV.table} { text-align: center; margin-top: 1em; margin-bottom: 1em}
 
-\newstyle{TABLE}{margin-top:1em; empty-cells:show}
+\newstyle{TABLE}{ empty-cells:show }
 \newstyle{TR} {margin-top: 4ex }
 \newstyle{TD}{ padding-left: 2ex; padding-top:1ex }
 \newstyle{.hbar}{background-color:white;
                  border-width:thin; 
 		 border-top-style: solid; 
+		 padding-top: 0em;
 		 height:0px;}
 
-\newstyle{.caption} { margin-top: 2em; }
+\newstyle{.caption} { margin-top: 0em; }
 
 
 

@@ -235,18 +235,19 @@
 %% Figures, tables, captions and floats
 \newenvironment{myfigure}%
 {\figure\centering\vspace{\onelineskip}}%
-{\vspace{0.5\onelineskip}\endfigure}
+{\endfigure}
 \renewcommand{\figurename}{Figure}
 
 \newenvironment{mytable}
 {\table\centering\vspace{\onelineskip}}%
-{\vspace{0.5\onelineskip}\endtable}
+{\endtable}
 \renewcommand{\tablename}{Table}
 \renewcommand{\arraystretch}{1.4} 
 
 \captiondelim{~---~}
 \captionnamefont{\normalfont\normalsize}
 \captiontitlefont{\normalfont\normalsize}
+\setlength{\abovecaptionskip}{\baselineskip}
 
 % Pictures and extraction
 \usepackage{graphics}
