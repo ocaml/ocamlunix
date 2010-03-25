@@ -1853,23 +1853,21 @@ we may distinguish:
 \end{tabular}
 \end{mltypecases}
 
-The special files have a behavior sufficient variable in response
-to system calls generated on files. Most special files 
-(terminals, tape drives, disks, \ldots) follow 
-\ml+read+ and \ml+write+ in the obvious manner (but sometimes with 
-restrictions on the number of bytes written or read). Many 
-special files ignore \indexvalue{lseek}.
+The usual file system calls on special files can behave differently.
+However, most special files (terminals, tape drives, disks, \ldots)
+follow \ml+read+ and \ml+write+ in the obvious manner (but sometimes
+with restrictions on the number of bytes written or read), but many
+ignore \indexvalue{lseek}.
 
-In most system generated calls, special files which 
-correspond to the  peripherals should be able to have dynamic parameters 
-or commands. Examples of such possibilities: To 
-rewind the tape, rewind or fast forward; for a terminal 
-terminal, choice of line editing mode, special characters 
-, serial connection parameters (speed, parity, \etc).
-These operations are made in Unix through the system call  
-\syscall{ioctl} which group together all the particular cases. However, this
-system call is not provided by {\ocaml}; it is  
-ill-defined and cannot be treated in a uniform way. 
+In addition to the usual file system calls, special files which
+represent peripherals must be commanded and/or configured
+dynamically. For example, for a tape drive, rewind or fast forward the
+tape; for a terminal terminal, choice of the line editing mode,
+behaviour of special characters, serial connection parameters (speed,
+parity, \etc).  These operations are made in Unix through the system
+call \syscall{ioctl} which group together all the particular
+cases. However, this system call is not provided by {\ocaml}; it is
+ill-defined and cannot be treated in a uniform way.
 
 \subsubsection{Terminals}
 \label{sec/termio}
