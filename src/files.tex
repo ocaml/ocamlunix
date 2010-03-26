@@ -214,7 +214,7 @@ access via its name. In particular whenever we get a file descriptor,
 the file can be destroyed and renamed but the descriptor still points
 on the original file.
 
-When a program is launched, three descriptors are allocated and 
+When a program is executed, three descriptors are allocated and 
 tied to the variables \ml+stdin+, \ml+stdout+ and \ml+stderr+ of the
 \ml+Unix+ module:
 \begin{codefile}{tmpunix.mli}
@@ -228,7 +228,7 @@ val $\indexlibvalue{Unix}{stderr}$ : file_descr
 They correspond, respectively, to the standard input, standard output
 and standard error of the process.
 
-When a program is launched on the command line without any
+When a program is executed on the command line without any
 redirections, the three descriptors refer to the terminal.  But if,
 for example, the input has been redirected using the notation 
 \ml+cmd < f+, then the descriptor \ml+stdin+ refers to the file named \ml+f+
@@ -240,13 +240,12 @@ command \ml+cmd+.
 
 \section{Meta-attributes, types and permissions}
 
-The system calls  \syscall{stat}, \syscall{lstat} and \syscall{fstat}
-return the meta-attributes of a file. This is to say 
-information about the node itself rather than its content.
-
-Among other things, this information contains the identity of the file, the  
-type of file, the access rights, the time and date of last access and other
-auxiliary information.
+The system calls \syscall{stat}, \syscall{lstat} and \syscall{fstat}
+return the meta-attributes of a file. This is to say information about
+the node itself rather than its content. Among other things, this
+information contains the identity of the file, the type of file, the
+access rights, the time and date of last access and other additional
+information.
 %
 \begin{codefile}{tmpunix.mli}
 type stats
@@ -257,17 +256,15 @@ val $\libvalue{Unix}{stat}$  : string -> stats
 val $\libvalue{Unix}{lstat}$ : string -> stats
 val $\libvalue{Unix}{fstat}$ : file_descr -> stats
 \end{listingcodefile}
-%
-The system calls \ml+stat+ and \ml+lstat+ take a file name as an 
-argument.  The call \ml+fstat+ takes as an argument a previously opened descriptor 
-and returns information about the specified file. The
-difference between  \ml+stat+ and \ml+lstat+ can be seen in symbolic links
-: \ml+lstat+  returns information about the symbolic link itself
-, while \ml+stat+ returns information
-about the file that the link refers to. 
-%
-The result of these three calls is a \emph{record} of type
-\ml+stats+ described in the table~\ref{fig/stats}.
+% 
+The system calls \ml+stat+ and \ml+lstat+ take a file name as an
+argument.  The call \ml+fstat+ takes as an argument a previously
+opened descriptor and returns information about the file it points on.
+The difference between \ml+stat+ and \ml+lstat+ can be seen on
+symbolic links : \ml+lstat+ returns information about the symbolic
+link itself , while \ml+stat+ returns information about the file that
+the link refers to. The result of these three calls is a record
+of type \libtype{Unix}{stats} described in the table~\ref{fig/stats}.
 %
 \begin{mytable}
 \begin{tabular}{lp{9cm}}
@@ -275,15 +272,15 @@ Field name & Description \\
 %
 \hline
 \ml+st_dev : int+ 
-& The device number of the device where the file is located. \\
+& The id of the device on which the file is stored. \\
 %
 \ml+st_ino : int+ 
-& The file's inode number in its partition. 
+& The id of the file (inode number) in its partition. 
 The pair \ml+(st_dev, st_ino)+ uniquely identifies the file
 within the file system. \\
 %
 \ml+st_kind : file_kind+ & 
-The file type. The file type \ml+file_kind+ is an enumerated type
+The file type. The type \libtype{Unix}{file\_kind} is an enumerated type
 whose constructors are:  
 \begin{mltypecases}
 \begin{tabular}{@{}ll}
@@ -302,45 +299,46 @@ whose constructors are:
 %
 \ml+st_nlink : int+ 
 & For a directory: the number of entries in the directory. For others:
-the number of hard links for this file. \\
+the number of hard links on this file. \\
 %
-\ml+st_uid : int+ & The user id of the file's owner. \\
+\ml+st_uid : int+ & The id of the file's user owner. \\
 %
-\ml+st_gid : int+ & The group id of the file. \\
+\ml+st_gid : int+ & The id of the file's group owner. \\
 %
 \ml+st_rdev : int+ 
-& The associated major device number (through special files). \\
+& The id of the associated peripheral (for special files). \\
 %
-\ml+st_size : int+ & The size of the file, in bytes. \\
+\ml+st_size : int+ & The file size, in bytes. \\
 %
-\ml+st_atime : int+ & The date the file's contents were last accessed.
-(In seconds after January 1, 1970 midnight.) \\
+\ml+st_atime : int+ & Last file content access date (In seconds from
+January 1st 1970, midnight). \\
 %
-\ml+st_mtime : int+ & The date the file was last modified. (Idem.) \\
+\ml+st_mtime : int+ & Last file content modification date (Idem).\\
 %
-\ml+st_ctime : int+ & The date of the last change in the state of the file:
-Either a  successful write to the file, or a successful change in access rights 
-or change  of the owner, of the group, or the number of links. \smallskip\\
+\ml+st_ctime : int+ & Last file state modification date: either a
+write in the file or a change in access rights, user or group owner,
+or number of links.
+\smallskip\\
 \hline
 \end{tabular}
 \caption{Fields of the \ml+stats+ structure}
 \label{fig/stats}
 \end{mytable}
 
-
 \subsection*{Identification}
-A file is uniquely identified by a pair made up of its
-device number (typically the disk partition where it is located)
-\ml+st_dev+ and its inode number \ml+st_ino+. 
+
+A file is uniquely identified by the pair made of its device number
+(typically the disk partition where it is located) \ml+st_dev+ and its
+inode number \ml+st_ino+.
 
 \subsection*{Owners}
 
 A file has one user owner \ml+st_uid+ and one group owner
-\ml+st_gid+.  All the users and user groups 
+\ml+st_gid+.  All the users and groups 
 on the machine are usually described in the  
- \ml+/etc/passwd+ and \ml+/etc/groups+ files.  One can examine them by name  
-in a portable manner through the help of the functions \syscall{getpwnam} and 
-\syscall{getgrnam} or numerically through the help of the functions 
+ \ml+/etc/passwd+ and \ml+/etc/groups+ files. We can lookup them by
+name in a portable manner with the functions \syscall{getpwnam} and 
+\syscall{getgrnam} or by id with 
 \syscall{getpwuid} and \syscall{getgrgid}.
 %
 \begin{codefile}{tmpunix.mli}
@@ -355,8 +353,8 @@ val $\libvalue{Unix}{getpwuid}$ : int -> passwd_entry
 val $\libvalue{Unix}{getgrgid}$ : int -> group_entry
 \end{listingcodefile}
 
-The name of the user of a process which is running and all the groups
-to whom it belongs can be retrieved with the commands
+The name of the user of a running process and all the groups
+to which it belongs can be retrieved with the commands
 \syscall{getlogin} and \syscall{getgroups}.
 %
 \begin{listingcodefile}{tmpunix.mli}
@@ -364,12 +362,10 @@ val $\libvalue{Unix}{getlogin}$ : unit -> string
 val $\libvalue{Unix}{getgroups}$ : unit -> int array
 \end{listingcodefile}
 
-The call  \syscall{chown} changes the owner (second argument) and 
-the group (third argument) of a file (first
-argument).  Only the super user can make these changes.
-If the program has an open files descriptor on a file, one should
-use \syscall{fchown} through the descriptor instead of \ml+chown+
-on the file name.
+The call \syscall{chown} changes the owner (second argument) and the
+group (third argument) of a file (first argument). If we have a file
+descriptor, \syscall{fchown} can be used instead. Only the super user
+can change this information arbitrarily.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{chown}$ : string -> int -> int -> unit
@@ -381,14 +377,13 @@ val $\libvalue{Unix}{fchown}$ : file_descr -> int -> int -> unit
 %% \ml+gid+ (effectif) égal au group désiré ou à un de ses groupes
 %% supplémentaire
 
-
 \subsection*{Access rights}
 
-Access rights are encoded as bits in an integer and the type 
-\libtype{Unix}{file\_perm} is just a synonym for the type
-\ml+int+. Access rights specify read, write and execute rights 
-for the user, the group and other, and other
-special bits.  Access right are thus represented by a vector of bits:
+Access rights are encoded as bits in an integer. The type 
+\libtype{Unix}{file\_perm} is just an abreviation for the type
+\ml+int+. Access rights specify special bits and read, write and
+execution rights for the user owner, the group owner and the other users. 
+Access right are thus represented by a vector of bits:
 %
 \ifhtmlelse{%
 \begin{center}
@@ -413,18 +408,19 @@ special bits.  Access right are thus represented by a vector of bits:
  \overbrace{---}^{\texttt Other}}_{\texttt{0oSUGO}}
 \end{displaymath}
 }
-%
-where the order of bits in each of the user, group and other fields 
-the read (\ml+r+), write  (\ml+w+) and execution rights of the file are indicated.
-(\ml+x+). The permissions on a file result from the union of these
-respective permissions, see table~\ref{tab/permbits}.
+% 
+where in each of the user, group and other fields, the order of bits
+indicates read (\ml+r+), write (\ml+w+) and execute (\ml+x+) rights.
+The permissions on a file are the union of all these individual
+rights, see table~\ref{tab/permbits}.
+
 \begin{mytable}
 \begin{tabular}{lcl}
 Bit (octal) & Notation \ml+ls -l+ & Right \\
 \hline
-\ml+0o100+ & \ml+--x------+ & executable by the owner \\
-\ml+0o200+ & \ml+-w-------+ & writable by the owner \\
-\ml+0o400+ & \ml+r--------+ & readable by the owner \\
+\ml+0o100+ & \ml+--x------+ & executable by the user owner \\
+\ml+0o200+ & \ml+-w-------+ & writable by the user owner \\
+\ml+0o400+ & \ml+r--------+ & readable by the user owner \\
 \hline
 \ml+0o10+  & \ml+-----x---+ &
         executable by members of the group owner. \\
@@ -445,37 +441,35 @@ Bit (octal) & Notation \ml+ls -l+ & Right \\
 \caption{Permission bits}\label{tab/permbits}
 \end{mytable}
 
-The meaning of read and write permissions is clearer than 
-that of the execution rights. Execution rights on a directory
-mean the user's right to use the directory as a working directory (to
-\ml+chdir+ into the directory ). Read permissions on a directory
-are sufficient to list the directory's contents but not to read
-its files or sub-directories (but it is sufficient to read their names).
+For files, the meaning of read, write and execute permissions is
+obvious. For a directory, the execute permission means the right to
+enter it (to \ml+chdir+ to it) and read permission the right to list
+its contents. Read permission on a directory is however not needed to
+read its files or sub-directories (but we then need to know their
+names).
 
-The special bits do not have meaning unless the \ml+x+ bit is present. 
-(when they are present without the bit \ml+x+, they do not give 
-additional rights.  That is why their representation is superimposed
-on that of bit \ml+x+ and the letters \ml+S+ and \ml+T+ are used instead of 
-\ml+s+ and \ml+t+  while the bit \ml+x+ is not 
-simultaneously present. The bit \ml+t+ allows sub-directories
-to inherit the permissions of the parent directory. The bit \ml+s+
-on a directory, allows the use of the owner's \ml+uid+ and \ml+gid+ 
-rather than the user's in the creation 
-of directories. The bit \ml+s+ on an executable file permits  
-changing the user's or group's \emph{effective identity} at launch, 
-(\syscall{setuid}) or of the group  (\syscall{setgid}).
+The special bits do not have meaning unless the \ml+x+ bit is set (if
+present without \ml+x+ set, they do not give additional rights).  This
+is why their representation is superimposed on the bit \ml+x+ and
+the letters \ml+S+ and \ml+T+ are used instead of \ml+s+ and \ml+t+
+whenever \ml+x+ is not set. The bit \ml+t+ allows sub-directories to
+inherit the permissions of the parent directory. On a directory, 
+the bit \ml+s+ allows to use the directory's \ml+uid+ or \ml+gid+ rather
+than the user's one to create directories. For an executable file, 
+the bit \ml+s+ allows to change at execution time the user's
+effective identity (\syscall{setuid}) or group (\syscall{setgid}).
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{setuid}$ : int -> unit
 val $\libvalue{Unix}{setgid}$ : int -> unit
 \end{listingcodefile}
 %
-The process also preserves its original identities except when 
-it has super user privileges, in which case, \ml+setuid+ and
-\ml+setgid+ change its effective and original user and group identities 
-at the same time. The original identity is preserved to allow 
-the process to subsequently recover it as its effective identity without the need   
-for further privileges. The system calls \syscall{getuid} and 
+The process also preserves its original identities unless 
+it has super user privileges, in which case \ml+setuid+ and
+\ml+setgid+ change both its effective and original user and group
+identities. The original identity is preserved to allow 
+the process to subsequently recover it as its effective identity
+without needing further privileges. The system calls \syscall{getuid} and 
 \syscall{getgid} return the original identities and 
 \syscall{geteuid} and \syscall{getegid} return the effective identities.
 %
@@ -486,21 +480,20 @@ val $\libvalue{Unix}{getgid}$ : unit -> int
 val $\libvalue{Unix}{getegid}$ : unit -> int
 \end{listingcodefile}
 
-A process also has a file creation mask made up in the same fashion. 
-As its names indicates, the mask specifies prohibitions (masked permissions):
-During file creation all the bits that have 1 in the creation mask  
-are set to 0 in the permissions of the created file. The mask may be  
-looked up and changed by the system call \syscall{umask}:
+A process also has a file creation mask represented the same way file
+permissions are. As its name suggests, the mask specifies prohibitions
+(permissions to mask): during file creation all the bits set to 1 in the
+mask are set to 0 in the permissions of the created file.  The mask
+can be consulted and changed by the system call \syscall{umask}:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{umask}$ : int -> int
 \end{listingcodefile}
-%
-Like the numerous system calls which modify a system variable,
-the modifying function returns the old value of the variable.
-By simply looking up the value, it can thus be modified twice
-once with an arbitrary value, then the old value can be  
-put back in place. For example, by doing  
+% 
+Like many system calls that modify system variables, the modifying
+function returns the old value of the variable. Thus, to just look up
+the value we need to call the function twice. Once with an arbitrary
+value to get the mask and a second time to put it back. For example:
 %
 \begin{codefile}{tmpfich.ml}
 open Unix;;
@@ -511,7 +504,7 @@ let _ =
 let m = umask 0 in ignore (umask m); m
 \end{listingcodefile}
 
-File access permissions may be modified by the call
+File access permissions can be modified with the system calls
 \syscall{chmod} and \syscall{fchmod}:
 %
 \begin{codefile}{tmpunix.mli}
@@ -522,41 +515,38 @@ type file_perm
 val $\libvalue{Unix}{chmod}$ : string -> file_perm -> unit
 val $\libvalue{Unix}{fchmod}$ : file_descr -> file_perm -> unit
 \end{listingcodefile}
-
-File access rights may also be tested \quotes{dynamically} 
-with the system call \syscall{access}
+and they can be tested \quotes{dynamically} with the system 
+call \syscall{access}:
 %
 \begin{listingcodefile}{tmpunix.mli}
 type $\libtype{Unix}{access\_permission}$ = R_OK | W_OK | X_OK | F_OK
 val $\libvalue{Unix}{access}$ : string -> access_permission list -> unit 
 \end{listingcodefile}
 %
-where required access rights to the file are given by the type
-\ml+access_permission+ in which the meaning is obvious save for \ml+F_OK+
-which only signifies that the file exists (possibly without
-the process having the corresponding rights).
+where requested access rights to the file are specified by 
+the type \libtype{Unix}{access\_permission} whose meaning is 
+obvious except for \ml+F_OK+ which just checks for the file's
+existence (without checking for the other rights). The function
+raises an error if the access rights are not granted.
 
-Note that \ml+access+ may return information more restrictive  
-than that calculated from the static information used by 
-\ml+lstat+ because a file hierarchy may be mounted 
-with more restricted rights, for example read only. In this case
-\ml+access+ will deny write permission although the information 
-contained in the meta-attributes relative to the file
-would allow it.  This is why we speak of \quotes{dynamic} information 
-(that which the process can actually do) in  
-contrast to \quotes{static} (that which the file system specifies).
+Note that the information inferred by \ml+access+ may be more
+restrictive than the information returned by \ml+lstat+ because a file
+system may be mounted with restricted rights~---~for example in
+read-only mode. In that case \ml+access+ will deny a write permission
+on a file whose meta-attributes would allow it. This is why we
+distinguish between \quotes{dynamic} (what a process can actually do)
+and \quotes{static} (what the file system specifies) information.
 
 \section{Operations on directories}
 
 Only the kernel can write in directories (when files are
 created). Thus opening a directory in write mode is prohibited. In
-certain versions of Unix a directory may be opened in read
-only mode and read with \indexvalue{read}, but other versions
-prohibit it. While this is possible, it is preferable 
-not to do so because the format of directory entries vary
-depending on the Unix version and is often complex. The following functions
-allow reading a directory sequentially in a manner that is
-portable:
+certain versions of Unix a directory may be opened in read only mode
+and read with \indexvalue{read}, but other versions prohibit
+it. However, even if this is possible, it is preferable not to do so
+because the format of directory entries vary between Unix versions and
+is often complex. The following functions allow reading a directory
+sequentially in a portable manner:
 %
 \begin{codefile}{tmpunix.mli}
 type dir_handle = Unix.dir_handle
@@ -568,31 +558,19 @@ val $\libvalue{Unix}{readdir}$   : dir_handle -> string
 val $\libvalue{Unix}{rewinddir}$ : dir_handle -> unit
 val $\libvalue{Unix}{closedir}$  : dir_handle -> unit
 \end{listingcodefile}
-%
-The system call \syscall{opendir} returns a read descriptor
-on a directory.  \syscall{readdir} reads the next entry of a
-directory (or raises the exception \ml+End_of_file+ if the end
-of the directory is reached). The returned string consists of the name of the file
-relative to the read directory. \syscall{rewinddir} repositions the 
-descriptor to the beginning of the directory and \syscall{closedir} closes the
-directory descriptor. 
+% 
+The system call \syscall{opendir} returns a directory descriptor on a
+directory. \syscall{readdir} reads the next entry of a descriptor, it
+returns a file name relative to the directory or raises the exception
+\ml+End_of_file+ if the end of the directory is
+reached. \syscall{rewinddir} repositions the descriptor at the
+beginning of the directory and \syscall{closedir} closes the directory
+descriptor.
 
-To create a directory or remove an empty directory, we have
-\syscall{mkdir} and \syscall{rmdir}:
-%
-\begin{listingcodefile}{tmpunix.mli}
-val $\libvalue{Unix}{mkdir}$ : string -> file_perm -> unit
-val $\libvalue{Unix}{rmdir}$ : string -> unit
-\end{listingcodefile}
-%
-The second argument of  \ml+mkdir+ encodes the access rights given to the
-new directory.  Note that we can only remove a directory 
-that is already empty. To remove a directory and its contents, it is thus
-necessary to first recursively empty the contents of the directory then
-remove the directory.
-
-For example, we can write a function of general interest in the  
-\ml+Misc+ module which iterates over the entries in a directory.
+\begin{example}
+The following reusable function is defined in \ml+Misc+. It
+iterates a function \ml+f+ over the entries of the directory 
+\ml+dirname+.
 %
 \begin{codefile}{misc.mli}
 (*** Directory iterator *)
@@ -612,19 +590,33 @@ let iter_dir f dirname =
   try while true do f (readdir d) done
   with End_of_file -> closedir d
 \end{listingcodefile}
+\end{example}
+
+To create a directory or remove an empty directory, we have
+\syscall{mkdir} and \syscall{rmdir}:
+%
+\begin{listingcodefile}{tmpunix.mli}
+val $\libvalue{Unix}{mkdir}$ : string -> file_perm -> unit
+val $\libvalue{Unix}{rmdir}$ : string -> unit
+\end{listingcodefile}
+% 
+The second argument of \ml+mkdir+ determines the access rights of the
+new directory.  Note that we can only remove a directory that is
+already empty. To remove a directory and its contents, it is thus
+necessary to first recursively empty the contents of the directory and
+then remove the directory.
 
 \section {Complete example: search in a file hierarchy}
 \label{ex/find}
 
 The Unix command \ml+find+ allows the recursive search of files 
 in the hierarchy according to certain criteria (file  name, type and
-permissions) \etc{} Here we propose to develop  part of
-a library function \ml+Findlib.find+ which will allow us to 
-make such searches and a command \ml+find+ providing a restricted
-version of the Unix command \ml+find+ does not implement any but the options
-\ml+-follow+ and \ml+-maxdepth+.
+permissions \etc). In this section we develop a library function
+\ml+Findlib.find+ which allows to make these searches and a command \ml+find+ 
+that provides a version of the Unix command \ml+find+ restricted to
+the options \ml+-follow+ and \ml+-maxdepth+.
 
-We specify the following interface for the library \ml+Findlib+:
+We specify the following interface for \ml+Findlib.find+:
 %
 \begin{listingcodefile}{findlib.mli}
 val find : 
@@ -637,33 +629,29 @@ The function call
 \begin{lstlisting}
 find handler action follow depth roots
 \end{lstlisting}
-traverses the file hierarchy starting from the indicated roots in
-the list \ml+roots+ (absolute or relative to the current directory
-when the call is made) up to a maximum depth \ml+depth+, following
-symbolic links if the flag \ml+follow+ is set.  The paths 
-found under the root \ml+r+ include \ml+r+ as a prefix.
-Each found path \ml+p+ is passed to a function \ml+action+. Actually,
-\ml+action+ also receives the data \ml+Unix.stat p+
-if the flag \ml+follow+ is set or \ml+Unix.lstat p+ if not. The
-function \ml+action+ returns a boolean, \ml+true+ in the case
-where it was able to follow the search to the required depth
-or \ml+false+ if it was interrupted.
+traverses the file hierarchy starting from the roots specified in the
+list \ml+roots+ (absolute or relative to the current directory when
+the call is made) up to a maximum depth \ml+depth+ and following
+symbolic links if the flag \ml+follow+ is set.  The paths found under
+the root \ml+r+ include \ml+r+ as a prefix.  Each found path \ml+p+ is
+given to the function \ml+action+ along with the data returned by
+\ml+Unix.stat p+ (or \ml+Unix.stat p+ if \ml+follow+ is \ml+true+).
+The function \ml+action+ returns a boolean indicating, for
+directories, whether the search should continue in depth (\ml+true+)
+or not (\ml+false+).
 
-
-The function \ml+handler+ serves to handle run-time errors,
-specifically of type \ml+Unix_error+.  Exception arguments
-are then sent to the function \ml+handler+ and execution
-continues.  In case of an interrupt, the exception is passed up to 
-the calling function. When an exception is raised by the functions
-\ml+action+ or \ml+handler+, it stops the execution abruptly  
-and is immediately passed up to the caller.
-
-     
+The \ml+handler+ function handles traversal errors of type
+\ml+Unix_error+. Whenever an error occurs the arguments of the
+exception are given to the handler function and the traversal
+continues. However when an exception is raised by the functions
+\ml+action+ or \ml+handler+, we immediatly stop the traversal and let
+it propagate to the caller. To propagate an \ml+Unix_error+ exception
+without catching it like a traversal error, we wrap these exceptions
+in the \ml+Hidden+ exception (see \ml+hide_exn+ and \ml+reveal_exn+).
+%
+%%% commented in the french version
 %% De plus on arrête la visite récursive d'un répertoire que l'on est en train
 %% de visiter (ce qui ne peut arriver que lorsqu'on suit les liens symboliques)
-
-To pass an exception \ml+Unix_error+ without it being trapped
-like a runtime error, we wrap it in another exception.
 \begin{listingcodefile}[style=numbers]{findlib.ml}
 open Unix;;
 
@@ -692,14 +680,13 @@ let find on_error on_path follow depth roots =
   reveal_exn (List.iter (find_rec depth [])) roots;;
 \end{listingcodefile}
 
-Directories are identified by the pair \ml+id+
-(line~\ref{prog:did}) which consists of its device number and
-its inode. The list \ml+visiting+ contains all the directories
-which have not yet been visited. Actually this information
-is not useful unless symbolic links are followed
+A directory are identified by the \ml+id+ pair (line~\ref{prog:did})
+made of its device and inode number.  The list \ml+visiting+ keeps
+track of the directories that have already been visited. In fact
+this information is only useful if symbolic links are followed
 (line~\ref{prog:follow}).
 
-We can now easily infer the function \ml+find+.
+It is now easy to program the \ml+find+ command.
 \begin{listingcodefile}{find.ml}
 let find () =
   let follow = ref false in
@@ -724,10 +711,8 @@ let find () =
 Unix.handle_unix_error find ();;
 \end{listingcodefile}
 %
-
-The essential part of the code consists of the analysis of the command 
-line, for which we use the library module
-\libmodule{Arg}.
+The essential part of the code parses the command line
+arguments with the \libmodule{Arg} module.
 %
 \begin{codefile}{find.test}
 cd ../../lib/arch
@@ -736,18 +721,17 @@ find A B -follow -maxdepth 10 | diff - find.out
 rm find.out
 \end{codefile}
 
-Although the \ml+find+ function above is sufficiently 
-restricted, the library function \ml+FindLib.find+ is
-far more general, as the following exercise demonstrates.
+Although our \ml+find+ command is quite restricted, the library
+function \ml+FindLib.find+ is far more general, as the following
+exercise shows.
 \begin{exercise}
-Use the library function \ml+FindLib+ to write a program
-\ml+find_but_CVS+ equivalent to the Unix command 
+Use the function \ml+FindLib.find+ to write a command
+\ml+find_but_CVS+ equivalent to the Unix command:
 \begin{lstlisting}
 find . -type d -name CVS -prune -o -print
 \end{lstlisting}
-which recursively prints the files starting from the current directory
-but without seeing (neither printing nor visiting) the directories by name
-\ml+CVS+.
+which, starting from the current directory, recursively prints
+files without printing or entering directories whose name is \ml+CVS+.
 \end{exercise}
 \begin{answer}
 \begin{codefile}{find_but_CVS.ml}
@@ -769,22 +753,20 @@ handle_unix_error main ()
 \end{answer}
 
 \begin{exercise}
-The function \ml+getcwd+ is not a system call but is defined in the 
-library.  Give a \quotes{simple} implementation of
-\ml+getcwd+. Describe the algorithmic principle. After which write
-the algorithm (You should avoid repeating the same system call).
+The function \ml+getcwd+ is not a system call but is defined in the
+\ml+Unix+ module.  Give a \quotes{primitive} implementation of
+\ml+getcwd+. First describe the principle of your algorithm with words
+and then implement it (you should avoid repeating the same system
+call).
 \end{exercise}
 \begin{answer}
-Here are some clues: We start back up from our current position  
-towards the root away from the path which we are looking for.
-The root is identified as the unique directory node
-where the parent and the current directory are identical (the paths \ml+parentdir+ and 
-\ml+currentdir+ are equal when they are taken relative to the  
-root).  To find the name which represents a directory  \ml+r+ and then 
-its parent directory, it is necessary to traverse all the parent names  
-and identify the files they represent \ml+r+.
+Here are some hints. We move up from the current position towards the
+root and construct backwards the path we are looking for. The root can
+be detected as the only directory node whose parent is equal to itself
+(relative to the root \ml+.+ and \ml+..+ are equal). To find the name
+of a directory \ml+r+ we need to list the contents of its parent
+directory and detect the file that corresponds to \ml+r+.
 \end{answer}
-
 
 \section{Opening a file}
 
