@@ -179,12 +179,12 @@ new root is \ml+p+ itself).
 
 \section{File names, file descriptors}
 
-There are two ways to access a file.  The first is by its \emph{name}
-(or \emph{file path} in the file system hierarchy.  Due to hard links,
-a file can have many different names.  Names are represented by
-character strings (type \ml+string+). For example the system calls
-\syscall{unlink}, \syscall{link}, \syscall{symlink} and
-\syscall{rename} operate at the file name level.
+There are two ways to access a file.  The first is by its \emph{file
+  name} (or \emph{path name}) in the file system hierarchy.  Due to
+hard links, a file can have many different names.  Names are
+represented by character strings (type \ml+string+). For example the
+system calls \syscall{unlink}, \syscall{link}, \syscall{symlink} and
+\syscall{rename} all operate at the file name level.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{unlink}$ : string -> unit
@@ -192,35 +192,30 @@ val $\libvalue{Unix}{link}$ : string -> string -> unit
 val $\libvalue{Unix}{symlink}$ : string -> string -> unit
 val $\libvalue{Unix}{rename}$ : string -> string -> unit
 \end{listingcodefile}
-%
-The call \ml+unlink f+ erases the file \ml+f+ given in the argument (like
-the command \ml+rm -f f+),
-%
-\ml+link f1 f2+ create a hard link named \ml+f2+ to the file named  
-\ml+f1+ (like the command \ml+ln f1 f2+), 
 % 
-\ml+symlink f1 f2+ create a symbolic link named \ml+f2+ to the file  
-named  \ml+f1+ (like the command \ml+ln -s f1 f2+) and
-%
-\ml+rename f1 f2+ renames the file with name \ml+f1+ to \ml+f2+  (
-like the command \ml+mv f1 f2+).
+The call \ml+unlink f+ erases the file \ml+f+ (like the Unix command
+\ml+rm -f f+), \ml+link f1 f2+ creates a hard link named \ml+f2+ to
+the file \ml+f1+ (like the command \ml+ln f1 f2+), 
+\ml+symlink f1 f2+ creates a symbolic link named \ml+f2+ to the file 
+\ml+f1+ (like the command \ml+ln -s f1 f2+) and
+\ml+rename f1 f2+ renames the file \ml+f1+ to \ml+f2+ 
+(like the command \ml+mv f1 f2+).
 
-The other method of accessing a file is through a file descriptor.  A
-descriptor contains a pointer to a file in addition to other
-information like the current read/write position in the file,
-the permissions of the file (read permission, write permission \etc)
-and the wrappers which control the behavior of the read and write
-process (writes appending or overwriting blocking reads or
-non-blocking).  The descriptors are represented by values of abstract
-type \libtype{Unix}{file\_descr}.
+The other way of accessing a file is by a file descriptor. A
+descriptor represents a pointer to a file along with other
+information like the current read/write position in the file, the
+permissions of the file (is it possible to read ? write ?) and flags
+which control the behavior of reads (blocking, non-blocking, \etc) and
+writes (overwrite, append, \etc). File descriptors are represented by
+values of the abstract type \libtype{Unix}{file\_descr}.
 
-File access through a descriptor is in large part independent
-of access via the file name.  In particular, when a 
-descriptor file is obtained, the file may be destroyed or renamed
-but the descriptor will still point to the original file.
+Access to a file via its descriptor is largely independent from the
+access via its name. In particular whenever we get a file descriptor,
+the file can be destroyed and renamed but the descriptor still points
+on the original file.
 
 When a program is launched, three descriptors are allocated and 
-tied to variables \ml+stdin+, \ml+stdout+ and \ml+stderr+ of the
+tied to the variables \ml+stdin+, \ml+stdout+ and \ml+stderr+ of the
 \ml+Unix+ module:
 \begin{codefile}{tmpunix.mli}
 type file_descr
@@ -230,19 +225,17 @@ val $\indexlibvalue{Unix}{stdin}$ : file_descr
 val $\indexlibvalue{Unix}{stdout}$ : file_descr
 val $\indexlibvalue{Unix}{stderr}$ : file_descr
 \end{listingcodefile}
+They correspond, respectively, to the standard input, standard output
+and standard error of the process.
 
-They correspond respectively to the standard input of the process, the
-standard output of the process and the standard error of the process.
-
-When a program is launched interactively on the command line and
-without any redirections, the three descriptors refer to the terminal.
-But if, for example, the input has been redirected by the notation 
-\ml+cmd < f+, then the descriptor \ml+stdin+ refers to the file with
-file name \ml+f+ during the execution of the command \ml+cmd+.
-
-Similarly, \ml +cmd > f+ and \ml+cmd 2> f+ respectively act in such a
-way that the descriptors \ml+stdout+ and \ml+stderr+ refer to the file
-\ml+f+ during the execution of the command \ml+cmd+.
+When a program is launched on the command line without any
+redirections, the three descriptors refer to the terminal.  But if,
+for example, the input has been redirected using the notation 
+\ml+cmd < f+, then the descriptor \ml+stdin+ refers to the file named \ml+f+
+during the execution of the command \ml+cmd+. Similarly, \ml +cmd > f+
+and \ml+cmd 2> f+ respectively bind the descriptors \ml+stdout+ and
+\ml+stderr+ to the file named \ml+f+ during the execution of the
+command \ml+cmd+.
 
 
 \section{Meta-attributes, types and permissions}
