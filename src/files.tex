@@ -15,88 +15,81 @@
 The term \quotes{file} in Unix covers several types of objects:
 %
 \begin{itemize}
-\item standard files: finite sets of bytes containing 
-      text or binary information which we may call \quotes{ordinary} files
-
-\item directories
-
-\item symbolic links
-
-\item specialized files (\emph{devices}), which give 
-      specific types of access to computer peripherals
-
-\item named pipes
-
-\item sockets named in the Unix domain.
-       
-\end{itemize}
+\item standard files: finite sets of bytes containing text or binary
+  information. We may call them \quotes{ordinary} files.
 %
-The concept of a file simultaneously encompasses the data 
-contained in the file and information about the file (also
-called meta-data) such as file type, access privileges, latest
-access dates, {\etc}
+\item directories.
+%
+\item symbolic links.
+%
+\item special files (\emph{devices}), which give, in particular, access
+  to computer peripherals.
+%
+\item named pipes.
+%
+\item sockets named in the Unix domain.
+\end{itemize}
+% 
+The file concept includes both the data contained in the file and
+information about the file itself (also called meta-data) like its
+type, its access privileges, the latest access dates, {\etc}
 
 \section{The file system}
 
-As a first approximation, we may think of the file system as a tree. The
-root directory is represented by \ml+'/'+ . The branches are labeled by names (of  
-the files), which are made up of strings of any characters excluding 
-solely the characters  \ml+'\000'+ and \ml+'/'+,  but it is good practice
-to avoid the use of non-printing characters as well as spaces.
-The non-terminal nodes of the file system are
-called \emph{directories}: these nodes always contain two branches \ml+.+
-and {..} which respectively represent the directory itself and the directory's
-parent. The other nodes are sometimes called \quotes{files},
-as opposed to directories, but this is ambiguous, as we can also  
-designate any node as a \quotes{file}. To avoid all ambiguity 
-we refer to them as \quotes{non-directory files}.
+As a first approximation, the file system is as a tree. The root is
+represented by \ml+'/'+ . The branches are labeled by (file) names,
+which are strings of any characters excluding \ml+'\000'+ and \ml+'/'+
+(but it is good practice to also avoid non-printing characters and
+spaces). The non-terminal nodes are \emph{directories}: these nodes
+always contain two branches \ml+.+ and {..} which respectively
+represent the directory itself and the directory's parent. The other
+nodes are sometimes called \emph{files}, as opposed to directories,
+but this is ambiguous, as we can also designate any node as a
+\quotes{file}. To avoid all ambiguity we refer to them as
+\emph{non-directory files}.
 
-The nodes of the file system are represented by paths. These may refer to
-the top of the file hierarchy or to a directory (usually the current
-work directory) in which case we may refer to them as absolute
-paths. A relative path is a string of file names separated by the the
-character \ml+'/'+.  An absolute path is a relative path preceded by
-the the character \ml+'/'+ (note the double use of of this character
-both as a separator and as the name of the root node).
+The nodes of the file system are addressed by paths. If the root of
+the path is the top of the file hierarchy, the path is absolute and if
+it is a directory (usually the current working directory) it is
+relative. More precisely a \emph{relative path} is a string of file
+names separated by the the character \ml+'/'+.  An \emph{absolute
+  path} is a relative path preceded by the the character \ml+'/'+
+(note the double use of this character both as a separator and as
+the name of the root node).
 
-The \libmodule{Filename} library handles file paths in a portable
+The \libmodule{Filename} module handles file paths in a portable
 manner. Notably \libvalue{Filename}{concat} concatenates paths without
 using the character \ml+'/'+, allowing the code to function equally
-well on other architectures (for example the path separation character
-under Windows is \ml+'\'+).  Similarly, the \ml+Filename+
-module provides the string values \libvalue{Filename}{current\_dir\_name} and
+well on other architectures (for example the path separator character
+under Windows is \ml+'\'+).  Similarly, the \ml+Filename+ module
+provides the string values \libvalue{Filename}{current\_dir\_name} and
 \libvalue{Filename}{parent\_dir\_name} to represent the branches
-\ml+.+ and \ml+..+.  The functions \libvalue{Filename}{basename} and
-\libvalue{Filename}{dirname} retrieve the prefix \ml+d+ and
-the suffix \ml+b+ from a file path \ml+p+ such that the file path
-\ml+p+ and \ml+d/b+ refer to the same file, where \ml+d+ refers to the
-directory in which the file is found and \ml+b+ the name of the file
-within the directory.
+\ml+.+ and \ml+..+ The functions \libvalue{Filename}{basename} and
+\libvalue{Filename}{dirname} return the prefix \ml+d+ and the suffix
+\ml+b+ from a file path \ml+p+ such that the file path \ml+p+ and
+\ml+d/b+ refer to the same file, where \ml+d+ is the directory in
+which the file is found and \ml+b+ is the name of the file. The
+functions defined in \ml+Filename+ operate only on paths,
+independently of their actual existence within the file hierarchy.
 
-The functions defined in \ml+Filename+ operate only on files,
-independently of their position within the file hierarchy.
-In fact, the file hierarchy is not strictly a tree.  In particular, the
-directory conventions \ml+.+ and \ml+..+ allow the directory to refer
-to itself (auto-referencing) and allow remounting a directory within the file
-hierarchy, thus allowing the creation of paths in a directory leading
-to itself.  In addition, non-directory files can have many
-ancestors. In this case, one says that they have many \quotes{hard
-  links}. Finally, there are also \quotes{symbolic links} which lend
-themselves to a double interpretation.  A symbolic link is a
-non-directory file which contains a path.  In addition, a symbolic
-link can be interpreted as an ordinary file and we can simply read
-what it contains, the path of the linked file.  It is also possible to follow the symbolic
-link in a transparent manner and not see anything but the target file.  
-The latter is the only possible interpretation when the link appears in
-the middle of a file path: if \ml+s+ is a symbolic link whose value is
-the path \ml+l+, then the path \ml+p/s/q+ represents the file \ml+l/q+
-if \ml+l+ is an absolute link or the file \ml+p/l/q+ if \ml+l+ is a
-relative link.
+In fact, strictly speaking, the file hierarchy is not a tree. First
+the directories \ml+.+ and \ml+..+ allow a directory to refer to
+itself and to move up in the hierarchy to define paths leading from a
+directory to itself. Moreover, non-directory files can have many
+parents (we say that they have many \emph{hard links}). Finally,
+there are also \emph{symbolic links} which can be seen as
+non-directory files containing a path. Conceptually this path can be
+obtained by reading the contents of the symbolic link like an ordinary
+file. Whenever a symbolic link occurs in the middle of a path we have
+to follow its path transparently. If \ml+s+ is a symbolic link whose
+value is the path \ml+l+, then the path \ml+p/s/q+ represents the file
+\ml+l/q+ if \ml+l+ is an absolute path or the file \ml+p/l/q+ if
+\ml+l+ is a relative path.
 
 Figure~\ref{fig/hierarchy} gives an example of a file hierarchy.  The
-symbolic link \ml+11+ referred to by the file path \ml+/tmp/bar+,
-where the value is the relative path \ml+./gnu+, does not refer to any
-existing file in the hierarchy (in this instant).
+symbolic link \ml+11+ corresponding to the path \ml+/tmp/bar+ whose
+path value is the relative path \ml+./gnu+, does not refer to any
+existing file in the hierarchy (at the moment).
 
 \begin{myfigure}
 \begin{myimage}[width="100\%"]
@@ -163,37 +156,35 @@ existing file in the hierarchy (in this instant).
 \label{fig/hierarchy}
 \end{myfigure}
 
-In general, a recursive traversal of the hierarchy will be complete
-if the following two rules are followed:
+In general, a recursive traversal of the hierarchy will terminate
+if the following rules are respected:
 %
 \begin{itemize}
-\item the directories \ml+currentdir+ and \ml+parentdir+ are ignored.
+\item the directories \ml+.+ and \ml+..+ are ignored.
 \item symbolic links are not followed. 
 \end{itemize}
-%
-If a symbolic link is followed, one is brought back to a
-traversal of the graph and care is required to keep track of nodes we
-have already visited and nodes that we are currently visiting.
+% 
+But if symbolic links are followed we are traversing a graph and
+we need to keep track of the nodes we already visited to avoid loops.
 
-Each process has a current working directory. It is possible to check what
-this is using the function \indexlibvalue{Unix}{getcwd} and it can
-be changed by passing a desired target directory to
-\indexlibvalue{Unix}{chdir}.  It is also possible to constrict the view
-of the file hierarchy using \indexlibvalue{Unix}{chroot}\ml+ p+ which
-makes the node \ml+p+, which should be a directory, the root of the 
-of a restricted view of the hierarchy.  Absolute file paths
-are then interpreted in accordance with the new root (trying to access
-the path \ml+..+ from the root of the chroot is not possible).
+Each process has a current working directory. It is returned by the
+function \indexlibvalue{Unix}{getcwd} and can be changed with
+\indexlibvalue{Unix}{chdir}.  It is also possible to constrict the
+view of the file hierarchy by calling 
+\indexlibvalue{Unix}{chroot} \ml+p+. This makes the node \ml+p+, which 
+should be a directory, the root of the restricted view of the
+hierarchy. Absolute file paths are then
+interpreted according to this new root \ml+p+ (and of course \ml+..+ at the
+new root is \ml+p+ itself).
 
 \section{File names, file descriptors}
 
-There are two methods of accessing a file.  The first is by its
-\emph{name}, or \emph{file access path} in the file system hierarchy.
-A file can have many different names as a result of hard links.
-The names are represented by strings of characters (type \ml+string+). 
-Here are some examples of system calls that operate on the file name level. 
-
-\syscall{unlink}, \syscall{link}, \syscall{symlink} and \syscall{rename} 
+There are two ways to access a file.  The first is by its \emph{name}
+(or \emph{file path} in the file system hierarchy.  Due to hard links,
+a file can have many different names.  Names are represented by
+character strings (type \ml+string+). For example the system calls
+\syscall{unlink}, \syscall{link}, \syscall{symlink} and
+\syscall{rename} operate at the file name level.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{unlink}$ : string -> unit
