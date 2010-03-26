@@ -182,7 +182,7 @@ new root is \ml+p+ itself).
 There are two ways to access a file.  The first is by its \emph{file
   name} (or \emph{path name}) in the file system hierarchy.  Due to
 hard links, a file can have many different names.  Names are
-represented by character strings (type \ml+string+). For example the
+represented by strings (type \ml+string+). For example the
 system calls \syscall{unlink}, \syscall{link}, \syscall{symlink} and
 \syscall{rename} all operate at the file name level.
 %
@@ -771,7 +771,7 @@ directory and detect the file that corresponds to \ml+r+.
 \section{Opening a file}
 
 The \ml+openfile+ function allows us to obtain a descriptor on
-a file with a specific name (the corresponding system call
+a file of a given name (the corresponding system call
 is \syscall{open}, however \ml+open+ is a keyword in {\ocaml}).
 %
 \begin{codefile}{tmpunix.mli}
@@ -782,18 +782,17 @@ type open_flag = Unix.open_flag;;
 val $\libvalue{Unix}{openfile}$ : 
  string -> open_flag list -> file_perm -> file_descr
 \end{listingcodefile}
-%
+% 
 The first argument is the name of the file to open. The second
-argument is a list of flags held in the enumeration type 
-\libtype{Unix}{open\_flag}, and describe in what mode the file should
-be opened, and what to do if it does not exist.  The third argument of
-type \libtype{Unix}{file\_perm} defines the access permission rights  
-the file should be created with if that case occurs.  The result is a
-file descriptor pointing at the indicated file.  The position of the
-read/write cursor is initially fixed at the beginning of the file.
+argument, a list of flags from the enumerated type
+\libtype{Unix}{open\_flag}, describe the mode in which the file should
+be opened and what to do if it does not exist. The third argument of
+type \libtype{Unix}{file\_perm} defines the file's access rights
+should the file be created.  The result is a file descriptor on the
+given file name with the read/write position at the beginning of the
+file.
 
-The list of opening modes (second argument) should contain
-exactly one of the three following flags:
+The flag list must contain exactly one of the following flags:
 %
 \begin{mltypecases}
 \begin{tabular}{@{}ll}
@@ -802,17 +801,14 @@ exactly one of the three following flags:
 \ml+O_RDWR+ & Open in read and write mode.
 \end{tabular}
 \end{mltypecases}
-%
-These flags specify whether the file is being read from, written
-to or whether both operations are allowed during the following
-operations on the descriptor. The call
-\ml+openfile+ fails if a process that does not have write permission
-tries to open a file in write mode or if it tries to open a file 
-in read mode on which the process does not have read permissions.
-This is one reason why one should not open systematically in \ml+O_RDWR+.
+% 
+These flags determine whether read or write calls can be done on the
+descriptor. The call \ml+openfile+ fails if a process asks to open a
+file in write (resp. read) mode on a file on which it has no right to
+write (resp. read). For this reason \ml+O_RDWR+ should not be used
+systematically.
 
-The list of opening modes may contain more than one or many flags
-among them the following:
+The flag list can also contain one or more of the following values:
 %
 \begin{mltypecases}
 \begin{tabular}{@{}ll}
@@ -835,156 +831,144 @@ among them the following:
 \ml+O_RSYN+ & Perform the reads in synchronous mode. 
 \end{tabular}
 \end{mltypecases}
-% 
-The first group defines the following behavior according to whether
-the file exist or not.
+%
+The first group defines the behavior to follow according to whether
+the file exists or not. With:
 \begin{itemize}
-\item \ml+O_APPEND+ specifies that the read/write cursor 
-should be positioned at the end of the file before the first write,
-and that all the writes are appended to the end 
-of the file. Without  \ml+O_APPEND+, the writes occur
-at the current position (initially, the beginning of the file).  
+\item \ml+O_APPEND+, the read/write position will be set at the end of
+  the file before each write. Consequently any data written will be
+  added at the end of file. Without \ml+O_APPEND+, writes occur at the
+  current position (initially, the beginning of the file).
 
-\item \ml+O_TRUNC+ specifies that the file is truncated when it
-is opened.  The length of the file is reduced to zero and the bytes
-contained in the file are lost.  The writes start again
-on an empty file.  On the contrary, without \ml+O_TRUNC+, the writes are
-made at the start of the file overwriting any data that may already be
-there.
+\item \ml+O_TRUNC+, the file is truncated when it
+is opened. The length of the file is set to zero and the bytes
+contained in the file are lost. The writes start from an empty file. 
+Without \ml+O_TRUNC+, the writes are made at the start of the file
+overwriting any data that may already be there.
 
-\item \ml+O_CREAT+ specifies that if the file does not already exist, 
-the file should be created (initially with zero size), and with access rights
-given by the third argument and modified by the creation mask
-of the process (the creation mask can be queried and is modifiable through the
-function \syscall{umask},
-as well as through the system call of the same name). 
+\item \ml+O_CREAT+, creates the file if it does not exist. The created
+  file is empty with access rights specified by the third argument 
+  and the creation mask of the process (the mask can be retrevied 
+  and changed with \libvalue{Unix}{umask}).
 
-\item \ml+O_EXCL+ specifies that \ml+openfile+ should fail if the file 
-already exists.  This flag, when used in conjunction with \ml+O_CREAT+
-allows the use of files as (\emph{locks}).
-%
-\footnote{This is not possible if the lock file is located on a
-  \textsc{nfs} partition, because \textsc{nfs} does not implement the
-  option \ml+O_CREAT+ of \ml+open+.}
-%
-correctly.  A process which wants to take the lock calls \ml+openfile+
-on the file with the modes \ml+O_EXCL+ and \ml+O_CREAT+. If the file
-already exists, this signifies that another process has the lock.  In
-this case, \ml+openfile+ triggers an error and it is necessary to wait
-a little and then re-try. If the file does not exist \ml+openfile+
-returns without error and the file is created. preventing the other
-processes from taking the lock. To release the lock the process that
-has it calls \ml+unlink+ on it. The creation of a file is an atomic
-operation. If two processes attempt to create the same file in
-parallel with the options \ml+O_EXCL+ and \ml+O_CREAT+, only one of
-the two can carry it out.  Clearly, this method is not very
-satisfactory because for one part the process that does not have the
-lock has to wait.  For another, a process may terminate abnormally and
-leave the lock blocked.
+\item \ml+O_EXCL+, \ml+openfile+ fails if the file already exists.
+  This flag, used in conjunction with \ml+O_CREAT+ allows to use
+  files as \emph{locks}\footnote{This is not possible if the lock file
+    is located on a \textsc{nfs} partition, because \textsc{nfs} does
+    not implement the option \ml+O_CREAT+ of \ml+open+.}.  A process
+  which wants to take the lock calls \ml+openfile+ on the file with
+  \ml+O_EXCL+ and \ml+O_CREAT+. If the file already exists, this means
+  that another process already holds the lock and \ml+openfile+ raises
+  an error. If the file does not exist \ml+openfile+ returns without
+  error and the file is created, preventing other processes from
+  taking the lock. To release the lock the process that holds it calls
+  \ml+unlink+ on it. The creation of a file is an atomic operation: if
+  two processes try to create the same file in parallel with the
+  options \ml+O_EXCL+ and \ml+O_CREAT+, at most one of them can
+  succeed. The drawbacks of this technique is that a process must
+  busy wait to acquire a lock that is currently hold and
+  the abnormal termination of a process holding a lock may never
+  release it.
 \end{itemize}
 
-
 \begin{example} 
-Most programs take \ml+0o666+ as the third argument
-of \ml+openfile+, that is to say \ml+rw-rw-rw-+ in symbolic notation. 
-With the standard creation mask of \ml+0o022+, the
-file is then created with the permissions \ml+rw-r--r--+. With a more 
-secure mask of \ml+0o002+, the file is created with the permissions 
+Most programs use \ml+0o666+ for the third argument
+to \ml+openfile+. This means \ml+rw-rw-rw-+ in symbolic notation. 
+With the default creation mask of \ml+0o022+, the
+file is thus created with the permissions \ml+rw-r--r--+. With a more 
+lenient mask of \ml+0o002+, the file is created with the permissions 
 \ml+rw-rw-r--+.
 \end{example}
 \label{page/lock}
 
 \begin{example} 
-To prepare to read a file:
+To read from a file:
 %
 \begin{lstlisting}
 openfile filename [O_RDONLY] 0
 \end{lstlisting}
 %
-The third argument is ignored when \ml+O_CREAT+ is not specified. 
-The convention is \ml+0+ when we want to write a file where
-there is none and do not care what it will eventually
-contain:
+The third argument can be anything as \ml+O_CREAT+ is not specified, 0
+is usually given.
+
+To write to an empty a file without caring about any previous content:
 %
 \begin{lstlisting}
 openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o666
 \end{lstlisting}
 %
-If we open a file which is meant to contain executable code (the case of 
-files created through \ml+ld+), or a script of commands, we add 
-execution permissions in the third argument.
+If the file will contain executable code (\eg files
+created by \ml+ld+, script), we create it with execution permissions:
 %
 \begin{lstlisting}
 openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o777
 \end{lstlisting}
 %
-If the file that we open is meant to be  confidential, such as for example the
-files \quotes{mailbox} where \ml+mail+ stores 
-read messages, we create it with restricted reading permissions and give write permissions  
-only to the owner:
+If the file must be confidential (\eg \quotes{mailbox} files where
+\ml+mail+ stores read messages), we create it with write permissions
+only the user owner:
 %
 \begin{lstlisting}
 openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o600
 \end{lstlisting}
 %
-To prepare to add data to the end of an existing file and
-to create an empty one if the file does not exist:
+To append data at the end of an existing file or create it empty if it 
+doesn't exist:
 %
 \begin{lstlisting}
 openfile filename [O_WRONLY; O_APPEND; O_CREAT] 0o666
 \end{lstlisting}
 \end{example}
 
-The \ml+O_NONBLOCK+ flag guarantees that if the file is opened as a named pipe
-or special file then the opening of the file as well 
-as the external reads and writes are made in non-blocking mode.
+The \ml+O_NONBLOCK+ flag guarantees that if the file is a named pipe
+or a special file then the file opening and subsequent reads and
+writes will be non-blocking.
 
-The \ml+O_NOCTYY+ flag guarantees that if the file is opened from a terminal 
-(keyboard, window, \etc), it does not become the controlling terminal
-of the calling process.
+The \ml+O_NOCTYY+ flag guarantees that if the file is a control
+terminal (keyboard, window, \etc), it won't become the controlling
+terminal of the calling process. 
 
-The last group of flags show how to synchronize 
+The last group of flags specifies how to synchronize 
 read and write operations. By default these operations are not
-synchronized.
+synchronized. With:
 \begin{itemize}
-\item\ml+O_DSYNC+ specifies that data is written 
-synchronously in such a manner that the process is blocked 
-and does not return until all the writes have been done
-physically on the media (usually disk).
-
-\item\ml+O_SYNC+ specifies that the file data and the information about the file 
-are synchronized.
-
-\item\ml+O_RSYNC+ when used with \ml+O_DSYNC+ specifies that the data
-reads are also synchronized. It is guaranteed that all current writes
-(requested but not necessarily 
-registered) to the file are actually written to the media before the
-next read.  If \ml+O_RSYNC+ is provided with  \ml+O_SYNC+ the above
-applies equally to the information about the file.
+\item\ml+O_DSYNC+, the data is written synchronously such that
+  the process is blocked until all the writes have been done
+  physically on the media (usually a disk). 
+%
+\item\ml+O_SYNC+, the file data and its meta-attributes are written 
+  synchronously.
+%
+\item\ml+O_RSYNC+, with \ml+O_DSYNC+ specifies that the data reads are
+  also synchronized: it is guaranteed that all current writes
+  (requested but not necessarily performed) to the file are really
+  written to the media before the next read.  If \ml+O_RSYNC+ is
+  provided with \ml+O_SYNC+ the above also applies to meta-attributes
+  changes.
 \end{itemize}
 
 
 \section{Reading and writing}
 
-The system calls \syscall{read} and \syscall{write} allow the reading
-and writing of bytes in a file. For historical reasons, the system call \ml+write+ 
-is provided in {\ocaml} under the name \ml+single_write+:
+The system calls \syscall{read} and \syscall{write} read and write
+bytes in a file. For historical reasons, the system
+call \ml+write+ is provided in {\ocaml} under the name
+\ml+single_write+:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{read}$  : file_descr -> string -> int -> int -> int
 val $\libvalue{Unix}{single\_write}$ : file_descr -> string -> int -> int -> int
 \end{listingcodefile}
-%
-The two calls \ml+read+ and \ml+single_write+ have the same 
-interface. The first argument is the open file descriptor.  The second
-argument is a character string which contains the bytes to be written 
-(in the case of \ml+single_write+), or where the bytes read will be stored
-(in the case of \ml+read+). The third argument is the position of the first byte
-to be written or read. The fourth argument is the number of the bytes to be read or written.
-The third and fourth argument thus represent a sub-string of the character string
-passed in as the second argument. (This sub-string should not go beyond the end
-of the string; \ml+read+ and \ml+single_write+ do not check this fact.)
-
+% 
+The two calls \ml+read+ and \ml+single_write+ have the same
+interface. The first argument is the file descriptor to act on.  The
+second argument is a string which will hold the read bytes (for
+\ml+read+) or the bytes to write (for \ml+single_write+). The third
+argument is the position in the string of the first byte to be written
+or read. The fourth argument is the number of the bytes to be read or
+written. In fact the third and fourth argument define a sub-string of
+the second argument (the sub-string should be valid, \ml+read+ and
+\ml+single_write+ do not check this.)
 %
 \begin{myimage}[width="85\%"]
 \begin{tikzpicture}[font={\ttfamily}]
@@ -1004,49 +988,42 @@ of the string; \ml+read+ and \ml+single_write+ do not check this fact.)
 \end{tikzpicture}
 \end{myimage}
 %
+\ml+read+ and \ml+single_write+ return the number of bytes actually
+read or written.
 
+Reads and write calls are performed from the file descriptor's current
+read/write position (if the file was opened in \ml+O_APPEND+ mode,
+this position is set at the end of the file prior to any
+writes). After the system call, the current position is advanced by
+the number of bytes read or written.
 
-\ml+read+ or \ml+single_write+ return the number of bytes actually read or written. 
+For writes, the number of bytes actually written is usually the number
+of bytes requested. However there are many exceptions to this
+behavior: (i) if it is not possible to write the bytes (\eg if the
+disk is full) (ii) the descriptor is pipe or socket in non-blocking
+mode (iii) due to {\ocaml} if the write is too large. 
 
-The reads and writes are started from the current position 
-of the read/write. (If the file was opened in \ml+O_APPEND+ mode,
-this position is the end of the file prior to any writes.) This 
-position is advanced by the number of bytes read or written.
+The reason for (iii) is that internally {\ocaml} uses auxiliary
+buffers whose size is bounded by a maximal value. If this value is
+exceeded the write will be partial. To work around this problem
+{\ocaml} also provides the function \libvalue{Unix}{write} which
+iterates the writes until all the data is written or an error occurs.
+The problem is that in case of error there's no way to know the number
+of bytes that were actually written. Hence \ml+single_write+ should be
+preferred because it preserves the atomicity of writes (we know
+exactly what was written) and it is more faithful to the original Unix
+system call (note that the implementation of \ml+single_write+ is
+described in section~\ref{single_write}).
 
-In the case of a write, the number of bytes actually written
-is normally the number of bytes requested, but there are many
-exceptions to this behavior: (i) In the case where it is not possible
-to write the bytes (for example, if the disk is full); (ii) When
-the write is on a descriptor of files opened on a pipe or
-a lock file placed in non-blocking input/output mode, the write
-could turn out to be partial; And lastly, (iii){\ocaml}, which makes
-a supplementary copy in a scratch buffer and writes on it, limits
-the size of the buffer to a maximum value ( which is in general the
-size used by the system for its own buffers) so as to avoid allowing
-buffers of too large a size ; if the number of bytes to write is 
-larger than this limit, then the write is necessarily partial 
-in the same way as if the system did not have enough resources to
-effect a complete write.
-
-To work around the problem of buffer limits, {\ocaml} also provides
-a function \ml+write+ which repeats many writes while there
-are no write errors.  However, in case of error,
-the function returns the error but we have no way of knowing 
-the number of bytes actually written. Instead we should use \ml+single_write+ 
-rather than \ml+write+ because it preserves atomicity.
-(So that we know exactly what it has written) and it is more faithful to
-the Unix system call (See likewise the implementation
-of \ml+single_write+ described in the following chapter 
-~\ref{single_write}).
-
-In the following chapter, we shall see that when we write to a 
-file descriptor which refers to a pipe or a lock file placed
-in input/output blocking mode and which is then interrupted by a signal,
-the call \ml+single_write+ returns an error \ml+EINTR+.
+%%% The french version has that here, but I don't think it belongs
+%%% here.
+%% In the following chapter, we shall see that when we write to a 
+%% file descriptor which refers to a pipe or a lock file placed
+%% in input/output blocking mode and which is then interrupted by a signal,
+%% the call \ml+single_write+ returns an error \ml+EINTR+.
   
-
 \begin{example} 
-Assume \ml+fd+ is linked to an open descriptor which is writing. 
+Assume \ml+fd+ is a descriptor open in write-only mode. 
 %
 \begin{lstlisting}
 write fd "Hello world!" 3 7
@@ -1056,31 +1033,28 @@ writes the characters \ml+"lo worl"+ in the corresponding file,
 and returns 7.
 \end{example}
 
-In the case of a read, it is possible that the number of bytes actually read may 
-be less than the number of bytes requested.
+For reads, it is possible that the number bytes actually read is
+smaller than the number of requested bytes. For example when the end
+of file is near, that is when the number of bytes between the current
+position and the end of file is less than the number of requested
+bytes. In particular, when the current position is at the end of file,
+\ml+read+ returns zero. The convention \quotes{zero equals end of
+  file} also holds for special files, pipes and sockets. For example,
+\ml+read+ on a terminal returns zero if we send a \ml+ctrl-D+ at the
+start of a line.
 
-Firstly, when the end of a file
-is near, that is to say, when the number of bytes between the current position
-and the end of the file is less than the number of bytes requested. Specially,
-when the current position is at the end of the file, \ml+read+ returns zero.
-This convention \quotes{zero equals end of file} is also applied when reading
-from a special (device) file or communication devices. For example, \ml+read+
-on a terminal returns zero if one hits \ml+ctrl-D+ at the start of a line. 
-
-Secondly, the number of bytes read may be less than the number of bytes
-requested.  When one reads from a special file such as a terminal, or
-from a communication devices such as a pipe or a lock file. For example,
-when we read from a terminal, \ml+read+ blocks until an entire line is available.
-(This is the default behavior of a terminal;
-we can also place the terminal in character-by-character read mode instead of
-line-by-line. See section~\ref{sec/speciaux} and the type \libtype{Unix}{terminal\_io}
-for all the details.)
-If the length of the line exceeds the number of bytes requested, \ml+read+ returns
-the number of bytes requested. 
+Another example is when we read from a terminal. In that case,
+\ml+read+ blocks until an entire line is available. If the line length
+is smaller than the requested bytes \ml+read+ returns immediatly with
+the line without waiting for more data to reach the number of
+requested bytes. (This is the default behavior for terminals, but it
+can be changed so that data is read character-by-character instead of
+line-by-line, see section~\ref{sec/speciaux} and the type
+\libtype{Unix}{terminal\_io} for more details.)
 
 \begin{example} 
-The following expression reads at most 100 characters from standard input
-and returns the character string read. 
+The following expression reads at most 100 characters from standard
+input and returns them as a string.
 %
 \begin{lstlisting}
 let buffer = String.create 100 in
@@ -1090,13 +1064,10 @@ let n = read stdin buffer 0 100 in
 \end{example}
 
 \begin{example} 
-
 The function \ml+really_read+ below has the same interface as
-\ml+read+, but makes additional read attempts if necessary to try to
-get the requested number of bytes. It raises the exception
-\ml+End_of_file+ if it encounters the end of the file while doing
-this.
-
+\ml+read+, but makes additional read attempts to try to get
+the number of requested bytes. It raises the exception
+\ml+End_of_file+ if the end of file is reached while doing this.
 %
 \begin{lstlisting}
 let rec really_read fd buffer start length =
