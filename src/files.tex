@@ -721,7 +721,7 @@ find A B -follow -maxdepth 10 | diff - find.out
 rm find.out
 \end{codefile}
 
-Although our \ml+find+ command is quite restricted, the library
+Although our \ml+find+ command is quite limited, the library
 function \ml+FindLib.find+ is far more general, as the following
 exercise shows.
 \begin{exercise}
@@ -1081,28 +1081,31 @@ let rec really_read fd buffer start length =
 
 \section{Closing a descriptor}
 
-The system call \syscall{close} closes the descriptor passed in as the argument.
+The system call \syscall{close} closes a given descriptor.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{close}$ : file_descr -> unit
 \end{listingcodefile}
-%
-Once a descriptor is closed, all attempts to read, write, or
-to do anything whatever with the descriptor will fail. Descriptors should be
-closed when they are no longer needed. In contrast to what occurs 
-with the standard library \ml+Pervasives+, this is not obligatory.
-In particular, it is not necessary to close descriptors in order to ensure
-that attempted writes have been carried out: the writes made with 
-\ml+write+ are immediately transmitted to the pipe. On the other hand,
-the number of descriptors that a process can allow is limited by the pipe
-(several hundreds to some thousands). Doing a \ml+close+ on an unused 
-descriptor releases it, so that the process does not run out of descriptors.
+% 
+
+Once a descriptor is closed, all attempts to read, write, or do
+anything else with the descriptor will fail. Descriptors should be
+closed when they are no longer needed; but it is not mandatory. In
+particular, and in contrasts to what happen with \ml+Pervasives+'
+channels, a file descriptor doesn't need to be closed to ensure that
+all pending writes have been peformed as write requests made with
+\ml+write+ are immeditely transmitted to the kernel. On the other
+hand, the number of descriptors allocated by a process is limited by
+the kernel (from several hundreds to thousands). Doing a \ml+close+ on
+an unused descriptor releases it, so that the process does not run out
+of descriptors.
 
 \section{Complete example: file copy}
 \label{ex/filecopy}
-We will write a function \ml+file_copy+, with two arguments
-\ml+f1+ and \ml+f2+,  which will copy the contents of the file named \ml+f1+
-to a file named \ml+f2+.
+
+We program a command \ml+file_copy+ which, given two arguments 
+\ml+f1+ and \ml+f2+, copies in the file \ml+f2+ the bytes contained 
+in \ml+f1+.
 %
 \begin{listingcodefile}{file_copy.ml}
 open Unix;;
@@ -1142,37 +1145,38 @@ handle_unix_error copy ();;
 \end{listingcodefile}
 %
 
-The core of the work is done in lines 6-15 of the function \ml+file_copy+.
-We begin by opening a single read descriptor on the input file
-and a single write descriptor on the output file.
-If the output file already exists, it is truncated (option \ml+O_TRUNC+). 
-If it does not exist it is created (option \ml+O_CREAT+), with
-the permissions \ml+rw-rw-rw-+ modified through the creation mask. (
-This is unsatisfactory: if we are copying an executable file, we would
-like the copy to also be executable. We will see later how to 
-attribute to a copy the same access permissions as the original.)
-In Lines 9-13, in the function \ml+copy_loop+, we carry out the copy with character blocks of size 
-\ml+buffer_size+  . We request a read of  \ml+buffer_size+
-characters. If \ml+read+ returns zero, it means that we have reached 
-the end of the input file and the copy is terminated. Otherwise, we write
-the \ml+r+ bytes which we have read into the output file and start again.
+The bulk of the work is performed by the the function \ml+file_copy+.
+First we open a descriptor in read-only mode on the input file and
+another in write-only mode on the output file. 
 
-Finally, we close the two descriptors. The main program
-\ml+copy+ verifies that the program has received two arguments and passes them to the function
-\ml+file_copy+.
+If the output file already exists, it is truncated (option
+\ml+O_TRUNC+) and if it does not exist it is created (option
+\ml+O_CREAT+) with the permissions \ml+rw-rw-rw-+ modified by creation
+mask. (This is unsatisfactory: if we copy an executable file, we would
+like the copy to be also executable. We will see later how to give
+a copy the same permissions as the original).
 
-While copying, all errors result in a \ml+Unix_error+ exception
-which is propagated to the highest level of the program or is intercepted
-and displayed by \ml+handle_unix_error+.
-Examples of such errors include
-not being able to open the input file because it does not exist,
-the process does not have read permission on the file and
-the failure of a write for lack of disk space.
+In the \ml+copy_loop+ function we do the copy by blocks of
+\ml+buffer_size+ bytes. We request \ml+buffer_size+ bytes to read. If
+\ml+read+ returns zero, we have reached the end of file and the copy
+is over. Otherwise we write the \ml+r+ bytes we have read in the
+output file and start again.
+
+Finally, we close the two descriptors. The main program \ml+copy+
+verifies that the command received two arguments and passes them to
+the function \ml+file_copy+.
+
+Any error occuring during the copy results in a \ml+Unix_error+
+exception which is propagated up to \ml+handle_unix_error+ which
+catches and prints it. Example of errors include not being able to
+open the input file because it does not exist, failure to read because
+of restricted permissions, failure to write because the disk is full,
+\etc
 
 \begin{exercise} 
 Add an option \ml+-a+ to the program, such that 
 \ml+file_copy -a f1 f2+ appends the contents of \ml+f1+ to the end of
-the file \ml+f2+ if \ml+f2+ exists. 
+the file \ml+f2+. 
 \end{exercise}
 \begin{answer}
 If the option \ml+-a+ is supplied, we need to do 
@@ -1187,19 +1191,16 @@ instead of
 openfile output_name [O_WRONLY; O_CREAT; O_TRUNC] 0o666
 \end{lstlisting}
 %
-The analysis of the option is left to the reader.
+Parsing the new option from the command line is left to the reader. 
 \end{answer}
 
-\section{The cost of system calls.  The buffers.}
+\section{The cost of system calls. The buffers.}
 
-In the example \ml+file_copy+, the reads were made in blocks of 8192
-bytes. Why not read byte by byte? Or megabyte by megabyte?
-It is done for reasons of efficiency. Figure~\ref{fig/copy-speed}
-shows the speed of copy, in bytes per second of the program
-\ml+file_copy+, when we vary the size of the blocks (the variable
-\ml+buffer_size+) from 1 byte to 8 megabytes the speed doubles each
-time.
-
+In the example \ml+file_copy+, reads were made in blocks of 8192
+bytes. Why not read bytes per by bytes, or megabytes per by megabytes?
+For efficiency reasons. Figure~\ref{fig/copy-speed} shows the copy
+speed of \ml+file_copy+, in bytes per second, against the size of
+blocks (the value \ml+buffer_size+).
 \begin{myfigure}
 \begin{myimage}[width="100\%"]
 \begin{tikzpicture}[font=\tiny]
@@ -1231,35 +1232,33 @@ time.
 \label{fig/copy-speed}
 \end{myfigure}
 
-For small block sizes, the copy speed is almost proportional
-to the block size. While the amount of data transferred is the same
-regardless of the size of the blocks. More specifically, the bulk of the 
-time is not spent on transferring data but in the execution 
-of the loop \ml+copy_loop+ and in the calls \ml+read+ and \ml+write+.
-After measuring more finely, we see that it is the calls \ml+read+ and
-\ml+write+ which take most of the time. We conclude then that a system 
-call, while it does not have much to do (\ml+read+ read of one character),
-takes a minimum of about 4 micro-seconds of time (on the machine that was
-used for the test~---~a 2.8 GHz Pentium 4 ), let us say 1 to 10 microseconds.
-For the input/output blocks of small size, the duration of the system call
-is what predominates.  
+For small block sizes, the copy speed is almost proportional to the
+block size. But the amount of data transferred is the same regardless
+of the size of the blocks. The bulk of the time is not spent in data
+transfers but in the execution of the loop \ml+copy_loop+ and in the
+calls to \ml+read+ and \ml+write+. By profiling more carefully we can
+see that most of the time is spent in the calls to \ml+read+ and
+\ml+write+. We conclude then that a system call, even if it has not
+much to do (\ml+read+ read of one character), takes a minimum of about
+4 micro-seconds (on the machine that was used for the test~---~a 2.8
+GHz Pentium 4 ), let us say 1 to 10 microseconds.  For small
+input/output blocks, the duration of the system call is what
+dominates.
   
-For larger blocks, between 4K and 1M, speed is constant and 
-optimal. Here, the time spent on system calls and the copy loop
-is a little more than the time spent on the transfer of data.
-Ideally, the size of the buffer should be bigger than 
-the size of the caches used by the system and the time taken by the 
-system to manage the transfer should predominate over the cost of 
-a system call. \footnote{In fact, {\ocaml} limits the size of data
-transfers to 16K (in the current version) in repeat multiple 
-\ml+write+ system calls to carry out the complete transfer~---~see 
-the discussion in the section \ref{single_write}. But this limit is 
-the at the same point as the size of the system caches and is not observable.}
+For larger blocks, between 4KB and 1MB, the copy speed is constant and
+maximal. Here, the time spent in system calls and the loop is small
+relative to the time spent on in the data transfer. Also the buffer
+size becomes bigger than the cache sizes used by the system and the
+time spent by the system to make the transfert dominates the cost of a
+system call\footnote{In fact, {\ocaml} limits the size of data
+  transfers to 16KB (in the current version) and repeats \ml+write+
+  system calls to make the complete transfer~---~see the discussion in
+  section~\ref{single_write}. But this limit is bigger than the
+  size of system caches and it not observable.}
 
-Finally, for very large blocks (8M and more) the speed is slightly
-less than optimal.  Coming into play here is the time needed to
-allocate the block and to assign pages to it as it goes along and
-fills up real memory.
+Finally, for very large blocks (8MB and more) the speed is slightly
+under the maximum.  Coming into play here is the time needed to
+allocate the block and assign memory pages to it as it fills up.
 
 \begin{codefile}{speed_write.c}
 #include <errno.h>
@@ -1333,23 +1332,21 @@ wq
 \end{codefile}
 % $
 
-Moral:  A system call, even if it does very little work, costs
-dearly~---~much more dearly than a normal function call: roughly,
-2 to 20 microseconds for each system call, depending on the
-the architecture. It is therefore important to avoid 
-making system calls too frequently. If possible, read and write 
-operations should be made in blocks of sufficient size and not
-character by character.
+Moral of the story, a system call, even if it does very little work,
+costs dearly~---~much more than a normal function call: roughly, 2 to
+20 microseconds for each system call, depending on the the
+architecture. It is therefore important to minimize de number of
+system calls. In particular, read and write operations should be made
+in blocks of reasonable size and not character by character.
 
-In examples such as \ml+file_copy+, it is not difficult to do
-input/ouput with large blocks. On the other hand, other types 
-of programs are more naturally written with character by character
-input (\eg{} reading a line from a file, lexical analysis \etc), and
-displaying some characters at once (\eg{} displaying a name). 
-To satisfy the needs of these programs, most systems provide
-input/output libraries with an additional layer of software between
-the application and the operating system. For example, in {\ocaml} the
-\ml+Pervasives+ module of the standard library defines the abstract
+In examples like \ml+file_copy+, it is not difficult to do input/ouput
+with large blocks. But other types of programs are more naturally
+written with character by character input (\eg{} reading a line from a
+file, lexical analysis \etc), and displaying some characters at once
+(\eg{} display a number).  To satisfy the needs of these programs,
+most systems provide input/output libraries with an additional layer
+of software between the application and the operating system. For
+example, in {\ocaml} the \ml+Pervasives+ module defines the abstract
 types \libtype{Pervasives}{in\_channel} and
 \libtype{Pervasives}{out\_channel}, similar to file descriptors, and
 functions on these types like \libvalue{Pervasives}{input\_char},
@@ -1360,8 +1357,8 @@ group sequences of character by character reads or writes into a
 single read or write. This results in better performance for programs
 that proceed character by character.  Moreover this additional layer
 makes programs more portable: we just need to implement this layer
-with the system calls provided by another operating system to port the
-all the programs that use this library on this new platform.
+with the system calls provided by another operating system to port all
+the programs that use this library on this new platform.
 
 \section{Complete example: a small input/output library}
 
