@@ -853,7 +853,8 @@ overwriting any data that may already be there.
 
 \item \ml+O_EXCL+, \ml+openfile+ fails if the file already exists.
   This flag, used in conjunction with \ml+O_CREAT+ allows to use
-  files as \emph{locks}\footnote{This is not possible if the lock file
+  files as \emph{locks}\label{page/lock}
+  \footnote{This is not possible if the lock file
     is located on a \textsc{nfs} partition, because \textsc{nfs} does
     not implement the option \ml+O_CREAT+ of \ml+open+.}.  A process
   which wants to take the lock calls \ml+openfile+ on the file with
@@ -879,7 +880,6 @@ file is thus created with the permissions \ml+rw-r--r--+. With a more
 lenient mask of \ml+0o002+, the file is created with the permissions 
 \ml+rw-rw-r--+.
 \end{example}
-\label{page/lock}
 
 \begin{example} 
 To read from a file:
@@ -1362,8 +1362,8 @@ the programs that use this library on this new platform.
 
 \section{Complete example: a small input/output library}
 
-Here is an implementation of a part of the {\ocaml} \ml+Pervasives+ library to illustrate read/write
-techniques by buffer. The interface is the following:
+To illustrate the bufferized \io techniques, we implement a fragment
+of {\ocaml} \ml+Pervasives+' channels. Here is the interface:
 %
 \begin{listingcodefile}{io.mli}
 exception End_of_file
@@ -1379,8 +1379,8 @@ val output_char : out_channel -> char -> unit
 val close_out : out_channel -> unit
 \end{listingcodefile}
 %
-We start with the \quotes{read} part. The abstract type 
-\ml+in_channel+ is implemented as follows: 
+We start with the \quotes{input} part. The abstract type 
+\ml+in_channel+ is defined as follows: 
 %
 \begin{listingcodefile}{io.ml}
 open Unix;;
@@ -1393,12 +1393,11 @@ type in_channel =
 exception End_of_file
 \end{listingcodefile}
 %
-
-The character string in the field \ml+in_buffer+ is literally the buffer.
-The field \ml+in_fd+ is a file descriptor 
-(Unix), opened on the file during the read. The field 
-\ml+in_pos+ is the current position of the read cursor in the buffer .  The
-field \ml+in_end+ is the number of valid characters in the buffer.
+The character string of the \ml+in_buffer+ field is, literally, the
+buffer.  The field \ml+in_fd+ is a (Unix) file descriptor, opened on
+the file to read. The field \ml+in_pos+ is the current read position
+in the buffer.  The field \ml+in_end+ is the number of valid
+characters preloaded in the buffer.
 %
 \begin{myimage}[width="85\%"]
 \begin{tikzpicture}
@@ -1413,7 +1412,7 @@ field \ml+in_end+ is the number of valid characters in the buffer.
 \path[draw] (-1,0) rectangle +(6, 0.5);
 \node[anchor=east] at (-1.1,0.25) {\texttt{in\_buffer}};
 
-\node (fdpos) at (4,3.75) {read cursor of \texttt{in\_fd}};
+\node (fdpos) at (4,3.75) {read position of \texttt{in\_fd}};
 \draw[->] (fdpos.south) to (4,3);
 
 \node (ipos) at (1,-0.75) {\texttt{\phantom{d}in\_pos\phantom{d}}};
@@ -1422,9 +1421,8 @@ field \ml+in_end+ is the number of valid characters in the buffer.
 \draw[->] (iend.north) to (4,0);
 \end{tikzpicture}
 \end{myimage}
-
-The field \ml+in_pos+ and \ml+in_end+ will be modified in place during 
-read operations ; we therefore declare then as \ml+mutable+.
+The fields \ml+in_pos+ and \ml+in_end+ will be modified in place during 
+read operations; we therefore declare then as \ml+mutable+.
 %
 \begin{listingcodefile}{io.ml}
 let buffer_size = 8192;;
@@ -1435,13 +1433,12 @@ let open_in filename =
     in_end = 0 };;
 \end{listingcodefile}
 %
-At the opening of a file in read mode, we create a buffer of
-reasonable size (large enough so as not to make too many
-system calls; small enough so as not to waste memory). We
-then initialize the field \ml+in_fd+ with a Unix file descriptor
-opened in read mode on the file in question. The 
-buffer is initially empty (It does not contain any characters from the file); 
-the field \ml+in_end+ is therefore initialized to zero.
+When we open a file for reading, we create a buffer of reasonable size
+(large enough so as not to make too many system calls; small enough so
+as not to waste memory). We then initialize the field \ml+in_fd+ with
+a Unix file descriptor opened in read-only mode on the given file. The
+buffer is initially empty (it does not contain any character from the
+file); the field \ml+in_end+ is therefore initialized to zero.
 %
 \begin{listingcodefile}{io.ml}
 let input_char chan =
@@ -1458,46 +1455,45 @@ let input_char chan =
   end;;
 \end{listingcodefile}
 %
-
-To read a character from \ml+in_channel+, we do one of two things. 
-Where there is at least one character in the buffer;
+To read a character from an \ml+in_channel+, we do one of two things. 
+Either there is at least one character in the buffer;
 that is to say, the field \ml+in_pos+ is less than the field 
-\ml+in_end+. Then we return the next character in the buffer, that which
-is in position  \ml+in_pos+, and we increment \ml+in_pos+. Where the buffer
-is empty. We make a system call \ml+read+ to refill the 
-buffer. If \ml+read+ returns zero, that means we have reached 
-the end of the file so we then raise an \ml+End_of_file+ exception. Otherwise,
-we put the number of characters read in the field \ml+in_end+. (We could 
-have received less characters than we requested, and thus the buffer 
-could have been partially refilled.) Then we return the first of the  
-characters read.
+\ml+in_end+. We then return the next character in the buffer, 
+the one located at \ml+in_pos+, and we increment \ml+in_pos+. Or the
+buffer is empty and we call \ml+read+ to refill the 
+buffer. If \ml+read+ returns zero, we have reached 
+the end of the file and we raise the exception \ml+End_of_file+. Otherwise,
+we put the number of characters read in the field \ml+in_end+ (we may
+receive less characters than we requested and thus the buffer may be
+only partially refilled) and we return the first character read.
 %
 \begin{listingcodefile}{io.ml}
 let close_in chan =
   close chan.in_fd;;
 \end{listingcodefile}
 %
-The closing of an \ml+in_channel+ is reduced to the closing of the underlying Unix descriptor. 
+Closing an \ml+in_channel+ just closes the underlying Unix file descriptor. 
 
-The \quotes{writing} part is very similar to the \quotes{reading} part. The 
-only asymmetry is that the buffer now contains incomplete writes 
-(characters that have already been buffered but not written to the file descriptor),
-and not reads in advance (characters that have buffered, but not yet read).
+The \quotes{output} part is very similar to the \quotes{input}
+part. The only asymmetry is that the buffer now contains incomplete
+writes (characters that have already been buffered but not written to
+the file descriptor), and not reads in advance (characters that have
+buffered, but not yet read).
 
 \begin{myimage}[width="85\%"]
 \begin{tikzpicture}
 \path[draw] (-3,2.5) rectangle +(10, 0.5);
 \node[anchor=east] at (-3.1,2.75) {\texttt{out\_fd}};
 \draw[dashed] (1,3) to node [left=2mm,text width=2cm,text centered] 
- {emptied, written characters} (1,0);
+ {written characters} (1,0);
 
 \draw[dashed] (4,3) to node [left,text width=2.5cm,text centered] 
- {non emptied, written characters} (4,0);
+ {written, but bufferized, characters} (4,0);
 
 \path[draw] (1,0) rectangle +(4, 0.5);
 \node[anchor=east] at (0.9,0.25) {\texttt{out\_buffer}};
 
-\node (fdpos) at (1,3.75) {write cursor of \texttt{out\_fd}};
+\node (fdpos) at (1,3.75) {write position of \texttt{out\_fd}};
 \draw[->] (fdpos.south) to (1,3);
 
 \node (opos) at (4,-0.75) {\texttt{out\_pos}};
@@ -1530,36 +1526,34 @@ let close_out chan =
   ignore (write chan.out_fd chan.out_buffer 0 chan.out_pos);
   close chan.out_fd;;
 \end{listingcodefile}
-%
+% 
+To write a character on an \ml+out_channel+, we do one of two things.
+Either the buffer is not full and we just store the character in the
+buffer at the position \ml+out_pos+ and increment that value. Or the
+buffer is full and we empty it with a call to \ml+write+ and then
+store the character at the beginning of the buffer.
  
-To write a character to an \ml+out_channel+, where the buffer 
-is not full, it suffices to store the character in the buffer
-in the position \ml+out_pos+, and to advance \ml+out_pos+; when 
-the buffer is full, we empty the buffer with 
-a call to \ml+write+, then we store the character to write at the beginning of 
-the buffer.
-
-When we close an \ml+out_channel+, we should not forget to dump  
-the buffer contents (the characters between the positions 0 included and 
-\ml+out_pos+ excluded) into the file. Otherwise, the writes 
-made after the last dump will be lost.
+When we close an \ml+out_channel+, we must not forget to write the
+buffer contents (the characters from 0 to \ml+out_pos - 1+) to the
+file otherwise the writes made on the channel since the last time
+the buffer was emptied would be lost.
 
 \begin{exercise} 
-Implement a function 
+Implement the function:
 %
 \begin{lstlisting}
 val output_string : out_channel -> string -> unit
 \end{lstlisting}
 %
-which behaves like a series of \ml+output_char+ on each 
+which behaves like a sequence of \ml+output_char+ on each 
 character of the string, but is more efficient.
 \end{exercise}
 \begin{answer}
-The idea is to copy the string to be output into the buffer. We need to 
-take into account the case where there is not enough space in the buffer
-(in that case the buffer needs to emptied), and also the case where the string is  
-longer than the buffer can hold (in that case it is necessary to write it directly). 
-Here is a possible solution. 
+The idea is to copy the string to output into the buffer. We need to
+take into account the case where there is not enough space in the
+buffer (in that case the buffer needs to emptied), and also the case
+where the string is longer than the buffer (in that case it can 
+be written directly). Here is a possible solution.
 %
 \begin{codefile}{ex2.ml}
 open Unix;;
@@ -1619,7 +1613,8 @@ rm ex2.out
 
 \section{Positioning}
 
-The system call \syscall{lseek} permits changing the current position of the read/write cursor.
+The system call \syscall{lseek} allows to set the current read/write
+position of a file descriptor.
 %
 \begin{codefile}{tmpunix.mli}
 type seek_command = Unix.seek_command
@@ -1629,38 +1624,37 @@ type seek_command = Unix.seek_command
 val $\libvalue{Unix}{lseek}$ : file_descr -> int -> seek_command -> int
 \end{listingcodefile}
 %
-
-The first argument is the first descriptor and the second argument is
-the position offset specifier. This is interpreted differently
-depending on the value of the third argument, which indicates the type
-of position desired:
+The first argument is the file descriptor and the second one the
+desired position. The latter is interpreted according to the value
+of the third argument of type \libtype{Unix}{seek\_command}. This
+enumerated type specifies the kind of position:
 %
 \begin{mltypecases}
 \begin{tabular}{@{}lp{0.8\textwidth}}
-\ml+SEEK_SET+ & Absolute position. The second argument is the
-index into the file, in characters, to position the pointer at. The
-first character of a file is at position zero. \\
+\ml+SEEK_SET+ & Absolute position. The second argument specifies
+the character number to point on. The first character of a file is at
+position zero.\\
 %
 \ml+SEEK_CUR+ & Position relative to the current position. 
-The second argument is a displacement relative to the  
-current position. This may be negative to move backwards or positive
-to move forwards. \\
+The second argument is an offset relative to the  
+current position. A positive value moves forward and a negative value
+moves backwards.\\
 %
 \ml+SEEK_END+ & Position relative to the end of file. The 
-second argument is a displacement relative to the end of file.
+second argument is an offset relative to the end of file.
 As for \ml+SEEK_CUR+, this may be negative as well as
 positive.
 \end{tabular}
 \end{mltypecases}
-%
-The value returned by \ml+lseek+ is the absolute position of the
-read/write cursor (after it has actually been positioned).
+% 
+The value returned by \ml+lseek+ is the resulting absolute
+read/write position.
 
-An error is triggered if the absolute position requested is negative.
-On the other hand, the position requested could well be located after
-the end of file. Right after such a positioning, a  \ml+read+
-returns zero (end of file reached); an \ml+write+ extends the file 
-from the zero up to the position requested, then writes the supplied data. 
+An error is raised if a negative absolute position is
+requested. However the requested position can be located after the end
+of file. After such a positioning, a \ml+read+ returns zero (end of
+file reached); a \ml+write+ extends the file with zero until the
+requested position and then writes the supplied data.
 
 \begin{example} 
 To position the cursor on the 1000th character of a file:
@@ -1675,53 +1669,50 @@ To rewind by one character:
 lseek fd (-1) SEEK_CUR
 \end{lstlisting}
 %
-To find the size of a file:
+To find out the size of a file:
 %
 \begin{lstlisting}
 let file_size = lseek fd 0 SEEK_END in ...
 \end{lstlisting}
 \end{example}
 
-For descriptors opened in \ml+O_APPEND+ mode, the read/write cursor is 
-automatically placed at the end of the file before each write. 
-Thus the call \ml+lseek+ is useless for writing 
-on such a descriptor. On the other hand, it is well taken into account
-by the read. 
+For descriptors opened in \ml+O_APPEND+ mode, the read/write position
+is automatically set at the end of the file before each write.  Thus
+a call \ml+lseek+ is useless to set the write position, it may however
+be useful to set the read position. 
 
-The behavior of \ml+lseek+ is unpredictable on certain type of files
-for which direct access is meaningless: communication devices (pipes, lock files),
-but also most special files (peripherals), such as for example the terminal.
-For most implementations of Unix, an \ml+lseek+ on such files 
-is simply ignored:  The read/write cursor is positioned 
-but read/write operations ignore it.
-In some implementations, \ml+lseek+ on a pipe or on a lock file
-triggers an error.
+The behavior of \ml+lseek+ is undefined on certain type of files for
+which absolute access is meaningless: communication devices (pipes,
+sockets) but also most special files (peripherals) like the terminal.
+In most Unix implementations a call to \ml+lseek+ on these files is
+simply ignored: the read/write position is set but read/write
+operations ignore it. In some implementations, \ml+lseek+ on a pipe or
+on a socket triggers an error.
 
 \begin{exercise}
 The command \ml+tail+ displays the $n$ last lines of a file.
-How should it be efficiently implemented if the file in question is
-a normal file? How should it be done to cope with other types of files?
-How to add the option \ml+-f+ (cf. \ml+man tail+)?
+How can it be implemented efficiently on regular files? What can we 
+do for the other kind of files? How can the option \ml+-f+ be
+implemented (cf. \ml+man tail+)?
 \end{exercise}
 \begin{answer}
-The naive implementation of \ml+tail+ is to read the file
-sequentially from the beginning keeping the last $n$ lines read in
-a circular buffer. When we reach the end of file, we display the buffer. 
+A naive implementation of \ml+tail+ is to read the file sequentially
+from the beginning, keeping the last $n$ lines read in a circular
+buffer. When we reach the end of file, we display the buffer.
 When the data comes from a pipe or a special file which
 does not implement \ml+lseek+, there is no better way.
-On the other hand, if the data is coming from a normal file,
-it would be better to read the file starting from the end: with 
-\ml+lseek+, we read the last 4096 characters:  We scan them for 
-the end of line;hr.  If there are at least $n$, we output and display
-the corresponding lines.  Otherwise, we start again with the preceding
-4096 characters, \etc
 
-To add the option \ml+-f+,it suffices to at once display the last 
-$n$ lines, to position the cursor at the end of the file and to
-attempt to read (through \ml+read+) starting from it. If \ml+read+
-succeeds to read something, we display it immediately and begin again.
-If \ml+read+ returns 0, we wait a little (\ml+sleep 1+) then 
-try again. 
+However if the data is coming from a normal file, it is better to read
+the file from the end. With \ml+lseek+, we read the last 4096
+characters. We scan them for the end of lines. If there are at least
+$n$ of them, we output and display the corresponding lines.
+Otherwise, we start again by adding the next preceding 4096
+characters, \etc
+
+To add the option \ml+-f+, we first proceed as above and then we go
+back at the end of the file and try to \ml+read+ from there. If
+\ml+read+ returns data we display it immediatly and start again. If it
+returns \ml+0+ we wait some time (\ml+sleep 1+) and try again.
 \end{answer}
 
 \section{Operations specific to certain file types}
@@ -1742,7 +1733,7 @@ operations that work only with certain kind of media.
 
 \subsection*{Normal files}
 
-We can shorten an ordinary file through the system calls
+We can shorten a normal file with the system calls
 \syscall{truncate} and \syscall{ftruncate}.
 %
 \begin{listingcodefile}{tmpunix.mli}
@@ -1752,39 +1743,38 @@ val $\libvalue{Unix}{ftruncate}$ : file_descr -> int -> unit
 %
 
 The first argument is the file to truncate (specified either by its
-name or by a file descriptor open on the file). The second argument is the
-desired size. All the data after this position is lost.
+name or by a file descriptor). The second argument is the desired
+size. All the data after this position is lost.
 
 \subsection*{Symbolic links}
 
-Most of the the operations on files \quotes{follow} symbolic 
-links: that is to say, they are applied to files to which 
-the symbolic link points, and not on the symbolic link 
-itself. Examples: \indexvalue{openfile}, \indexvalue{stat},
-\indexvalue{truncate}, \indexvalue{opendir}. We have two 
-operations, \syscall{symlink} and \syscall{readlink} on symbolic
-links:
+Most operations on files \quotes{follow} symbolic links in the sense
+that they do not apply to the link itself but to the file on which the
+link points. Examples are: \indexvalue{openfile},
+\indexvalue{stat}, \indexvalue{truncate}, \indexvalue{opendir}. 
+
+The two system calls \syscall{symlink} and \syscall{readlink} operate
+specifically on symbolic links:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{symlink}$  : string -> string -> unit
 val $\libvalue{Unix}{readlink}$ : string -> string
 \end{listingcodefile}
-%
-The call \ml+symlink f1 f2+ creates the file \ml+f1+ as the symbolic 
-link of \ml+f2+ (like the command \ml+ln -s f1 f2+). The call 
-\ml+readlink+ returns the content of a symbolic link, that is to say a 
-the name of the file to which it points.
+% 
+The call \ml+symlink f1 f2+ creates the file \ml+f1+ as a symbolic
+link on \ml+f2+ (like the Unix command \ml+ln -s f1 f2+). The call
+\ml+readlink+ returns the content of a symbolic link, \ie{} the name of
+the file on which the link points.
 
 \subsection*{Special files\label{sec/speciaux}}
 
-Special files may be of type \quotes{character} or of type
-\quotes{block}.  The first are for reading and writing characters: we
-cannot read or write characters expect in sequence. These character
-devices are typically terminals, the peripherals are, printers, \etc{}
-The block devices, typically disks, are a permanent or temporary
-resource; characters are read in blocks given in absolute form or
-relative with respect to the current position. Among the special files,
-we may distinguish:
+Special files can be of \quotes{character} or \quotes{block} type.
+The former are character streams: we can read or write characters only
+sequentially. These are the terminals, sound devices, printers, \etc{}
+The latter, typically disks, have a permanent medium: characteres can
+be read by blocks and even seeked relative to the current position.
+
+Among the special files, we may distinguish:
 \begin{mltypecases}
 \begin{tabular}{@{}lp{0.8\textwidth}}
 \ml+/dev/null+ & This is the black hole which swallows
@@ -1792,10 +1782,10 @@ we may distinguish:
   useful for ignoring the results of a process: we redirect its output
   to \ml+/dev/null+ (see the chapter~\ref{sec/pipes}).\\
 %
-\ml+/dev/tty*+ & These are the terminals. \\
+\ml+/dev/tty*+ & These are the control terminals. \\
 %
-\ml+/dev/pty*+ & These are the pseudo-terminals: They are not real
-  terminals but provide the same interface. \\
+\ml+/dev/pty*+ & These are the pseudo-terminals: they are not real
+  terminals but simulate them (they provide the same interface). \\
 %
 \ml+/dev/hd*+ & These are the disks. \\
 %
@@ -1805,32 +1795,29 @@ we may distinguish:
 \end{mltypecases}
 
 The usual file system calls on special files can behave differently.
-However, most special files (terminals, tape drives, disks, \ldots)
-follow \ml+read+ and \ml+write+ in the obvious manner (but sometimes
-with restrictions on the number of bytes written or read), but many
-ignore \indexvalue{lseek}.
+However, most special files (terminals, tape drives, disks, \etc)
+respond to \ml+read+ and \ml+write+ in the obvious manner (but
+sometimes with restrictions on the number of bytes written or read),
+but many ignore \indexvalue{lseek}.
 
 In addition to the usual file system calls, special files which
 represent peripherals must be commanded and/or configured
 dynamically. For example, for a tape drive, rewind or fast forward the
-tape; for a terminal terminal, choice of the line editing mode,
-behaviour of special characters, serial connection parameters (speed,
-parity, \etc).  These operations are made in Unix through the system
-call \syscall{ioctl} which group together all the particular
+tape; for a terminal, choice of the line editing mode, behaviour of
+special characters, serial connection parameters (speed, parity,
+\etc).  These operations are made in Unix through the system call
+\syscall{ioctl} which group together all the particular
 cases. However, this system call is not provided by {\ocaml}; it is
 ill-defined and cannot be treated in a uniform way.
 
-\subsubsection{Terminals}
-\label{sec/termio}
+\subsection*{Terminals\label{sec/termio}}
 
-
-Terminals and  pseudo-terminals are character accessible special files
-for which 
-{\ocaml} allows configuration access. The call \syscall{tcgetattr}
-takes as an argument an open file descriptor on the special file 
-in question and returns a structure of type
-\ml+terminal_io+ which describe the state of the terminal
-represented by the file according to the standard  \textsc{posix}.
+Terminals and pseudo-terminals are special files of type character
+which can be configured from {\ocaml}. The system call
+\syscall{tcgetattr} takes a file descriptor open on a special file
+and returns a structure of type \libtype{Unix}{terminal\_io} which
+describes the status of the terminal according to the \textsc{posix} 
+standard.
 %
 \begin{codefile}{tmpunix.mli}
 type terminal_io = Unix.terminal_io
@@ -1845,7 +1832,7 @@ type $\libtype{Unix}{terminal\_io}$ =
 val $\libvalue{Unix}{tcgetattr}$ : file_descr -> terminal_io
 \end{listingcodefile}
 %
-This structure may be modified then passed to the function 
+This structure can be modified and given to the function 
 \syscall{tcsetattr} to change the attributes of the peripheral.
 %
 \begin{codefile}{tmpunix.mli}
@@ -1855,21 +1842,22 @@ type setattr_when = Unix.setattr_when
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{tcsetattr}$ : file_descr -> setattr_when -> terminal_io -> unit
 \end{listingcodefile}
-%
-The first argument is the file descriptor of the peripheral. 
-The last argument is a structure of type 
-\ml+tcgetattr+ describing the parameters of the peripheral such that are  
-needed for setup.  The second argument is a flag of type enumeration.
-\ml+setattr_when+ indicating the moment from which the change 
-should take effect: immediately (\ml+TCSANOW+), after having transmitted
-all written data (\ml+TCSADRAIN+) or after having read all the data 
-received (\ml+TCAFLUSH+).  The choice \ml+TCSADRAIN+ is
-recommended for changing the write parameters and \ml+TCSAFLUSH+
-for modifying the read parameters. 
+% 
+
+The first argument is the file descriptor of the peripheral. The last
+argument is a structure of type \ml+terminal_io+ describing the
+parameters of the peripheral as we want them. The second argument is a
+value of the enumerated type \libtype{Unix}{setattr\_when} that
+indicates when the change must be done: immediately (\ml+TCSANOW+),
+after having transmitted all written data (\ml+TCSADRAIN+) or after
+having read all the received data (\ml+TCAFLUSH+). \ml+TCSADRAIN+ is
+recommended for changing write parameters and \ml+TCSAFLUSH+ for read
+parameters.
 
 \begin{example}
-During the reading of a password, characters entered by the user should not
-be echoed to the terminal or pseudo-terminal.
+When a password is read, characters entered by the user should not be
+echoed if the standard input is connected to a terminal or a
+pseudo-terminal.
 %
 \begin{codefile}{passwd.ml}
 open Unix;;
@@ -1901,36 +1889,36 @@ let read_passwd message =
       with x -> 
         tcsetattr stdin TCSANOW default; raise x;;
 \end{listingcodefile}
-%
-
-The \ml+read_passwd+ function begins by recovering the default value  
-of the terminal associated with \ml+stdin+ and constructing 
-a modified version in which the characters entered are not echoed.  
-In case of failure, when the input stream is not a terminal,
-it is enough to read a line. Otherwise we display
-a message, we change the terminal, we read the response and reset the  
-terminal into its normal state. Care has to be taken to set
-the terminal back to its normal state after a read failure.
+% 
+The \ml+read_passwd+ function starts by getting the current settings
+of the terminal associated to \ml+stdin+. Then it defines a modified
+version of these in which characters are not echoed. If this fails the
+standard input is not a control terminal and we just read a
+line. Otherwise we display a message, change the terminal, read the
+password and put the terminal back in its initial state. Care must be
+taken to set the terminal back to its initial state even after a read
+failure.
 \end{example}
-%
-Sometimes a program needs to launch another linked to its
-input stream from a terminal (or pseudo-terminal).  {\ocaml} does not
-have any support for this \footnote {The Cash library
-~\cite {Cash} supplies such functions.} so it is necessary to manually
-look for an unused pseudo-terminals  (in general, they are files 
-with names in the form of \ml+/dev/tty[a-z][a-f0-9]+) and find one of 
-these files which has not already been opened, open it and launch  
-the application with this file in the input stream.
+% 
+Sometimes a program needs to start another and bind its standard input
+to a terminal (or pseudo-terminal). {\ocaml} does not provide any
+support for this\footnote {The Cash library ~\cite {Cash} supplies
+  such functions.}. To achieve that, we must manually look among the
+pseudo-terminals (in general, they are files with names in the form of
+\ml+/dev/tty[a-z][a-f0-9]+) and find one that is not already open. We
+can then open this file and start the program with this file on its
+standard input.
 
-Four other functions allow control of the stream (flush data on hold,
-wait for end of transmission, restart communication). 
+Four other functions allow to control the stream of data of a terminal
+(flush waiting data, wait for the end of transmission and restart
+communication).
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{tcsendbreak}$ : file_descr -> int -> unit
 \end{listingcodefile}
 %
 The function  \syscall{tcsendbreak} sends an interrupt to the 
-peripheral. Its second argument is the length of the interrupt
+peripheral. the second argument is the duration of the interrupt
 (\ml+0+ is interpreted as the default value for the 
 peripheral).
 %
@@ -1938,8 +1926,8 @@ peripheral).
 val $\libvalue{Unix}{tcdrain}$ : file_descr -> unit
 \end{listingcodefile}
 %
-The function \syscall{tcdrain} waits for all the data written to be 
-transmitted.
+The function \syscall{tcdrain} waits that all the written data has
+been transmitted.
 %
 \begin{codefile}{tmpunix.mli}
 type flush_queue = Unix.flush_queue
@@ -1948,11 +1936,10 @@ type flush_queue = Unix.flush_queue
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{tcflush}$ : file_descr -> flush_queue -> unit
 \end{listingcodefile}
-%
-Depending on the flag passed as the second argument, a call to the
-function \syscall{tcflush} abandons the data written but not yet
-transmitted
-(\ml+TCIFLUSH+), or the data received but not yet read 
+% 
+Depending on the value of the second argument, a call to the
+function \syscall{tcflush} discards the data written but not yet
+transmitted (\ml+TCIFLUSH+), or the data received but not yet read
 (\ml+TCOFLUSH+) or both (\ml+TCIOFLUSH+).
 %
 \begin{codefile}{tmpunix.mli}
@@ -1962,13 +1949,12 @@ type flow_action = Unix.flow_action
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{tcflow}$ : file_descr -> flow_action -> unit
 \end{listingcodefile}
-%
-
-Depending on the flag passed as the second argument, a call to the
-function \syscall{tcflow} suspends the emission (\ml+TCOOFF+), restarts 
-the emission (\ml+TCOON+), sends a control character \textsc{stop}
-or \textsc{start} to request that the transmission be suspended
-(\ml+TCIOFF+) or restarted (\ml+TCION+).
+% 
+Depending on the value of the second argument, a call to the
+function \syscall{tcflow} suspends the data transmission
+(\ml+TCOOFF+), restarts the transmission (\ml+TCOON+), sends a control
+character \textsc{stop} or \textsc{start} to request the
+transmission to be suspended (\ml+TCIOFF+) or restarted (\ml+TCION+).
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{setsid}$ : unit -> int
@@ -1979,26 +1965,23 @@ session and detaches it from the terminal.
 
 \section{Locks on files}
 
-If two processes attempt to modify the same file in parallel there is a
-danger that some of the writes may collide with each other. In some cases, opening
-the file in \ml+O_APPEND+ mode allows these collisions to be managed, for example,
-in the case of a \ml+log+ file where data is always written 
-at the end of the file.   However, this mechanism
-does not resolve the general case where the writes are at  
-arbitrary positions in the file, for example, when a file represents a
-database. It then becomes necessary for all the processes utilizing this file
-to collaborate so as not to step on each others toes.
-A lock on the file is always possible by creating an auxiliary lock file
-(see page \pageref{page/lock}). The system call 
-\syscall{lockf} allows a part of the file to be locked thereby providing
-very accurate synchronization.
+Two processes can modify the same file in parallel however their
+writes may collide and result in inconsistent data. In some cases data
+is always written at the end and opening the file with \ml+O_APPEND+
+allows to prevent this. This is fine for \ml+log+ files but it doesn't
+work for files that store, for example, a database as writes are
+performed at arbitrary positions. In that case processes using the
+file must collaborate in order not to step on each others toes.  A
+lock on the whole file can be implemented with an auxiliary file (see
+page \pageref{page/lock}) but the system call \syscall{lockf} allows
+for finer synchronization patterns by locking only parts of a file.
 %
 \begin{codefile}{tmpunix.mli}
 type lock_command = Unix.lock_command
 \end{codefile}
 %
 \begin{listingcodefile}{tmpunix.mli}
- val $\libvalue{Unix}{lockf}$ : file_descr -> lock_command -> int -> unit
+ val $\libvalue{Unix}{lockf}$ : file_descr -> $\libtype{Unix}{lock\_command}$ -> int -> unit
 \end{listingcodefile}
 
 
