@@ -1981,19 +1981,19 @@ type lock_command = Unix.lock_command
 \end{codefile}
 %
 \begin{listingcodefile}{tmpunix.mli}
- val $\libvalue{Unix}{lockf}$ : file_descr -> $\libtype{Unix}{lock\_command}$ -> int -> unit
+ val $\libvalue{Unix}{lockf}$ : file_descr -> lock_command -> int -> unit
 \end{listingcodefile}
 
 
 \section{Complete example: recursive copy of files}
 \label{sec/copyrec}
 
-We will extend the function \ml+file_copy+ (section~\ref{ex/filecopy})
-to copy symbolic links and directories in addition to normal files. 
-In the case of directories, we need copy their contents recursively.
+We extend the function \ml+file_copy+ (section~\ref{ex/filecopy}) to
+support symbolic links and directories in addition to normal files.
+For directories, we recursively copy their contents.
 
-We begin by reusing the function \ml+file_copy+ in the example of the same name
-for copying normal files (page~\pageref{ex/filecopy}). 
+To copy normal files we reuse the function \ml+file_copy+ we already
+defined.
 \begin{lstlisting}
 open Unix
 ...
@@ -2001,9 +2001,8 @@ let file_copy input_name output_name =
 ...
 \end{lstlisting}
 The function \ml+set_infos+ below modifies the owner, the  
-access rights and  the last dates of access/last modification
+access rights and the last dates of access/modification
 of a file. Its purpose is to preserve this information during the copy.
-
 %
 \begin{codefile}{copy_rec.ml}
 open Unix;;
@@ -2019,18 +2018,18 @@ let set_infos filename infos =
   with Unix_error(EPERM,_,_) -> ()
 \end{listingcodefile}
 %
-The system call \ml+utime+ modifies the dates of access and 
+The system call \syscall{utime} modifies the dates of access and 
 modification.  We use \ml+chmod+ and \ml+chown+ to re-establish 
 the access rights and the owner. For normal users, there are  
-a certain number of cases where  \ml+chown+ will fail with an error
-\quotes{permission denied}.  We trap this error and ignore it.
+a certain number of cases where  \ml+chown+ will fail with a
+\quotes{permission denied} error. We catch this error and ignore it.
 
 Here's the main recursive function. 
 \begin{listingcodefile}{copy_rec.ml}
 let rec copy_rec source dest =
   let infos = lstat source in
   match infos.st_kind with
-    S_REG ->
+  | S_REG ->
       file_copy source dest;
       set_infos dest infos
   | S_LNK ->
@@ -2052,19 +2051,16 @@ let rec copy_rec source dest =
       prerr_endline ("Can't cope with special file " ^ source)
 \end{listingcodefile}
 
-We begin by reading the information from the source file. If this is a 
-normal file, we copy its contents with \ml+file_copy+, then its 
+We begin by reading the information of the \ml+source+ file. If it is
+a normal file, we copy its contents with \ml+file_copy+ and its
 information with \ml+set_infos+. If it is a symbolic link, we read
-where it points to, and we then create a link which points to the same 
-object.  If it is a directory, we create a directory as the
-destination, then we read the directory entries in the source (ignoring
-the entries which are about the source  \ml+Filename.current_dir_name+
-or its parent directory \ml+Filename.parent_dir_name+, which we should 
-certainly not copy), then we recursively call \ml+copy+ for 
-each entry.  We ignore the other type of files, and include a  
-warning.
+where it points to and create a link pointing to the same object.  If
+it is a directory, we create a destination directory, then we read the
+directory's entries (ignoring the entries about the directory itself
+or its parent) and recursively call \ml+copy+ for each entry. All
+other file types are ignored, with a warning.
 
-The main program is relatively straight forward:
+The main program is straightforward:
 %
 \begin{codefile}{copyrec.ml}
 open Unix
@@ -2086,22 +2082,20 @@ handle_unix_error copyrec ();;
 
 \begin{exercise} 
 \label{ex/copyrec}
-Intelligently copy hard links. As is described in the following,
-\ml+copyrec+ creates $n$ duplicates of the same file which appears under $n$
-different names in the hierarchy of files to copy. Try to detect this
-situation and try not to copy the file more than once. 
-Make hard links in the target hierarchy.
+Copy hard links cleverly. As written above \ml+copyrec+ creates $n$
+duplicates of the same file whenever a file occurs under $n$ different
+names in the hierarchy to copy. Try to detect this situation, copy
+the file only once and make hard links in the destination hierarchy.
 \end{exercise}
 
 \begin{answer}
-It is necessary to keep a table of source files that have already been copied, for which  
-the tuple \ml+(st_dev, st_ino)+ for each source file corresponds with  
-the name of its destination file. For each copy, we look up this
-table to see if a source file with the same tuple
-\ml+(st_dev,st_ino)+ had already been copied; if yes, we make a hard link  
-to the target file, instead of repeating the copy. To minimize 
-the size of this table, we can insert only the files 
-which have more than one name, that is to say those where \ml+st_nlink > 1+.
+For the files that have already been copied we keep a map from their
+identity \ml+(st_dev, st_ino)+ to their destination file name. Before
+each copy we consult the map to see if a file with the same identity
+was already copied. If that's the case we do a hard link on the
+destination file name instead of redoing the copy. To minimize the
+size of the map we remember only the files which have more than one
+name, \ie{} those for which \ml+st_nlink > 1+.
 %
 \begin{codefile}{copyrec_ex.ml}
 open File_copy
@@ -2139,79 +2133,74 @@ let rec copy source dest =
 \end{codefile}
 \end{answer}
 
-\section{Example: {\normalfont\texttt{T}}ape {\normalfont\texttt{AR}}chive}
+\section{Complete example: {\normalfont\texttt{T}}ape {\normalfont\texttt{AR}}chive}
 
-The \ml+tar+ format (for \ml+t+ape \ml+ar+chive) allows us to represent 
-a group of files in one file.  (In addition it allows us to store 
-an entire file hierarchy on a tape.)  The tar archive may be viewed as
-a mini file system. 
+The \ml+tar+ file format (for \ml+t+ape \ml+ar+chive) can store a file
+hiearachy into a single file. It can be seen as a mini file system.
 
-In this section we describe a group of functions which 
-allows the reading and writing of archives in the \ml+tar+ format. The  
-first part for which a complete example is provided, consists of writing a function
-\ml+readtar+ such that  \ml+readtar a+ displays the list of files 
-contained in the archive~\ml+a+  and \ml+readtar a f+ displays the contents of  
-the file \ml+f+ contained within the archive \ml+a+. We leave as an 
-exercise the problem of extracting all the files contained in an archive
-as well as generating an archive starting from a group of files.
+In this section we define functions to read and write \ml+tar+
+files. We also program a command \ml+readtar+ such that \ml+readtar a+
+displays the name of the files contained in the archive \ml+a+ and
+\ml+readtar a f+ extracts the contents of the file \ml+f+ contained in
+\ml+a+. Extracting the whole file hierarchy of an archive and
+generating an archive for a file hierarchy is left as an exercise.
 
-\paragraph{Description of format}
+\paragraph{File format specification}
 
-A \ml+tar+ archive is a set of records, with each 
-record representing a file.  A record is composed of a header
-which encodes the information about the file (its name, type, size, owner \etc) 
-and the contents of the file.
-The header consists of a block (512 bytes) as shown in the table~\ref {fig/tar}.
+A \ml+tar+ archive is a set of records. Each record represents a
+file; it starts with a header which encodes the information
+about the file (its name, type, size, owners, \etc) and is followed by 
+the contents of the file. The header is a block of 512 bytes structured as
+shown in table~\ref{fig/tar}.
+
 \begin{mytable}
 \begin{tabular}{rrlll}
 Offset & Length & Code Type & Name & Description \\
 \hline
-  0&   100 & string  &  \ml+name+   & file name \\
-100&     8 & octal   &  \ml+perm+   & file access modes\\
-108&     8 & octal   &  \ml+uid+    & id of user\\
-116&     8 & octal   &  \ml+gid+    & id of group of the user\\
-124&    12 & octal   &  \ml+size+   & file size (in bytes)\\
+  0&   100 & string  &  \ml+name+   & File name \\
+100&     8 & octal   &  \ml+perm+   & File permissions\\
+108&     8 & octal   &  \ml+uid+    & Id of user owner\\
+116&     8 & octal   &  \ml+gid+    & id of group owner\\
+124&    12 & octal   &  \ml+size+   & File size (in bytes)\\
 136&    12 & octal   &  \ml+mtime+  & Date of last modification\\
 148&     8 & octal   &  \ml+checksum+ & Header checksum \\
 156&     1 &character&  \ml+kind+   & File type  \\
-157&   100 & octal   &\emph{\ml+link+}   & Link\\
+157&   100 & octal   &  \ml+link+   & Link\\
 257&     8 & string  &  \ml+magic+  & Signature (\ml+"ustar\032\032\0"+)\\
-265&    32 & string  &  \ml+user+   & Name of user\\
-297&    32 & string  &  \ml+group+  & Name of user's group\\
-329&     8 & octal   &\emph{\ml+major+}  & Peripheral major number\\
-337&     8 & octal   &\emph{\ml+minor+}  & Peripheral minor number\\
-345&   167 &         &         & Padding \smallskip\\
+265&    32 & string  &  \ml+user+   & Name of user owner\\
+297&    32 & string  &  \ml+group+  & Name of group owner\\
+329&     8 & octal   &  \ml+major+  & Peripheral major number\\
+337&     8 & octal   &  \ml+minor+  & Peripheral minor number\\
+345&   167 &         &              & Padding \smallskip\\
 \hline 
 \end{tabular}
 \begin{flushleft}
 \small\textbf{Note.}\quad Field lengths are in number of
 bytes. All fields are encoded with character strings terminated with
-the null character \ml+'\000'+; excepting the field \ml+kind+ and
-\ml+size+ (\ml+'\000'+ optional).
+the null character \ml+'\000'+; except the fields \ml+kind+ and
+\ml+size+ in which \ml+'\000'+ optional.
 \end{flushleft}
 \ifnothtml{\vspace{-\onelineskip}}
 \caption {Header structure}
 \label{fig/tar}
 \end{mytable}
+The file contents is stored right after the header, its size is
+rounded to a multiple of 512 bytes (the extra space is filled with
+zeros). Records are stored one after the other. If needed, the file is
+padded with empty blocks to reach at least 20 blocks.
 
-The contents are represented by a number of whole blocks following the header. 
-The records are given one after another. If necessary, the file is padded
-with empty blocks in order to reach a minimum of 20 blocks. 
+Since tar archives are also designed to be written on brittle media
+and reread many years leater, the header contains a \ml+checksum+
+field which allows to detect when the header is damaged. Its value is
+the sum of all the bytes of the header (to make that sum we assume
+that the \ml+checksum+ field itself is made of zeros).
 
-As tar archives are designed to be written to unreliable media and
-retrieved many years later, the header contains a \ml+checksum+ field
-which allows the archives to be found when the header is damaged (or
-to use more than one file as an archive.) The checksum value is the
-sum of the character codes in the header (from this, we hypothesize
-that the \ml+checksum+ field which is not yet calculated consists of
-blanks terminated by the null character).
-
-The \ml+kind+ field encodes the file type in a byte.
-Significant values are the characters indicated in the table 
-below\footnote {This field can also take different values to encode
-  pathological cases, for example, when the value of a field exceeds
-  the place reserved for it in the header or in the extensions of the
-  \ml+tar+ command.}:
+The \ml+kind+ header field encodes the file type in a byte. The encoding
+is given in the table below\footnote {This field can 
+  also take different values to encode
+  pathological cases, for example when the value of a field exceeds
+  its size or in extensions of the
+  \ml+tar+ format.}:
 %
 \begin{center}
 \begin{tabular}{cccccccc}
@@ -2228,24 +2217,21 @@ below\footnote {This field can also take different values to encode
 \ml+CONT+
 \end{tabular}
 \end{center}
-Most of the cases correspond to the Unix file type \ml+st_link+.
-\ml+LINK+ represents hard links; these have 
-the same node (\emph{inode}) but are accessible through two different paths.
-In this case,the link must lead to another
-file already defined within the archive. \ml+CONT+ represents an 
-ordinary file, but which is represented by a contiguous memory zone
-(this is a feature of some types of file systems, we can then treat it
-like an ordinary file).
+Most of the cases correspond to the values of the Unix file type
+\libtype{Unix}{file\_kind} stored in the \ml+st_kind+ field of the
+\libtype{Unix}{stats} structure.  \ml+LINK+ is for hard links which
+must lead to another file already stored within the archive. \ml+CONT+
+is for ordinary file, but stored in a contiguous area of memory (this
+is a feature of some file systems, we can treat it like an ordinary
+file).
 
-The field 
-\emph{\ml+link+} represents the link when the value of \ml+kind+ equals \ml+LNK+ or 
-\ml+LINK+.  The fields \emph{\ml+major+} and \emph{\ml+minor+}
-contain the major and minor numbers of the peripheral in the case 
-where the value of the field \ml+kind+ equals \ml+CHR+ or \ml+BLK+. These three fields are
-not used in other cases.
+The \ml+link+ header field stores the link when \ml+kind+ is \ml+LNK+
+or \ml+LINK+.  The fields \ml+major+ and \ml+minor+ contain the major
+and minor numbers of the peripheral when \ml+kind+ is \ml+CHR+ or
+\ml+BLK+. These three fields are not used in other cases.
 
-The value of the field \ml+kind+ is naturally represented by a variant type;
-the header by a record:
+The value of the \ml+kind+ field is naturally represented by a
+variant type and the header by a record:
 %
 \begin{codefile}{tarlib.ml}
 open Unix;;
@@ -2262,8 +2248,7 @@ type header =
 \end{listingcodefile}
 
 \paragraph {Reading a header}
-Reading a header is not very interesting, but 
-cannot be ignored.
+Reading a header is not very interesting, but it cannot be ignored.
 %
 \begin{listingcodefile}{tarlib.ml}
 exception Error of string * string
@@ -2285,8 +2270,7 @@ let integer_of_octal nbytes s offset =
   let i = int_of_string ("0o" ^ substring s offset nbytes) in
   if i < 0 then error "Corrupted archive" "integer too large" else i;;
 
-let kind s i =
-  match s.[i] with
+let kind s i = match s.[i] with
   | '\000' | '0' -> REG
   | '1' -> LINK (substring s (succ i) 99)
   | '2' -> LNK (substring s (succ i) 99)
@@ -2310,13 +2294,12 @@ let block_size = 512;;
 let total_size size = 
   block_size + ((block_size -1 + size) / block_size) * block_size;;    
 \end{listingcodefile}
-%
-We detect the end of an archive when we reach the end of the file where
-a new record would begin, or on a complete, but empty, block.  Thus to
-read the header we need to try to read a block which should be either
-empty or complete. To read an entire block we reuse the
-\ml+really_read+ function we defined above. The end of file should not
-be reached when we try to read a block.
+% 
+An archive ends either at the end of file where a new record would
+start or on a complete, but empty, block. To read a header we thus try
+to read a block which must be either empty or complete. For that we
+reuse the \ml+really_read+ function defined earlier. The end of file
+should not be reached when we try to read a block.
 %
 \begin{codefile}{tarlib.ml}
 let rec really_read fd buffer start length =
@@ -2346,25 +2329,21 @@ let read_header fd =
 \end{listingcodefile}
 
 \paragraph{Reading an archive}
-To carry out any operation in an archive, it is necessary to read the group of
-header records in order 
-at least until those necessary to carry out the operation are found.
-By default, it suffices to read the header of each record without
-having to read the contents. Often it suffices to read the contents
-of the record that we searched for or to read the content after finding
-the previous record.  For this reason, it is necessary to keep information 
-on the position of each record in the archive in addition to each header. 
-We will use the following type for records:
+To perform an operation in an archive, we need to read the records
+sequentially until we find the target of the operation. Usually we
+just need to read the header of each record without its contents but
+sometimes we also need to get back to a previous one to read its
+contents. As such we keep, for each record, its header and its location
+in the archive:
 %
 \begin{listingcodefile}{tarlib.ml}
 type record = { header : header; offset : int; descr : file_descr };;
 \end{listingcodefile}
-%
-We will now write a general iterator which will read the 
-records (without their contents) and will store them.
-However, to maintain greater generality, we will remain at an abstract level compared  
-to the storage function \ml+f+ (which can also add records to
-those already read, print them, discard them, \etc).   
+% 
+We define a general iterator that reads and accumulates the records
+of an archive (without their contents). To remain general, the
+accumulating function \ml+f+ is abstracted. This allows to use the 
+same iterator function to display records, destroy them, etc.  
 %
 \begin{listingcodefile}{tarlib.ml}
 let fold f initial fd  =
@@ -2379,18 +2358,15 @@ let fold f initial fd  =
   fold_aux 0 initial;;
 \end{listingcodefile}
 %
+The function \ml+fold_aux+ starts from a position \ml+offset+ with a
+partial result \ml+accu+. It moves to \ml+offset+ where a record
+should start, reads a header, constructs the record \ml+r+ and starts
+again at the end of the record with the new (less partial) result
+\ml+f r accu+. It stops when there's no header: the end of the archive
+was reached.
 
-The function \ml+fold_aux+ starts from a position  \ml+offset+ with a 
-partial result \ml+accu+. It works by placing itself at position 
-\ml+offset+, which should be the beginning of the record, reading
-the header, constructing the record \ml+r+ then starts again at the end  
-of the record with the new result \ml+f r accu+ (less
-partial).  It stops when the header is empty which signifies
-that it has arrived at the end of the archive.
-
-\paragraph{Display of the list of records of an archive}
-It suffices simply to display the group of records as we 
-go along without keeping them: 
+\paragraph{Display the record names}
+We just display the name of records without keeping them:
 \begin{listingcodefile}{tarlib.ml}
 let list tarfile =
   let fd = openfile tarfile [ O_RDONLY ] 0o0 in
@@ -2400,44 +2376,39 @@ let list tarfile =
 \end{listingcodefile}
 
 
-\paragraph{Displaying the contents of a file in an archive}
-The function \ml+readtar a f+ must search for the file with the name \ml+f+
-in the archive and display it if it is a regular file.  Further, a
-path \ml+f+ of the archive, which is a hard link and represents a path 
-\ml+g+ of the archive, is followed and the contents of \ml+g+ are displayed. In 
-effect, it is appropriate that \ml+f+ and \ml+g+ are represented differently in the 
-final archive ( the one is a hard link to the other) they represent
-exactly the same file at its creation. The fact that \ml+g+  is a
-link to \ml+f+ or the converse depends uniquely on the order in which the 
-files are traversed at the creation of the archive.  For the 
-moment we will not follow symbolic links.
+\paragraph{Display the contents of a record}
+The command \ml+readtar a f+ must look for the file \ml+f+ in the
+archive and, if it is a regular file, display its contents. If \ml+f+
+is a hard link on \ml+g+ in the archive, we follow the link and
+display \ml+g+ since even though \ml+f+ and \ml+g+ are represented
+differently in the archive they represent the same file. The fact that
+\ml+g+ or \ml+f+ is a link on the other or vice versa depends only on
+the order in which the files were traversed when the archive was
+created. For now we do not follow symbol links.
 
-The main work resolving hard links is carried out by the two
-following, recursively defined functions.
+Hard link resolution is done by the following mutually recursive
+functions:
 \begin{listingcodefile}{tarlib.ml}
-let rec find_regular r list = 
-  match r.header.kind with
+let rec find_regular r list = match r.header.kind with
   | REG | CONT -> r
   | LINK name -> find_file name list
   | _ -> error r.header.name "Not a regular file" 
-and find_file name list = 
-  match list with 
-    r :: rest -> 
+
+and find_file name list = match list with 
+  | r :: rest -> 
       if r.header.name = name then find_regular r rest
       else find_file name rest
   | [] -> error name "Link not found (corrupted archive)";;
 \end{listingcodefile}
-The function \ml+find_regular+ finds the regular file corresponding 
-to a record (its first) argument.  If this is a regular file
-it succeeds. If this is a special file 
-or a symbolic link it fails.  In the remaining case of a hard link: The
-function searches for the link in the list of records of the archive (second argument)  
-by calling the function  \ml+find_file+.
+The function \ml+find_regular+ finds the regular file corresponding to
+the record \ml+r+.  If \ml+r+ is a regular file itself, \ml+r+ is
+returned. If \ml+r+ is a hard link the function looks for the regular
+file in the archive's previous records stored in \ml+list+ with the
+function \ml+find_file+. In all other cases, the function aborts.
 
-Once the record is found there is nothing more to do except to display
-its contents. This operation is strongly reminiscent of the function 
-\ml+file_copy+, once the descriptor is positioned at the beginning of the file
-in the archive. 
+Once the record is found we just need to display its contents. After
+positioning the descriptor at the start of the record's contents this
+operation is very similar to the \ml+file_copy+ example.
 \begin{listingcodefile}{tarlib.ml}
 let copy_file file output = 
   ignore (lseek file.descr file.offset SEEK_SET);
@@ -2448,8 +2419,7 @@ let copy_file file output =
       | r -> ignore (write output buffer 0 r); copy_loop (len-r) in
   copy_loop file.header.size
 \end{listingcodefile}
-
-The only thing left to do is to combine the previous three.
+We now just need to combine these functions correctly.
 \begin{listingcodefile}{tarlib.ml}
 exception Done
 let find_and_copy tarfile filename =
@@ -2465,17 +2435,15 @@ let find_and_copy tarfile filename =
   with
   | Done -> close fd 
 \end{listingcodefile}
-We read the records in the archive (but not their contents)
-until we find a record with the target name. We call the function
-\ml+find_regular+ to search the list of read records to find that one
-which actually contains the file. 
-The second, subsequent search will always succeed if the archive
-is well-formed. By way of contrast the first search will fail 
-if the record is not in the archive.  We need to take care to
-distinguish errors due to a corrupt archive from those resulting
-from an unproductive search.
+We read the records in the archive (but not their contents) until we
+find the record with the target name. We then call the function
+\ml+find_regular+ to find the record that actually contains the file.
+This second, backward, search must succeed if the archive is
+well-formed. The first search may however fail if the target name is
+not in the archive. In case of failure, the program takes care to
+distinguish between these two cases.
 
-And here is the main function which implements the function \ml+readtar+:
+Here is the main function which implements the command \ml+readtar+:
 \begin{codefile}{readtar.ml}
 open Unix
 open Tarlib
@@ -2491,22 +2459,19 @@ let readtar () =
 handle_unix_error (handle_error readtar) ();;
 \end{listingcodefile}
 
-\begin{exercise}
-\label{ex/readtar}
-Extend the function \ml+readtar+ so that it follows symbolic links, 
-that is to say, so that it displays the file's contents 
-if the archive had extracted it beforehand and if the file 
-corresponds to a file in the archive.
-
-Behind the apparent trivial appearance of this generalization are hidden 
-some difficulties, for the symbolic links are file paths some of which
-may not correspond exactly with the paths in the archive which clearly
-point outside the archive (they may contain the path \ml+..+). Further, symbolic
-links may represent directories (which is not allowed for hard links).
+\begin{exercise}\label{ex/readtar}
+Extend the command \ml+readtar+ so that it follows symbolic links in
+the sense that if the link points on a file of the archive that file's
+contents should be extracted. 
 \end{exercise}
 \begin{answer}
-A  sufficiently simple solution consists of simulating the effect of the extraction 
-by creating in a graph an image of the file hierarchy contained in the archive.
+Behind this apparently trivial requirement are hidden difficulties.
+Symbolic links are arbitrary paths, they can point on directories
+(which is not allowed for hard links) and they may not correspond to
+files contained in the archive.
+
+A simple solution is to recreate, in memory, the file hierarchy
+contained in the archive.
 %
 \begin{codefile}{readtar_ex.ml}
 open Unix;;
@@ -2517,28 +2482,23 @@ open Tarlib;;
 type info = File | Link of string list | Dir of (string * inode) list
 and inode = { mutable record : record option; mutable info : info;}
 \end{listingcodefile}
-%
-The nodes of a virtual file system of whose descriptions are through the  
-\ml+inode+ type. 
-%
-The field \ml+info+ describes the type of file. It is limited to
-ordinary files, symbolic links and directories. The paths
-are represented by lists of character strings;  the
-directories by lists which associate a node with each file
-name in the directory.
-%
-The field \ml+record+ associates the file to the node in the archive. This field
-is optional, because the intermediate directories are not always
-describe in the archive; it is mutable because a file may appear
-many times in the archive, and the latest (file) information has higher priority.
+% 
+Nodes of this in memory file system are described by the \ml+inode+
+type. The \ml+info+ field describes the file type, limited to ordinary
+files, symbolic links and directories. Paths are represented by lists
+of strings and directories by lists that associate a node to each file
+name in the directory. The \ml+record+ field stores the \ml+tar+
+record associated to the node. This field is optional because
+intermediate directories are not always present in the archive; it is
+mutable because a file may appear more than once in the archive and
+the last occurence takes precedence over the other.
 %
 \begin{listingcodefile}{readtar_ex.ml}
 let root () = 
   let rec i = 
     { record = None; info = Dir [ Filename.current_dir_name, i ] }
   in i
-let link inode name nod = 
-  match inode.info with
+let link inode name nod = match inode.info with
   | File | Link _ -> error name "Not a directory"
   | Dir list -> 
       try let _ = List.assoc name list in error name "Already exists"
@@ -2557,14 +2517,13 @@ let mkdir inode name r =
   d
 \end{listingcodefile}
 %
-As in Unix, each directory contains a link to itself and another
+As in Unix, each directory contains a link to itself and 
 to its parent, except for the root directory (in contrast to Unix
-where it is its own parent). This choice allows us to very simply
-detect and stop an access that goes outside the archive.
+where it is its own parent). This allows us to detect and
+forbid any access outside the hierarchy contained in the archive.
 %
 \begin{listingcodefile}{readtar_ex.ml}
-let rec find link inode path =
-  match inode.info, path with 
+let rec find link inode path = match inode.info, path with 
   | _, [] -> inode
   | Dir list, name :: rest ->  
       let subnode = List.assoc name list in 
@@ -2576,11 +2535,11 @@ let rec find link inode path =
       find link subnode rest
   | _, _ -> raise Not_found;;
 \end{listingcodefile}
-%
-The function  \ml+find+ carries out a search in the archive starting from
-an initial node \ml+inode+ following the path \ml+path+. The 
-flag \ml+link+ indicates if in the case where the result is a symbolic link
-it should return the link itself (\ml+true+) or the file pointed to by the link  (\ml+false+).
+% 
+The function \ml+find+ finds in the archive the node corresponding to
+\ml+path+ by starting from the initial node \ml+inode+.  If the search
+result is a link, the flag \ml+link+ indicates whether the link itself
+should be returned (true) or the file pointed by the link (false).
 %
 \begin{listingcodefile}{readtar_ex.ml}
 let rec mkpath inode path = 
@@ -2594,8 +2553,8 @@ let rec mkpath inode path =
   | _, _ -> raise Not_found;;
 \end{listingcodefile}
 %
-The function \ml+mkpath+ traverses the path \ml+path+ creating the nodes 
-missing along the path. 
+The function \ml+mkpath+ traverses the path \ml+path+ creating missing
+nodes along the path. 
 %
 \begin{listingcodefile}{readtar_ex.ml}
 let explode f =
@@ -2605,9 +2564,9 @@ let explode f =
   dec (if Filename.basename f = "" then Filename.dirname f else f) [];;
 \end{listingcodefile}
 %
-The function \ml+explode+ parses a Unix path into a list of character strings. 
-It removes the end \quotes{\ml+/+} which are allowed 
-in the archives for directory names. 
+The function \ml+explode+ parses a Unix path into a list of strings. 
+It removes the end \quotes{\ml+/+} of directory names which are allowed 
+in archives. 
 %
 \begin{codefile}{readtar_ex.ml}
 let rec print top prefix inode  =
@@ -2642,8 +2601,9 @@ let add archive r =
           | _ -> assert false;;
 \end{listingcodefile}
 %
-The function \ml+add+ adds the record \ml+r+ into
-the archive. The archive represented by its root is modified through side effect. 
+The function \ml+add+ adds the record \ml+r+ to
+the archive. The archive, represented by its root node, is modified by a 
+side effect. 
 %
 \begin{listingcodefile}{readtar_ex.ml}
 let find_and_copy tarfile filename =
@@ -2663,7 +2623,7 @@ let find_and_copy tarfile filename =
 \end{listingcodefile}
 %
 We end as before. 
-\begin{codefile}{readtar_ex.ml}
+\begin{listingcodefile}{readtar_ex.ml}
 let readtar () =
   let nargs = Array.length Sys.argv in 
   if nargs = 2 then list Sys.argv.(1)
@@ -2671,40 +2631,35 @@ let readtar () =
   else prerr_endline ("Usage: " ^Sys.argv.(0)^ " <tarfile> [ <source> ]");;
 
 Printexc.print (handle_unix_error (handle_error readtar)) ();;
-\end{codefile}
+\end{listingcodefile}
 \end{answer}
 
-\begin{exercise}
-\label{ex/untar}
-Write a function \ml+untar+ such that \ml+untar a+ extracts and creates 
-all the files in the archive  \ml+a+ (except for special files) 
+\begin{exercise}\label{ex/untar}
+Write a command \ml+untar+ such that \ml+untar a+ extracts and creates 
+all the files in the archive  \ml+a+ (except special files) 
 restoring if possible the information about the files
-(owners, rights of access) indicated in the archive.
+(owners, permissions) as found in the archive.
 
-The tree of the archive should not contain relative file paths,
-without ever pointing to a parent directory (thus without being able
-to point outside the archive), but we should detect and refuse
-to create files other than those in a sub-directory of the
-current directory.  The tree is reconstructed at the position where
-we find ourselves at the invocation of the function \ml+untar+. The directories
-not mentioned explicitly in the archive which do not exist are
-created with the default access rights of the user who launched
-the command.
+The file hierarchy should be reconstructed in the current working
+directory of the \ml+untar+ command. If the archive tries to create
+files outside a sub directory of the current working directory this
+should be detected and prohibited. Inexistant directories not explicitely
+mentioned in the archive should be created with the user's default
+permissions.
 \end{exercise}
 
 \begin{answer}
 This exercise combines the previous exercise (exercise~\ref {ex/readtar})
 and the recursive file copy (exercise~\ref {ex/copyrec}).
 
-One small difficulty is the management of permissions: It is necessary
-the directories of the archive with the write permissions and not
-insert their final values until after all the files have been
-extracted.
+One small difficulty is the management of permissions: we must create
+the archive's directories with write permission and set them to their
+actual value only after all the files were extracted.
 
 Let us first write an auxiliary function for \ml+mkpath p m+ that
 creates the missing directories along the path \ml+p+ with permissions
 \ml+m+ (and such that \ml+p+ may be terminated by a
-superfluous \ml+/+ ).
+superfluous \ml+/+).
 %
 \begin{codefile}{untarlib.ml}
 open Sys;;
@@ -2732,8 +2687,8 @@ let mkpath p perm =
   make path_to_dir;;
 \end{listingcodefile}
 %
-We define equally a function \ml+set_infos+ an analog of the  
-version utilized for copy files (section~\ref {sec/copyrec}):
+We also define a function \ml+set_infos+ similar to the one
+used to copy files (section~\ref {sec/copyrec}):
 %
 \begin{listingcodefile}{untarlib.ml}
 let set_infos header =
@@ -2748,8 +2703,9 @@ let set_infos header =
   with Unix_error(EPERM,_,_) -> ();;
 \end{listingcodefile}
 %
-The body of the program is the function  \ml+untar_file_collect_dirs+ which 
-manages one sole entry storing all the directories explicitly created by the archive
+The main function of the program is \ml+untar_file_collect_dirs+ which 
+processes a single record and accumulates directories explicitely
+created by the archive:
 %
 \begin{listingcodefile}{untarlib.ml}
 let verbose = ref true;;
@@ -2790,10 +2746,11 @@ let untar_file_collect_dirs file dirs =
       set_infos fh;
       dirs;;
 \end{listingcodefile}
-We omit the end of the program which consists of iterating the body of the program through the archive 
-then lastly bringing up to the date the access rights of the directories. 
+The body of the program just iterates \ml+untar_file_collect_dirs+ on
+the records and finally updates the directories with the correct access
+rights. 
 %
-\begin{codefile}{untarlib.ml}
+\begin{listingcodefile}{untarlib.ml}
 let extract tarfile =
   let fd = openfile tarfile [ O_RDONLY ] 0 in
   let new_directories = 
@@ -2802,7 +2759,7 @@ let extract tarfile =
   close fd;;
 \end{codefile}
 %
-\begin{codefile}{untar.ml}
+\begin{listingcodefile}{untar.ml}
 open Sys
 open Unix
 open Untarlib
@@ -2811,21 +2768,22 @@ let untar () =
   if nargs = 2 then extract Sys.argv.(1)
   else prerr_endline ("Usage: " ^ Sys.argv.(0) ^ " <tarfile>");;
 handle_unix_error untar ();;
-\end{codefile}
+\end{listingcodefile}
 \end{answer}
 
 
 \begin{exercise}
 \label{ex/maketar}
 Write a program  \ml+tar+ such that \ml+tar -xvf a f1 f2 ...+
-constructs the archive \ml+a+ starting from the list of files \ml+f1+,
+constructs the archive \ml+a+ containing the list of files \ml+f1+,
 \ml+f2+, \etc and their sub-directories. 
 \end{exercise}
 \begin{answer}
+We reuse the data structures already defined above and collect them 
+in a \ml+Tarlib+ module. 
 We re-utilize the data structure defined below in the library 
-\ml+Tarlib+. We add to the error report warning messages which
-do not stop the archival and do not alter 
-the return code.
+\ml+Tarlib+. We define a warning function which does not stop the
+program or alter the return code of the program.  
 %
 \begin{listingcodefile}{tar.ml}
 open Sys
@@ -2835,14 +2793,13 @@ open Tarlib
 let warning path message =  prerr_endline (path ^ ": " ^ message)
 \end{listingcodefile}
 %
-We start by writing a header of type \ml+header+ in a 
-buffer of sufficient size (thus at least the size of a block).
-The writing of this function is tedious, but it should be done with care 
-as one sole error in the writing of the header can corrupt the entire 
-archive, as happens often in computation. We should respect in particular 
-the limits imposed by the archival.
-For example, the size of the paths is limited to 99 bytes. There are extensions to
-archival formats which permit paths of large size,but that is not the project goal.
+We start with the function that writes a record header in a
+buffer. It's a tedious function but it must be done with care as a
+single error in a header can corrupt the entire archive. In particular
+we must pay attention to the limits imposed by the file format. For
+example the size of paths is limited to 99 bytes (There are extensions
+to the format to handle longer path but it's not the goal of this
+project). 
 %
 \begin{listingcodefile}{tar.ml}
 let write_header_to_buffer source infos kind =
@@ -2880,10 +2837,9 @@ let write_header_to_buffer source infos kind =
   put 8 (Printf.sprintf "%06o\000 " checksum) 148;;
 \end{listingcodefile}
 %
-Conversely, we create a header starting from an in an archive:
-\ml+source+ is the name of the files; \ml+infos+ is the 
-information about the file (of type \ml+stats+) and kind is the  type
-of the file in the archive (type \ml+Tarlib.kind+).
+The following function create a record header for a file. \ml+source+ is
+the file name, \ml+infos+ is the \libtype{Unix}{stats} information of
+the file and \ml+kind+ is the type of file. 
 %
 \begin{listingcodefile}{tar.ml}
 let header source infos kind = {
@@ -2898,13 +2854,12 @@ let header source infos kind = {
   kind = kind }
 \end{listingcodefile}
 %
-In order to write a file in the archive, we define a variant
-of \ml+file_copy+ which takes as an argument the number of bytes to copy and verify
-so that the end of file corresponds well with the indicated size.
-Otherwise, an error is raised: This corresponds to an abnormal case where the file 
-s about to be modified during its archival.
-We take care not to exceed the indicated size, which
-will limit an archive's corruption to a single file.
+To write a file in the archive, we define a variant of \ml+file_copy+
+which takes as an argument the number of bytes to copy and verifies
+that the end of file corresponds to that size. Otherwise, an error is
+raised: this handles the abnormal case where a file is modified during
+the archival process. To limit the archive's corruption to a single
+file we do not write beyond that size. 
 %
 \begin{listingcodefile}{tar.ml}
 let write_file len source fdout =
@@ -2924,16 +2879,18 @@ let padding fd len =
   if len > 0 then ignore (write fd (String.make len '\000') 0 len);;
 \end{listingcodefile}
 %
-We can now tackle the creation of the archive. 
-The files already registered in the archive are noted 
-in a hash table with their path in the for the purpose of not copying them more than once.
-We should also note the directories registered for the purpose of not copying them again: in 
-effect it may happen that an archival root is continued from another
-We would avoid recopying it (even if that would not be fatal).
+We now tackle the creation of the archive. The files already written
+in the archive are stored in hashtable with their path so that they
+are not copied more than once. We also store the directories that were
+already written so as to copy them again: it can happen that the
+archival root is already contained in another and we don't want to
+copy it again (even though that would be harmless). 
 
-An archive in the course of being written is thus identified through its descriptor
-through which it is written and its two buffers. We add a 
-field which holds the size of the archive for the purpose of being able to complete it with a minimal size.
+The data needed to write an archive is a file descriptor pointing on
+the file to write, the file and directory cache (see above) and a size
+variable that remembers the current archive size (to pad it to a
+minimal size if needed). The \ml+archive+ type collects all this
+information in a record:
 %
 \begin{listingcodefile}{tar.ml}
 type archive = 
@@ -2946,13 +2903,11 @@ let try_new_dir archive dir =
   with Not_found -> Hashtbl.add archive.dirfiles dir false; true
 \end{listingcodefile}
 %
-Here is the main function that writes an entire tree starting from 
-an entry in the archive \ml+file+ passed through the command line.
-This function is not difficult but some precautions should be taken 
-against abnormal cases. In particular, we
-have seen how to detect the case of a file about to modified 
-before its archival. One sub-case of this is when the archive itself 
-is about to be archived.. 
+Here is the main function that writes an entire hierarchy starting
+from a \ml+file+ path given on the command line. This function is not
+difficult but needs some care with pathological cases. In particular
+we saw how to detect when a file is modified the archival. A sub case
+of this when the archive is being archived itself\ldots 
 %
 \begin{listingcodefile}{tar.ml}
 let verbose = ref true;;
@@ -3007,11 +2962,12 @@ let write_from archive file =
   write_rec archive file;;
 \end{listingcodefile}
 %
-We note the regular files which many have hard links
-in the table  \ml+regfiles+. This is not necessary for the files
-that have no more than one link.
+We keep track of regular files that may have hard links in the
+\ml+regfiles+ table. It's not necessary for files that have a single
+link.
 
-There is nothing left to do except to end the program.  In case of error, it is prudent to remove the erroneous archive.
+Here's the main function. In case of error, it is better to remove the
+erroneous archive.
 %
 \begin{listingcodefile}{tar.ml}
 let min_archive_size = 20 * block_size;;
@@ -3031,7 +2987,7 @@ let build tarfile files =
     remove tarfile; close fd; raise z;;
 \end{listingcodefile}
 %
-To finish there is nothing left to do except to analyze the command line.
+We end by parsing the command line arguments. 
 %
 \begin{listingcodefile}{tar.ml}
 let usage () = 
