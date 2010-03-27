@@ -336,7 +336,7 @@ inode number \ml+st_ino+.
 A file has one user owner \ml+st_uid+ and one group owner
 \ml+st_gid+.  All the users and groups 
 on the machine are usually described in the  
- \ml+/etc/passwd+ and \ml+/etc/groups+ files. We can lookup them by
+ \ml+/etc/passwd+ and \ml+/etc/groups+ files. We can look up them by
 name in a portable manner with the functions \syscall{getpwnam} and 
 \syscall{getgrnam} or by id with 
 \syscall{getpwuid} and \syscall{getgrgid}.
@@ -380,7 +380,7 @@ val $\libvalue{Unix}{fchown}$ : file_descr -> int -> int -> unit
 \subsection*{Access rights}
 
 Access rights are encoded as bits in an integer. The type 
-\libtype{Unix}{file\_perm} is just an abreviation for the type
+\libtype{Unix}{file\_perm} is just an abbreviation for the type
 \ml+int+. Access rights specify special bits and read, write and
 execution rights for the user owner, the group owner and the other users. 
 Access right are thus represented by a vector of bits:
@@ -644,7 +644,7 @@ The \ml+handler+ function handles traversal errors of type
 \ml+Unix_error+. Whenever an error occurs the arguments of the
 exception are given to the handler function and the traversal
 continues. However when an exception is raised by the functions
-\ml+action+ or \ml+handler+, we immediatly stop the traversal and let
+\ml+action+ or \ml+handler+, we immediately stop the traversal and let
 it propagate to the caller. To propagate an \ml+Unix_error+ exception
 without catching it like a traversal error, we wrap these exceptions
 in the \ml+Hidden+ exception (see \ml+hide_exn+ and \ml+reveal_exn+).
@@ -848,7 +848,7 @@ overwriting any data that may already be there.
 
 \item \ml+O_CREAT+, creates the file if it does not exist. The created
   file is empty with access rights specified by the third argument 
-  and the creation mask of the process (the mask can be retrevied 
+  and the creation mask of the process (the mask can be retrieved 
   and changed with \libvalue{Unix}{umask}).
 
 \item \ml+O_EXCL+, \ml+openfile+ fails if the file already exists.
@@ -1045,7 +1045,7 @@ start of a line.
 
 Another example is when we read from a terminal. In that case,
 \ml+read+ blocks until an entire line is available. If the line length
-is smaller than the requested bytes \ml+read+ returns immediatly with
+is smaller than the requested bytes \ml+read+ returns immediately with
 the line without waiting for more data to reach the number of
 requested bytes. (This is the default behavior for terminals, but it
 can be changed so that data is read character-by-character instead of
@@ -1093,8 +1093,8 @@ anything else with the descriptor will fail. Descriptors should be
 closed when they are no longer needed; but it is not mandatory. In
 particular, and in contrasts to what happen with \ml+Pervasives+'
 channels, a file descriptor doesn't need to be closed to ensure that
-all pending writes have been peformed as write requests made with
-\ml+write+ are immeditely transmitted to the kernel. On the other
+all pending writes have been performed as write requests made with
+\ml+write+ are immediately transmitted to the kernel. On the other
 hand, the number of descriptors allocated by a process is limited by
 the kernel (from several hundreds to thousands). Doing a \ml+close+ on
 an unused descriptor releases it, so that the process does not run out
@@ -1166,7 +1166,7 @@ Finally, we close the two descriptors. The main program \ml+copy+
 verifies that the command received two arguments and passes them to
 the function \ml+file_copy+.
 
-Any error occuring during the copy results in a \ml+Unix_error+
+Any error occurring during the copy results in a \ml+Unix_error+
 exception which is propagated up to \ml+handle_unix_error+ which
 catches and prints it. Example of errors include not being able to
 open the input file because it does not exist, failure to read because
@@ -1249,7 +1249,7 @@ For larger blocks, between 4KB and 1MB, the copy speed is constant and
 maximal. Here, the time spent in system calls and the loop is small
 relative to the time spent on in the data transfer. Also the buffer
 size becomes bigger than the cache sizes used by the system and the
-time spent by the system to make the transfert dominates the cost of a
+time spent by the system to make the transfer dominates the cost of a
 system call\footnote{In fact, {\ocaml} limits the size of data
   transfers to 16KB (in the current version) and repeats \ml+write+
   system calls to make the complete transfer~---~see the discussion in
@@ -1335,11 +1335,11 @@ wq
 Moral of the story, a system call, even if it does very little work,
 costs dearly~---~much more than a normal function call: roughly, 2 to
 20 microseconds for each system call, depending on the the
-architecture. It is therefore important to minimize de number of
+architecture. It is therefore important to minimize the number of
 system calls. In particular, read and write operations should be made
 in blocks of reasonable size and not character by character.
 
-In examples like \ml+file_copy+, it is not difficult to do input/ouput
+In examples like \ml+file_copy+, it is not difficult to do input/output
 with large blocks. But other types of programs are more naturally
 written with character by character input (\eg{} reading a line from a
 file, lexical analysis \etc), and displaying some characters at once
@@ -1362,7 +1362,7 @@ the programs that use this library on this new platform.
 
 \section{Complete example: a small input/output library}
 
-To illustrate the bufferized \io techniques, we implement a fragment
+To illustrate the buffered \io techniques, we implement a fragment
 of {\ocaml} \ml+Pervasives+' channels. Here is the interface:
 %
 \begin{listingcodefile}{io.mli}
@@ -1488,7 +1488,7 @@ buffered, but not yet read).
  {written characters} (1,0);
 
 \draw[dashed] (4,3) to node [left,text width=2.5cm,text centered] 
- {written, but bufferized, characters} (4,0);
+ {written, but buffered, characters} (4,0);
 
 \path[draw] (1,0) rectangle +(4, 0.5);
 \node[anchor=east] at (0.9,0.25) {\texttt{out\_buffer}};
@@ -1711,7 +1711,7 @@ characters, \etc
 
 To add the option \ml+-f+, we first proceed as above and then we go
 back at the end of the file and try to \ml+read+ from there. If
-\ml+read+ returns data we display it immediatly and start again. If it
+\ml+read+ returns data we display it immediately and start again. If it
 returns \ml+0+ we wait some time (\ml+sleep 1+) and try again.
 \end{answer}
 
@@ -1771,7 +1771,7 @@ the file on which the link points.
 Special files can be of \quotes{character} or \quotes{block} type.
 The former are character streams: we can read or write characters only
 sequentially. These are the terminals, sound devices, printers, \etc{}
-The latter, typically disks, have a permanent medium: characteres can
+The latter, typically disks, have a permanent medium: characters can
 be read by blocks and even seeked relative to the current position.
 
 Among the special files, we may distinguish:
@@ -1803,7 +1803,7 @@ but many ignore \indexvalue{lseek}.
 In addition to the usual file system calls, special files which
 represent peripherals must be commanded and/or configured
 dynamically. For example, for a tape drive, rewind or fast forward the
-tape; for a terminal, choice of the line editing mode, behaviour of
+tape; for a terminal, choice of the line editing mode, behavior of
 special characters, serial connection parameters (speed, parity,
 \etc).  These operations are made in Unix through the system call
 \syscall{ioctl} which group together all the particular
@@ -2136,7 +2136,7 @@ let rec copy source dest =
 \section{Complete example: {\normalfont\texttt{T}}ape {\normalfont\texttt{AR}}chive}
 
 The \ml+tar+ file format (for \ml+t+ape \ml+ar+chive) can store a file
-hiearachy into a single file. It can be seen as a mini file system.
+hierarchy into a single file. It can be seen as a mini file system.
 
 In this section we define functions to read and write \ml+tar+
 files. We also program a command \ml+readtar+ such that \ml+readtar a+
@@ -2190,7 +2190,7 @@ zeros). Records are stored one after the other. If needed, the file is
 padded with empty blocks to reach at least 20 blocks.
 
 Since tar archives are also designed to be written on brittle media
-and reread many years leater, the header contains a \ml+checksum+
+and reread many years later, the header contains a \ml+checksum+
 field which allows to detect when the header is damaged. Its value is
 the sum of all the bytes of the header (to make that sum we assume
 that the \ml+checksum+ field itself is made of zeros).
@@ -2491,7 +2491,7 @@ name in the directory. The \ml+record+ field stores the \ml+tar+
 record associated to the node. This field is optional because
 intermediate directories are not always present in the archive; it is
 mutable because a file may appear more than once in the archive and
-the last occurence takes precedence over the other.
+the last occurrence takes precedence over the other.
 %
 \begin{listingcodefile}{readtar_ex.ml}
 let root () = 
@@ -2643,7 +2643,7 @@ restoring if possible the information about the files
 The file hierarchy should be reconstructed in the current working
 directory of the \ml+untar+ command. If the archive tries to create
 files outside a sub directory of the current working directory this
-should be detected and prohibited. Inexistant directories not explicitely
+should be detected and prohibited. Nonexistent directories not explicitly
 mentioned in the archive should be created with the user's default
 permissions.
 \end{exercise}
@@ -2704,7 +2704,7 @@ let set_infos header =
 \end{listingcodefile}
 %
 The main function of the program is \ml+untar_file_collect_dirs+ which 
-processes a single record and accumulates directories explicitely
+processes a single record and accumulates directories explicitly
 created by the archive:
 %
 \begin{listingcodefile}{untarlib.ml}
@@ -2779,11 +2779,9 @@ constructs the archive \ml+a+ containing the list of files \ml+f1+,
 \ml+f2+, \etc and their sub-directories. 
 \end{exercise}
 \begin{answer}
-We reuse the data structures already defined above and collect them 
-in a \ml+Tarlib+ module. 
-We re-utilize the data structure defined below in the library 
-\ml+Tarlib+. We define a warning function which does not stop the
-program or alter the return code of the program.  
+We reuse the data structures already defined above and collect them in
+a \ml+Tarlib+ module. We define a warning function which does not stop
+the program or alter the return code of the program.
 %
 \begin{listingcodefile}{tar.ml}
 open Sys
@@ -2880,7 +2878,7 @@ let padding fd len =
 \end{listingcodefile}
 %
 We now tackle the creation of the archive. The files already written
-in the archive are stored in hashtable with their path so that they
+in the archive are stored in a hashtable with their path so that they
 are not copied more than once. We also store the directories that were
 already written so as to copy them again: it can happen that the
 archival root is already contained in another and we don't want to
