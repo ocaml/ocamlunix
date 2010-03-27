@@ -12,7 +12,7 @@
 \label{sec/processes}
 \cutname{processes.html}
 
-A process is an executing program on the operating system.  It
+A process is a program executing on the operating system.  It
 consists of a program (machine code) and a state of the program
 (current control point, variable values, call stack, open file
 descriptors, \etc).
@@ -28,8 +28,8 @@ The system call \syscall{fork} creates a process.
 val $\libvalue{Unix}{fork}$ : unit -> int
 \end{listingcodefile}
 %
-The new (\quotes{child}) process is a nearly perfect clone of the
-one which called \ml+fork+ (\quotes{parent}).  Both processes execute
+The new \emph{child process} is a nearly perfect clone of the
+\emph{parent process} which called \ml+fork+.  Both processes execute
 the same code, are initially at the same control point (the return
 from \ml+fork+), attribute the same values to all variables, have
 identical call stacks, and hold open the same file descriptors to
@@ -64,17 +64,20 @@ Similarly, the open file descriptors are copied at the moment of the
 hand, the two descriptors designate the same entry in the file table
 (residing in system memory) and share their current position: if one
 reads and then the other, each will read a different part of the file;
-likewise, changes in offset by one process using \ml+lseek+ are
-immediately visible to the other. The descriptors in the child and
-parent thus act like the argument and result descriptors after a
-\ml+dup+, but they are in different processes as opposed to the same
-one.
+likewise, changes in the read/write position by one process with \ml+lseek+ are
+immediately visible to the other. 
+
+%% I don't think that's very enlighting at this point. 
+% The descriptors in the child and
+% parent thus act like the argument and result descriptors after a
+% \ml+dup+, but they are in different processes as opposed to the same
+% one.
 
 \section{Complete Example: the command {\normalfont\texttt{leave}}}
 
-The command \ml+leave hhmm+ immediately exits the main process, but
+The command \ml+leave hhmm+ exits immediately, but
 forks a background process which, at the time \ml+hhmm+, reports that
-it is time to exit.
+it is time to leave.
 %
 \begin{listingcodefile}[style=numbers]{leave.ml}open Sys;;
 open Unix;;
@@ -96,27 +99,27 @@ $\label{prog:delay}$
 
 handle_unix_error leave ();;
 \end{listingcodefile}
-%
-
-It begins with a rudimentary parsing of the command line, in order to
-extract the time provided.  It then calculates the delay in seconds
-(line~\ref{prog:delay}). The \ml+time+ call returns the current
-date, in seconds from the epoch (midnight, Jan 01, 1970).  The
-function \ml+localtime+ transforms this into
-year/month/day/hours/minutes/seconds.  It then creates a new process
-using \ml+fork+.  The parent process (whose return value from
-\ml+fork+ is a non-zero integer) terminates immediately.  The shell
-which launched \ml+leave+ thereby returns control to the user.  The
-child process (whose return value from \ml+fork+ is zero) continues
-executing.  It does nothing during the indicated time (the call
-\ml+sleep+), then displays its message and terminates.
+% 
+The program begins with a rudimentary parsing of the command line,
+in order to extract the time provided.  It then calculates the delay
+in seconds (line~\ref{prog:delay}). The \indexlibvalue{Unix}{time}
+call returns the current date, in seconds from the epoch (January 1st
+1970, midnight).  The function \indexlibvalue{Unix}{localtime} splits
+this duration into years, months, days, hours, minutes and seconds.
+It then creates a new process using \ml+fork+.  The parent process
+(whose return value from \ml+fork+ is a non-zero integer) terminates
+immediately.  The shell which launched \ml+leave+ thereby returns
+control to the user.  The child process (whose return value from
+\ml+fork+ is zero) continues executing.  It does nothing during the
+indicated time (the call to \ml+sleep+), then displays its message and
+terminates.
 
 \section{Awaiting the termination of a process} \label{double-fork}
 
 The system call \ml+wait+ waits for one of the child processes created
-by \ml+fork+ to terminate, then returns information about the manner
-in which it did so.  It allows parent-child synchronization, via a
-very rudimentary form of communication from the child to the parent.
+by \ml+fork+ to terminate and returns information about how it did.
+It provides a parent-child synchronization mechanism and a very
+rudimentary form of communication from the child to the parent.
 \label{wait}
 %
 \begin{codefile}{tmpunix.mli}
@@ -131,25 +134,30 @@ val $\libvalue{Unix}{waitpid}$ : wait_flag list -> int -> int * process_status
 %
 The primitive system call is \syscall{waitpid} and the function
 \ml+wait ()+ is merely a shortcut for the expression \ml+waitpid [] (-1)+.
-%
-The system call \ml+waitpid [] p+ awaits the termination of the
-process \ml+p+ if \ml+p+ $> 0$, or of any child process with the same
-group id as the current process if \ml+p+ $= 0$, or of any child
-process at all if \ml+p+ $= -1$, or of a child process with group id
-\ml+-p+ if \ml+p+ $<-1$.
-
-The first result is the child process id handled by \ml+wait+. The
-second result can be:
+% 
+The behavior of \ml+waitpid [] p+ depends on the value of \ml+p+:
+\begin{itemize}
+\item If \ml+p+ $> 0$, it awaits the termination of the child with id
+  equal to \ml+p+.
+\item If \ml+p+ $= 0$, it awaits any child with the same group id as the
+calling process. 
+\item If \ml+p+ $= -1$, it awaits any process.
+\item If \ml+p+ $<-1$, it awaits a child process with group id equal
+  to \ml+-p+.
+\end{itemize}
+The first component of the result is the process id of the child
+caught by \ml+wait+. The second component of the result is a value of type 
+\libtype{Unix}{process\_status}:
 %
 \begin{mltypecases}
 \begin{tabular}{@{}lp{0.8\textwidth}}
-\ml+WEXITED r+ & The child process terminated normally (via
-\ml+exit+ or by reaching the end of the program); \ml+r+ is the return
+\ml+WEXITED r+ & The child process terminated normally via
+\ml+exit+ or by reaching the end of the program; \ml+r+ is the return
 code (the argument passed to \ml+exit+).\\
 %
 \ml+WSIGNALED s+ & The child process was killed by a signal
-(ctrl-C, \ml+kill+, \etc; see below for more information on the
-signals); \ml+s+ identifies which signal.\\
+(ctrl-C, \ml+kill+, \etc, see chapter~\ref{sec/signals}
+for more information about signals); \ml+s+ identifies the signal.\\
 %
 \ml+WSTOPPED s+ & The child process was halted by the signal
 \ml+s+; this occurs only in very special cases where a process
@@ -175,8 +183,8 @@ halted by the signal \ml+sigstop+.  The command raises the exception
 
 \begin{example}
 \label{ex/forksearch}
-The function \ml+fork_search+ below performs a linear search over
-a vector, in two processes. It relies on the function \ml+simple_search+
+The function \ml+fork_search+ below performs a linear search in an 
+array with two processes. It relies on the function \ml+simple_search+
 to perform the linear search.
 %
 \begin{listingcodefile}[style=numbers]{forksearch.ml}
@@ -212,7 +220,7 @@ satisfying the predicate \ml+cond+, or $0$ otherwise
 traverses the lower half of the table, then calls \ml+wait+ to
 sync with the child process (lines~\ref{prog:wexit}
 and~\ref{prog:wwexit}). If the child terminated normally, it combines
-its return code with the Boolean result of the search in the lower
+its return code with the boolean result of the search in the lower
 half of the table. Otherwise, something horrible happened, and the
 function \ml+fork_search+ fails.
 \end{example}
@@ -254,8 +262,8 @@ since the child terminates very quickly.
 
 The system calls \syscall{execve}, \syscall{execv}, and
 \syscall{execvp} launch a program within the current process.
-Except in case of error, these calls never return: they halt progress
-of the current program and switch to the start of the new program.
+Except in case of error, these calls never return: they halt the progress
+of the current program and switch to the new program.
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{execve}$ : string -> string array -> string array -> unit
@@ -269,17 +277,17 @@ directories of the search path (specified in the environment variable
 \ml+PATH+).
 
 The second argument is the array of command line arguments with which
-to execute the program; this array can be captured in \ml+Sys.argv+ by
-the executed program.
+to execute the program; this array will be the \ml+Sys.argv+ array 
+of the executed program.
 
 In the case of \ml+execve+, the third argument is the environment
-to send to the executed program; \ml+execv+ and \ml+execvp+
-send the current environment unchanged.
+given to the executed program; \ml+execv+ and \ml+execvp+
+give the current environment unchanged.
 
 The calls \ml+execve+, \ml+execv+, and \ml+execvp+ never return a
-result: either everything works error-free and the process and the
-process starts another program; or else an error occurs (file not
-found, \etc), and the call triggers the exception \ml+Unix_error+.
+result: either everything works without errors and the process starts
+the requested program or an error occurs (file not found, \etc), and
+the call raises the exception \ml+Unix_error+ in the calling program.
 
 \begin{example}
 The following three forms are equivalent:
@@ -322,23 +330,24 @@ handle_unix_error emacs ();;
 \end{example}
 
 The process which calls \ml+exec+ is the same one that executes the
-new program.  As a result, the new program inherits some pieces of
+new program.  As a result, the new program inherits some features of
 the execution environment of the program which called \ml+exec+:
 \begin{itemize}
-\item the same process id, same parent process, same behavior in
-relation to the parent process which called \ml+wait+
-\item same standard input (stdin), same standard output (stdout),
-same standard error (stderr)
-\item same ignored signals (see the section on signals)
+\item the same process id and parent process
+%% It's strange to say the following since the behavior is defined by
+%% the parent, commented out.  
+%, same behavior in relation to the parent process which called \ml+wait+
+\item same standard input, standard output and standard error
+\item same ignored signals (see chapter~\ref{sec/signals})
 \end{itemize}
 
 \section{Complete example: a mini-shell}
 
 The following program is a simplified command interpreter: it reads
 lines from standard input, breaks them into words, launches the
-corresponding command, and repeats until an end of file on stdin.  We
+corresponding command, and repeats until the end of file on stdin.  We
 begin with the function which splits a string into a list of words.
-No comments, please, on this hackish piece of code.
+Please, no comments on this horror.
 \begin{listingcodefile}{minishell.ml}
 open Unix;;
 open Printf;;
@@ -380,9 +389,9 @@ let print_status program status =
      printf "%s stopped (???)\n%!" program;;
 \end{listingcodefile}
 %
-The function \ml+exec_command+ executes a command with error handling.
+The function \ml+exec_command+ executes a command and handles errors.
 The return code 255 indicates that the command could not be executed.
-(This is not a standard convention; one hopes that few commands
+(This is not a standard convention; we just hope that few commands
 terminate with a return code of 255.)  The function
 \ml+print_status+ decodes and prints the status information returned
 by a process, ignoring the return code of 255.
@@ -404,30 +413,29 @@ let minishell () =
 
 handle_unix_error minishell ();;
 \end{listingcodefile}
-%
-Each time through the loop, we read one line from standard input, via
-the function \ml+input_line+ from the standard library
-\ml+Pervasives+. This function raises the \ml+End_of_file+ exception
-upon reaching the end of file, causing the loop to exit. We split the
-line into words, and then call \ml+fork+.  The child process uses
-\ml+exec_command+ to launch the command with error handling.  The
+% 
+Each time through the loop, we read a line from \ml+stdin+ with the
+function \ml+input_line+.  This function raises the \ml+End_of_file+
+exception when the end of file is reached, causing the loop to
+exit. We split the line into words, and then call \ml+fork+.  The
+child process uses \ml+exec_command+ to execute the command.  The
 parent process calls \ml+wait+ to wait for the command to finish and
-prints status information returned by \ml+wait+.
+prints the status information returned by \ml+wait+.
 
 \begin{exercise}
 \label{shell}
-Add the ability to execute the commands in the background, if they're
+Add the ability to execute commands in the background if they are
 followed by \ml+&+.
 \end{exercise}
 \begin{answer}
-In the case where the command line ends with \ml+&+, one may simply
-not call \ml+wait+ in the parent process, and immediately go to the
-next iteration of the loop.  The only difficulty: the parent may now
-have multiple children executing at the same time (the commands in the
+If the command line ends with \ml+&+, we do not call \ml+wait+ in
+the parent process and immediately continue with the next iteration
+of the loop. But there is one difficulty: the parent may now have
+multiple children executing at the same time (the commands in the
 background which haven't terminated yet, plus the last synchronous
-command), and \ml+wait+ could synchronize with any of its children.
-In case of a synchronous command, \ml+wait+ must be repeated until the
-thread thus recovered is the one actually executing the command.
+command), and \ml+wait+ could synchronize with any of these children.
+Thus, for synchronous command, \ml+wait+ must be repeated until the
+recovered child is the one actually executing that command.
 %
 \begin{codefile}{shell.ml}
 open Minishell
