@@ -83,7 +83,7 @@ following to the \ml+_tags+ file:
 %
 If your installation does not support native threads, you can refer to
 section~\ref{sec/thread-implementation} or the manual for instructions
-how to use simulated (\quotes{\textsc{vm}-level}) threads.  The text
+how to use simulated \quotes{\textsc{vm}-level} threads.  The text
 and examples in this chapter assume native threads and do not apply,
 in general, to \textsc{vm}-level threads.
 
@@ -92,8 +92,8 @@ in general, to \textsc{vm}-level threads.
 The functions described in this section are defined in the
 \libmodule{Thread} module.\medskip
 
-The function \pthreadcall{create} \ml+f v+ creates a new thread that
-executes the function application \ml+f v+, and returns a handle that
+The system call \pthreadcall{create} \ml+f v+ creates a new thread that
+executes the function application \ml+f v+ and returns a \emph{thread id} that
 the caller can use to control the newly-created thread.
 %
 \begin{codefile}{tmpthread.mli}
@@ -103,25 +103,22 @@ type t
 \begin{listingcodefile}{tmpthread.mli}
 val $\libvalue{Thread}{create}$ : ('a -> 'b) -> 'a -> t
 \end{listingcodefile}
-%
-The calculation executes concurrently with the other threads in the
-program.  The thread terminates when the application \ml+f v+
-terminates, and the result of the calculation is simply ignored.  If
-the thread terminates with an uncaught exception, the exception is not
-propagated to any other thread: a message is printed on the standard
-error output and the exception is otherwise ignored.  (The other
-threads have proceeded independently and would not be able to
-receive the exception.)
+% 
+The function application executes concurrently with the other threads
+in the program. The thread terminates when the application returns and
+its result is simply ignored.  If the thread terminates with an
+uncaught exception, the exception is not propagated to any other
+thread: a message is printed on the standard error output and the
+exception is otherwise ignored.  (The other threads have proceeded
+independently and would not be able to receive the exception.)
 
-A thread can also terminate prematurely by calling the \ml+exit+
-function (in the \ml+Thread+ module), not to be confused with the
-function of the same name in the \ml+Pervasives+ module that
-terminates the entire program, {\ie} all its threads.  The
-\pthreadcall{self} function returns the handle of the calling thread.
+A thread can also terminate prematurely with the system call
+\pthreadcall{exit} of the \ml+Thread+ module, not to be confused with
+\ml+Pervasives.+\indexlibvalue{Pervasives}{exit} that terminates the
+entire program, {\ie} all its threads.
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\indexlibvalue{Thread}{exit}$ : unit -> unit
-val $\libvalue{Thread}{self}$ : unit -> t
 \end{listingcodefile}
 %
 The initial thread of a program implicitly calls the
@@ -131,12 +128,18 @@ When another thread terminates before the initial thread, it is
 deallocated immediately by the {\ocaml} runtime library.  It does not
 become a zombie as in the case of a Unix process created by \ml+fork+.
 
+The system call \pthreadcall{self} returns the thread id of the
+calling thread.
+\begin{listingcodefile}{tmpthread.mli}
+val $\libvalue{Thread}{self}$ : unit -> t
+\end{listingcodefile}
+
 We already know enough to propose an alternative to the preceding
 model for the concurrent server that used \quotes{fork} (or
 \quotes{double fork})~---~by using a thread rather than a child process.
 To establish such a server, we introduce a variant
 \ml+Misc.co_treatment+ of the function \ml+Misc.fork_treatment+
-defined in Chapter~\ref{sec/sockets}.
+defined in section~\ref{sec/service}.
 %
 \begin{codefile}{misc.mli}
 val co_treatment : 
@@ -188,7 +191,7 @@ raising of an \ml+EPIPE+ exception.
 The functions described in this section are defined in the
 \libmodule{Thread} module.\medskip
 
-The \pthreadcall{join} function allows one thread to wait for another
+The system call \pthreadcall{join} allows one thread to wait for another
 to finish.
 %
 \begin{listingcodefile}{tmpthread.mli}
@@ -196,14 +199,14 @@ val $\libvalue{Thread}{join}$ : t -> unit
 \end{listingcodefile}
 %
 The calling thread is suspended until the thread with the given
-identity has terminated its execution. This function can also be used
+thread id has terminated its execution. This function can also be used
 by the principal thread to wait for all the other threads to finish
 before terminating itself and the program. (The default behavior is to
 kill the other threads without waiting for them to terminate.)
 
-Although this call is blocking and therefore the \quotes{long} kind, it
+Although this call is blocking and therefore \quotes{long}, it
 is restarted automatically when a signal is received: it is
-effectively interrupted by a signal, the handler is invoked, then the
+effectively interrupted by the signal, the handler is invoked, then the
 call is restarted.  The call therefore does not return until the
 thread has really terminated, and the call never raises the \ml+EINTR+
 exception.  From the viewpoint of the {\ocaml} programmer, it behaves as
@@ -213,7 +216,7 @@ A thread does not return, since it is executed asynchronously.  But
 its action can be observed~---~luckily!~---~by its side effects.  For
 example, one thread can place the result of a computation in a
 reference that another thread will consult after making sure that the
-calculation has finished.  We will illustrate this in the following
+calculation has finished.  We illustrate this in the following
 example.
 %
 \begin{codefile}{tmpthread.ml}
@@ -226,8 +229,7 @@ let eval f x = try Value (f x) with z -> Exception z
 let coexec (f : 'a -> 'b) (x : 'a) : unit -> 'b = 
   let result = ref (Exception Exited) in 
   let p = Thread.create (fun x -> result := eval f x) x in
-  function () -> 
-    match join p; !result with 
+  function () -> match (join p; !result) with 
     | Value v -> v
     | Exception exn -> raise exn;;
 
@@ -239,15 +241,15 @@ to another, or because it is waiting for a resource being used by
 another thread (locks and conditions, for example) or by another
 process (file descriptors, for example).  A thread can also suspend
 itself voluntarily.  The \ml+yield+ function allows a thread to give
-up control explicitly (without waiting for preemption by the system).
+up control explicitly, without waiting for preemption by the system.
 %
 \begin{listingcodefile}{tmpthread.mli}
 val $\indexlibvalue{Thread}{yield}$ : unit -> unit
 \end{listingcodefile}
 %
 It is a hint for the thread scheduler, but it may have no effect, for
-example if no other thread can execute immediately.  The system can
-therefore decide to give control back to the same thread.
+example if no other thread can execute immediately, the system may
+give control back to the same thread.
 
 Conversely, it is not necessary to execute \ml+yield+ to permit other
 threads to execute, because the system reserves the right to execute
@@ -257,9 +259,9 @@ to give the illusion that the threads are running in parallel, even on
 a uniprocessor machine.
 
 \begin{example}
-We can revisit example~\ref{ex/forksearch} and modify it to use
+We can revisit the example of section~\ref{ex/forksearch} and modify it to use
 threads rather than processes.
-%
+%simulated
 \begin{codefile}{thpsearch.ml}
 open Forksearch
 \end{codefile}
@@ -385,7 +387,7 @@ Once \ml+s+ seconds elapse, it can be restarted.
 val $\indexlibvalue{Thread}{delay}$ : float -> unit
 \end{listingcodefile}
 %
-This primitive is provided for portability with simulated threads, but
+This primitive is provided for portability with \textsc{vm}-level threads, but
 \ml+delay s+ is simply an abbreviation for
 \ml+ignore (Unix.select [] [] [] s)+. This call, unlike \ml+join+, is
 not restarted when it is interrupted by a signal.
@@ -517,7 +519,7 @@ prevent arbitrary interleaving of $p$ and $q$.
 
 Locks are shared objects that can be held by at most a single thread
 within a program at a time. A lock is created by the function
-\pthreadcall[mutex]{create}.
+\ml+create+.
 %
 \begin{codefile}{tmpmutex.mli}
   type t
@@ -527,12 +529,12 @@ within a program at a time. A lock is created by the function
 val $\libvalue{Mutex}{create}$ : unit -> t
 \end{listingcodefile}
 %
-This operation a constructs a new lock, initially not held by any thread.
-To acquire an existing lock, it is necessary to call the function
+This function returns a new lock, initially not held by any thread.
+To acquire an existing lock, it is necessary to use the system call
 \pthreadcall[mutex]{lock} with the lock as argument. If the lock is
 held by another thread, the caller is frozen until the lock is released.
-A lock must be released explicitly by the thread that holds it, by
-calling \pthreadcall[mutex]{unlock}.
+A lock must be released explicitly by the thread that holds it with
+the system call \pthreadcall[mutex]{unlock}.
 %
 \begin{listingcodefile}{tmpmutex.mli}
 val $\libvalue{Mutex}{lock}$ : t -> unit
@@ -548,7 +550,7 @@ acquired, and never raises the \ml+EINTR+ exception.  The real
 treatment of the signal by {\ocaml} will happen only upon the return
 from \ml+lock+.
 
-We can also try to acquire a lock without blocking by calling
+We can also try to acquire a lock without blocking with the system call
 \pthreadcall[mutex]{trylock}
 %
 \begin{listingcodefile}{tmpmutex.mli}
@@ -677,11 +679,10 @@ dynamically respects the hierarchy: a thread never acquires a lock
 unless that lock is dominated by all the other locks that the thread
 already holds.
 
-\section{Complete example: {\normalfont\http} relay}
-\label{ex/th-relais}
+\section{Complete example: {\normalfont\http} relay\label{ex/th-relais}}
 
-We will modify the {\http} relay developed in the preceding chapter
-so that it services requests using threads.
+We modify the {\http} relay developed in section~\ref{sec/relay} so
+that it services requests using threads.
 
 Intuitively, it suffices to replace the \ml+establish_server+ function
 that creates a process clone with a function that creates a
@@ -831,7 +832,7 @@ it it is not reactive enough (period too long).
 holds a lock can wait for a condition object until another thread
 sends a signal on that condition.  As with locks, conditions are
 passive structures that can be manipulated by synchronization
-functions.  They can be created by the \pthreadcall[cond]{create}
+functions.  They can be created by the \ml+create+
 function.
 %
 \begin{codefile}{tmpcondition.mli}
@@ -843,7 +844,7 @@ val $\libvalue{Condition}{create}$ : unit -> t
 \end{listingcodefile}
 %
 A process $p$ that \emph{already holds} a lock \ml+v+ can wait on a
-condition \ml+c+ and the \ml+v+ by calling \pthreadcall[cond]{wait}.
+condition \ml+c+ and the lock \ml+v+ with the system call \pthreadcall[cond]{wait}.
 The process $p$ informs the system that it is waiting on the condition
 \ml+c+ and the lock \ml+v+, then releases the lock \ml+v+ and goes to
 sleep.  It will not be woken up by the system until another thread $q$
@@ -860,8 +861,8 @@ same as for \ml+Mutex.lock+.
 
 When a thread signals a change on a condition, it can either ask for
 all threads waiting on that condition to be woken up
-(\pthreadcall[cond]{broadcast}), or else for just one of them to be
-woken up (\pthreadcall[cond]{signal}).
+(system call \pthreadcall[cond]{broadcast}), or else for just one of them to be
+woken up (system call \pthreadcall[cond]{signal}).
 %
 \begin{listingcodefile}{tmpcondition.mli}
 val $\libvalue{Condition}{signal}$ : t -> unit
@@ -915,8 +916,8 @@ just produced a lot of some resource and wakes all the others using a
 being greedy and exhausting the entire resource.  The second one to
 wake up must go back to sleep, hoping to be luckier next time.
 
-We can now give a concrete solution for shared queues.  The \ml+queue+
-structure defined in the \ml+Queue+ module is extended with a lock and
+We can now give a concrete solution for shared queues.  The queue
+structure defined in the \libmodule{Queue} module is extended with a lock and
 a \ml+non_empty+ condition.
 %
 \begin{listingcodefile}[style=numbers]{thcheck.ml}
@@ -1023,7 +1024,7 @@ The functions described in this section are defined in the
 \libmodule{Event} module.
 
 Locks and conditions together allow all forms of synchronization to be
-expressed.  However, their implementation is not always easy, as shown
+expressed.  However, their use is not always easy, as shown
 by the example of the initially simple queue whose synchronization
 code subsequently turned out to be subtle.
 
@@ -1041,7 +1042,7 @@ among threads in the same program and take care of synchronization
 between producers and consumers.  A channel carrying values of type
 \ml+'a+ has the type \ml+'a Event.channel+.  Channels are homogeneous
 and therefore always carry values of the same type.  A channel is
-created with the \ml+new_channel+ primitive.
+created with the \ml+new_channel+ function.
 %
 \begin{codefile}{tmpevent.mli}
 type 'a channel
@@ -1073,7 +1074,7 @@ as argument.
 val $\indexlibvalue{Event}{sync}$ : 'a event -> 'a
 \end{listingcodefile}
 %
-Thus, to send a value \ml+v+ on the channel \ml+c+, one can execute
+Thus, to send a value \ml+v+ on the channel \ml+c+, we can execute
 \ml+sync (send c v)+.  The thread is suspended until the event occurs,
 that is to say until another thread is ready to receive a value on the
 channel \ml+c+.  In a symmetric fashion, a thread can wait for a
@@ -1099,7 +1100,7 @@ between the offer of an event and its occurrence.  The call
 \ml+sync (choose [e1; e2])+ synchronizes by offering a choice of two events
 \ml+e1+ and \ml+e2+, but only one of the two events will effectively
 occur (the offer of the other event will be simultaneously canceled).
-The \ml+wrap_abort+ primitive allows an event to handle being
+The \ml+wrap_abort+ primitive allows to handle an event being
 canceled.
 %
 \begin{listingcodefile}{tmpevent.mli}
@@ -1127,18 +1128,18 @@ happen immediately, then it behaves as if the thread had done
 rather than \ml+v+.
 
 \begin{example}
-In example~\ref {ex/crible-copro} of the Sieve of Eratosthenes,
+In section~\ref{ex/crible-copro} the example of the Sieve of Eratosthenes,
 the communication between different threads is done with pipes as in
 the original program, using system memory (the pipe) as intermediary.
-One might think that it would be more efficient to communicate
+We may think that it is more efficient to communicate
 directly by using the memory of the process.  A simple solution
 consists of replacing the pipe by a channel on which integers are sent.
 
 Sending integers on the channel is not sufficient, because we must
 also be able to detect the end of the stream.  The simplest is
 therefore to pass elements of the form \ml+Some n+ and to terminate by
-sending the value \ml+None+.  To minimize the changes, we will go back
-to the code in example~\ref{ex/crible}.  We simulate pipes and the
+sending the value \ml+None+.  To minimize the changes, we use the code
+of the example in section~\ref{ex/crible}.  We simulate pipes and the
 functions for reading and writing pipes by channels and functions for
 reading and writing channels.
 
@@ -1267,7 +1268,7 @@ load diminishes and the number of threads is above the \quotes{ideal}
 value, some of them are allowed to die and the others remain ready for
 the next requests.
 
-Transform example~\ref{ex/th-relais} into this architecture.
+Transform the example of section~\ref{ex/th-relais} into this architecture.
 \end{exercise}
 
 
@@ -1279,7 +1280,7 @@ The Unix system was not originally designed to provide support for
 threads.  However, most modern Unix implementations now offer such
 support.  Nevertheless, threads remain an add-on that is sometimes
 apparent.  For example, when using threads it is strongly discouraged
-to use \ml+fork+ except when doing \ml+exec+ immediately afterward.
+to use \indexvalue{fork} except when doing \ml+exec+ immediately afterward.
 In effect, \ml+fork+ copies the current thread, which becomes a
 crippled process that runs believing it has threads when in fact they
 do not exist.  The parent continues to run normally as before.
@@ -1319,7 +1320,7 @@ synchronization of calls to the C library, and therefore change,
 despite everything, the semantics of the program.  It is therefore
 necessary to take certain precautions before believing that a program
 will behave the same way in these two versions.  In this chapter, the
-discussion will mainly concern these two implementations, but recall
+discussion mainly concern these two implementations, but recall
 that by default, we have taken the viewpoint of a native
 implementation.
 
@@ -1339,8 +1340,11 @@ lock in the runtime system prevents two threads from executing
 of threads, but it is not, since the lock is released before blocking
 system calls and reacquired upon return.  Other threads can therefore
 take control at that moment.  A special case of such a system call is
-the call to \ml+sched_yield+, performed at regular intervals to
-suspend the running thread and give control to another.
+the call to
+\href{http://www.opengroup.org/onlinepubs/007908799/xsh/sched_yield.html}%
+{\texttt{sched\_yield}},
+performed at regular intervals to suspend the running thread and give
+control to another.
 
 On a multiprocessor machine, the only source of true parallelism comes
 from the execution of C code and system calls.  On a uniprocessor
@@ -1368,7 +1372,7 @@ thread sends a signal to another?  In fact, threads were implemented
 before answering these questions, and different implementations can
 behave differently with respect to signals.
 
-The \ml+Thread.join+, \ml+Mutex.lock+, and \ml+Condition.wait+,
+The \ml+Thread.join+, \ml+Mutex.lock+, and \ml+Condition.wait+ functions
 despite being long system calls, are not interruptible by a signal.
 (They cannot therefore fail with the \ml+EINTR+ error.)  If a signal
 is sent while waiting, it will be received and handled when the call
@@ -1383,7 +1387,8 @@ underspecified and therefore non-portable.
 It is therefore preferable to avoid as much as possible the use of
 asynchronous signals (such as \ml+sigalrm+, \ml+sigvtalrm+,
 \ml+sigchld+, \etc) with threads. These can be blocked and examined
-with \ml+Thread.wait_signal+.  One can dedicate a thread to signal
+with \ml+Thread.+\libvalue{Thread}{wait\_signal}.  
+We can dedicate a thread to signal
 handling and nothing else: it can wait for the reception of signals,
 undertake the necessary actions, and update certain information
 examined by other threads.
