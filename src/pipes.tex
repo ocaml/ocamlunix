@@ -136,7 +136,7 @@ result is as follows:
 \end{tikzpicture}
 \end{myimage}
 % 
-Data written by the child on \ml+fd_out+ are transmitted to the
+Data written by the child on \ml+fd_out+ is transmitted to the
 descriptor \ml+fd_in+ of the parent.
 \end{example}
 
@@ -368,7 +368,7 @@ input of the pipe on which the child reads must be closed by the
 parent, otherwise the child will wait indefinitely for new integers from the
 parent. This leads to a deadlock (closing the channel empties the
 buffer before closing the corresponding descriptor, therefore no data
-are lost).  Concretely, the line~\ref{prog:gen} of the \ml+sieve+
+is lost).  Concretely, the line~\ref{prog:gen} of the \ml+sieve+
 function needs to be replaced by:
 \begin{lstlisting}
 let output = out_channel_of_descr fd_out in
@@ -447,13 +447,13 @@ and its descendants.
 The system call \syscall{mkfifo} creates a named pipe: 
 %
 \begin{listingcodefile}{tmpunix.mli}
-val $\libvalue{Unix}{mkfifo}$ : string -> int -> unit
+val $\libvalue{Unix}{mkfifo}$ : string -> file_perm -> unit
 \end{listingcodefile}
 %
 The first argument is the name of the pipe, and the second one represents the
 requested access permissions.
 
-Named pipes are opened with a call to \syscall{openfile} like any
+Named pipes are opened with a call to \libvalue{Unix}{openfile} like any
 regular file. Reads and writes on a named pipe have the same semantics
 as those on regular ones. Opening a named pipe in read-only mode
 (resp. write-only mode) blocks until the pipe is opened by another
@@ -479,12 +479,12 @@ ends of a pipe with a call to \ml+pipe+ (or to \ml+openfile+ on a
 named pipe) are \emph{new} descriptors, distinct from \ml+stdin+,
 \ml+stdout+ or \ml+stderr+.
 
-To address this problem, Unix provides the \syscall{dup2} system call
+To address this problem, Unix provides the system call \syscall{dup2} 
 (read: \quotes{\emph{dup}licate a descriptor \emph{to} another
   descriptor}) that gives one file descriptor another one's meaning.
 This
 can be done because there is a level of indirection between a file
-descriptor (an object of type \ml+file_descr+) and the object in the
+descriptor (an object of type \libtype{Unix}{file\_descr}) and the object in the
 kernel called a \emph{file table entry} that points to the actual
 file or pipe and maintains its current read/write position.
 %
@@ -935,7 +935,7 @@ This does not work, because reading a pipe can block. For example, if we
 try to read the output of the shell but it has nothing to
 display at that moment, the multiplexer process will block, and waiting
 characters from the editor will be ignored.
-There's no way to know in advance on which pipes there are
+There's no way to know in advance on which pipes there is
 data waiting to be displayed (in parallel algorithms, the situation
 where a process is perpetually denied access to a shared resource is
 called \emph{starvation}).
@@ -969,7 +969,7 @@ data into messages and writes the result directly on the serial port
 Since each user process has its output transmitted independently,
 blocking problems are solved. However the protocol may not be
 respected. Two repeaters may try to write a message at the same time
-and the Unix kernel does not guarantee the atomicity of writes,\ie{} 
+and the Unix kernel does not guarantee the atomicity of writes, \ie{} 
 that they are performed in a single uninterruptible operation.
 Thus the kernel may choose to write only a part of a message from a
 repeater to \ml+/dev/ttya+, then write a full message from another
@@ -1004,7 +1004,7 @@ the right frequency. Short \ml+sleep+s cause needless processor load when there
 is little data, and long \ml+sleep+s introduce perceptible delays when there is a lot of data.
 
 This is a serious problem. To solve it, the designers of \textsc{bsd}
-Unix introduced a new system call, \syscall{select}, which is now
+Unix introduced a new system call, \ml+select+, which is now
 available on most Unix variants. A call to \ml+select+ allows a
 process to wait (passively) on one or more input/output events.
 An event can be:
@@ -1022,7 +1022,7 @@ An event can be:
   high-priority data is an exceptional condition.
 \end{itemize}
 %
-The \ml+select+ system call has the following signature:
+The system call \syscall{select} has the following signature:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\libvalue{Unix}{select}$ : 
