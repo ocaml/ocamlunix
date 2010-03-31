@@ -356,8 +356,8 @@ let qsort cmp arr =
         if !i < !j then swap arr !i !j; 
       done;
       let u = Thread.create (qsort lo) (!i-1) in
-      let v = Thread.create (qsort (!i+1)) hi in
-      Thread.join u; 
+      let v = Thread.create (qsort (!i+1)) hi in $\label{prog:tcreate}$
+      Thread.join u; $\label{prog:tjoin}$
       Thread.join v
     end in
   qsort 0 (Array.length arr - 1);;
@@ -369,7 +369,8 @@ qsort (<=) arr;
 Array.iter print_endline arr;;
 \end{codefile}
 %
-It would be correct, but uninteresting, to exchange lines 20 and 21.
+It would be correct, but uninteresting, to exchange
+lines~\ref{prog:tcreate} and~\ref{prog:tjoin}.
 In effect, that would wait for the lower portion of the array to be
 sorted before starting the sort of the upper portion.  We would thus
 obtain the behavior of a sequential program, with the additional cost
@@ -409,8 +410,11 @@ threads.)
 
 \begin{example}
 \label{ex/crible-copro}
-To make the Sieve of Eratosthenes work with threads instead of by
-duplication of Unix processes, it suffices to replace lines {30--41} by
+To make the Sieve of Eratosthenes example of section~\ref{ex/crible}
+work with threads instead of by duplication of Unix processes, 
+it suffices to replace the 
+lines~{\ref{prog:sievefilterfork}--\ref{prog:sievefilterdone}} of the 
+function \ml+filter+ by:
 %
 \begin{codefile}{thcrible.ed}
 f th/crible.ml
@@ -432,7 +436,8 @@ r finalcrible.ml
       Thread.join p
 \end{listingcodefile}
 %
-and lines {46--52} by
+and the lines~{\ref{prog:sievefork}--\ref{prog:gen}} of the function
+\ml+sieve+ by:
 %
 \begin{codefile}{thcrible.ed}
 .
@@ -1146,7 +1151,8 @@ reading and writing channels.
 It is sufficient to take the previous version of the program and
 change the input/output functions to ones that read and write a channel,
 rather than an input/output buffer from the \ml+Pervasives+ library.
-For example, we can insert the following code at line~2:
+For example, we can insert the following code at the beginning of the
+program just after the \ml+open Unix;;+ directive:
 %
 \begin{codefile}{theventcrible.ed}
 f th/eventcrible.ml

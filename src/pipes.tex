@@ -149,8 +149,7 @@ the process calling \ml+write+ and the default handler of this signal
 terminates the process. If the signal handler of \ml+sigpipe+ is
 changed, the call to \ml+write+ fails with an \ml+EPIPE+ error.
 
-\section{Complete example: parallel sieve of Eratosthenes}
-\label{ex/crible}
+\section{Complete example: parallel sieve of Eratosthenes\label{ex/crible}}
 
 This is a classic example of parallel programming. The task of the
 program is to enumerate the prime numbers and display them
@@ -296,18 +295,18 @@ let rec filter input =
   try 
     let first_primes = read_first_primes input 1000 in
     let (fd_in, fd_out) = pipe () in
-    match fork () with
+    match fork () with $\label{prog:sievefilterfork}$
     | 0 ->
         close fd_out;
         filter (in_channel_of_descr fd_in)
     | p ->
         close fd_in;
         let output = out_channel_of_descr fd_out in
-        while true do $\label{prog:sievewhile}$
+        while true do $\label{prog:sievefilterwhile}$
           let n = input_int input in
           if List.exists (fun m -> n mod m = 0) first_primes then ()
           else output_int output n
-        done $\label{prog:sievedone}$
+        done $\label{prog:sievefilterdone}$
   with End_of_file -> ();;
 \end{listingcodefile}
 %
@@ -327,7 +326,7 @@ not an integer), it defaults to \ml+max_int+.
 let sieve () =
   let len = try int_of_string Sys.argv.(1) with _ -> max_int in
   let (fd_in, fd_out) = pipe () in
-  match fork () with
+  match fork () with $\label{prog:sievefork}$
   | 0 ->
       close fd_out;
       filter (in_channel_of_descr fd_in)
@@ -377,7 +376,7 @@ close_out output;
 ignore(waitpid [] p);;
 \end{lstlisting}
 Accordingly, we enclose the 
-lines~\ref{prog:sievewhile}--\ref{prog:sievedone} of the 
+lines~\ref{prog:sievefilterwhile}--\ref{prog:sievefilterdone} of the 
 \ml+filter+ function (represented by \ml+...+ below) with the
 following lines:
 \begin{lstlisting}
