@@ -602,7 +602,7 @@ The library function \ml+Misc.tcp_server+ creates a socket with
 \ml+install_tcp_server+ and enters an infinite loop. At each iteration
 of the loop it waits for a connection request with \ml+accept+ and
 treats it with the function \ml+treat_connection+. Since this is a
-reusable function we restart the \ml+accept+ call if it is
+library function we restart the \ml+accept+ call if it is
 interrupted. We also ignore the signal \ml+sigpipe+ so that unexpected
 disconnection raise an \ml+EPIPE+ exception that can be caught by
 \ml+treat_connection+ rather than killing the server. Note that it in
@@ -625,7 +625,7 @@ let service (client_sock, client_addr) =
 %
 
 The server itself can treat each connection sequentially. The
-following library function captures this pattern:
+following library function, in \ml+Misc+, captures this pattern:
 \begin{codefile}{misc.mli}
 val sequential_treatment :
 file_descr -> (file_descr * sockaddr -> unit) ->
@@ -654,7 +654,7 @@ instance, a date server).
 Most servers delegate the service to a child process: \ml+fork+ is called
 immediately after \ml+accept+ returns. The child process handles the
 connection and the parent process immediately retries to \ml+accept+. We
-obtain the following reusable function:
+obtain the following library function in \ml+Misc+:
 %
 \begin{codefile}{misc.mli}
 val fork_treatment :
@@ -691,7 +691,8 @@ service and that it does not start to execute the server loop.
 So far we ignored the fact that children will become zombie processes
 and that we need to recover them. There are two ways to to so. The
 simple approach is to have a grandchild process handle the connection
-using a double fork (see page~\pageref{double-fork}).
+using a double fork (see page~\pageref{double-fork}). This gives the
+following library function, also in \ml+Misc+:
 %
 \begin{codefile}{misc.mli}
 val double_fork_treatment :
