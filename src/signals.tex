@@ -125,7 +125,7 @@ The signals received by a process come from several possible sources:
 \end{itemize}
 
 
-\section{Using signals}
+\section{Using signals\label{sec/usingsignals}}
 
 The system call \syscall{kill} makes it possible to send a
 signal to a process.
@@ -399,7 +399,7 @@ let rec restart_on_EINTR f x =
 To wait on a child correctly, call
 \ml+restart_on_EINTR (waitpid flags) pid+.
 
-\begin{example}
+\begin{example}\label{ex/childs}
 Children can also be recovered asynchronously in the signal handler of
 \ml+sigchld+, especially when their return value does not matter to
 the parent. But when the process receives the \ml+sigchld+ signal, it
