@@ -405,8 +405,8 @@ Children can also be recovered asynchronously in the signal handler of
 the parent. But when the process receives the \ml+sigchld+ signal, it
 is not possible to know the exact number of terminated processes, since if
 the signal is received several times within a short period of time the
-handler is invoked only once. This leads to the following
-function to handle the \ml+sigchld+ signal.
+handler is invoked only once. This leads to the library function
+\ml+Misc.free_children+ function to handle the \ml+sigchld+ signal.
 %
 \begin{codefile}{misc.mli}
 val free_children : int -> unit
@@ -415,7 +415,7 @@ val free_children : int -> unit
 \end{codefile}
 %
 \begin{listingcodefile}{misc.ml}
-let free_children signal = 
+let free_children _ = 
   try while fst (waitpid [ WNOHANG ] (-1)) > 0 do () done 
   with Unix_error (ECHILD, _, _) -> ()
 \end{listingcodefile}
