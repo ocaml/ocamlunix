@@ -70,7 +70,7 @@
 
 %% Sections & paragraphs
 \renewcommand{\chaptername}{} % No chapter name.
-\newstyle{.chapter} { margin-top:2ex; margin-bottom:-1ex; font-size: 180\%; 
+\newstyle{.chapter} { margin-top:2ex; font-size: 180\%; 
 		      text-align:left; line-height:130\%; }
 \newstyle{.chapter A} { color: black  } % number
 \newstyle{.section} { font-size: 140\%; margin-top: 1.5em; text-align:left}
