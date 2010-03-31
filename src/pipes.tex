@@ -8,9 +8,7 @@
 % Translation by Daniel C. Buenzli
 %------------------------------------------------------------------------------
 
-\chapter{Classical inter-process communication: pipes}
-
-\label{sec/pipes}
+\chapter{\label{sec/pipes}Classical inter-process communication: pipes}
 \cutname{pipes.html}
 
 So far, we have learned how to manage processes and how they can communicate
@@ -149,7 +147,7 @@ the process calling \ml+write+ and the default handler of this signal
 terminates the process. If the signal handler of \ml+sigpipe+ is
 changed, the call to \ml+write+ fails with an \ml+EPIPE+ error.
 
-\section{Complete example: parallel sieve of Eratosthenes\label{ex/crible}}
+\section{\label{ex/crible}Complete example: parallel sieve of Eratosthenes}
 
 This is a classic example of parallel programming. The task of the
 program is to enumerate the prime numbers and display them
@@ -1145,8 +1143,7 @@ We get out of the loop when \ml+really_read+ raises the exception
 serial port.
 \end{example}
 
-\section{Miscellaneous: \texttt{write}}
-\label{single_write}
+\section{\label{single_write}Miscellaneous: \texttt{write}}
 
 The function \ml+write+ of the \ml+Unix+ module iterates the system call
 \syscall{write} until all the requested bytes are effectively written.

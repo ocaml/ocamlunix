@@ -8,8 +8,7 @@
 % Translation by Richard Paradies, reworked by Daniel C. Bünzli
 %------------------------------------------------------------------------------
 
-\chapter{Files}
-\label{sec/files}
+\chapter{\label{sec/files}Files}
 \cutname{files.html}
 
 The term \quotes{file} in Unix covers several types of objects:
@@ -611,8 +610,7 @@ already empty. To remove a directory and its contents, it is thus
 necessary to first recursively empty the contents of the directory and
 then remove the directory.
 
-\section {Complete example: search in a file hierarchy}
-\label{ex/find}
+\section{\label{ex/find}Complete example: search in a file hierarchy}
 
 The Unix command \ml+find+ lists the files of a hierarchy matching
 certain criteria (file name, type and permissions \etc). In this
@@ -1104,8 +1102,7 @@ the kernel (from several hundreds to thousands). Doing a \ml+close+ on
 an unused descriptor releases it, so that the process does not run out
 of descriptors.
 
-\section{Complete example: file copy}
-\label{ex/filecopy}
+\section{\label{ex/filecopy}Complete example: file copy}
 
 We program a command \ml+file_copy+ which, given two arguments 
 \ml+f1+ and \ml+f2+, copies in the file \ml+f2+ the bytes contained 
@@ -1765,7 +1762,7 @@ link on \ml+f2+ (like the Unix command \ml+ln -s f1 f2+). The call
 \ml+readlink+ returns the content of a symbolic link, \ie{} the name of
 the file on which the link points.
 
-\subsection*{Special files\label{sec/speciaux}}
+\subsection*{\label{sec/speciaux}Special files}
 
 Special files can be of \quotes{character} or \quotes{block} type.
 The former are character streams: we can read or write characters only
@@ -1809,7 +1806,7 @@ special characters, serial connection parameters (speed, parity,
 cases. However, this system call is not provided by {\ocaml}; it is
 ill-defined and cannot be treated in a uniform way.
 
-\subsection*{Terminals\label{sec/termio}}
+\subsection*{\label{sec/termio}Terminals}
 
 Terminals and pseudo-terminals are special files of type character
 which can be configured from {\ocaml}. The system call
@@ -1984,8 +1981,7 @@ type lock_command = Unix.lock_command
 \end{listingcodefile}
 
 
-\section{Complete example: recursive copy of files}
-\label{sec/copyrec}
+\section{\label{sec/copyrec}Complete example: recursive copy of files}
 
 We extend the function \ml+file_copy+ (section~\ref{ex/filecopy}) to
 support symbolic links and directories in addition to normal files.

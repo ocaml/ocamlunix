@@ -9,8 +9,7 @@
 % Reworked by Daniel C. Buenzli
 %------------------------------------------------------------------------------
 
-\chapter{Modern communication: sockets}
-\label{sec/sockets}
+\chapter{\label{sec/sockets}Modern communication: sockets}
 \cutname{sockets.html}
 
 Communication with pipes has some limitations. First, it is local to a
@@ -396,7 +395,7 @@ Note that disconnecting a socket can take some time whether done with
 \ml+close+ or \ml+shutdown+.
 
 
-\section{Complete example: the universal client\label{sec/univclient}}
+\section{\label{sec/univclient}Complete example: the universal client}
 
 We program a \ml+client+ command such that \ml+client host port+
 establishes a connection on the port \ml+port+ of the machine named
@@ -511,7 +510,7 @@ ignore (signal sigpipe Signal_ignore)
 \end{itemize}
 
 
-\section{Establishing a service\label{sec/service}}
+\section{\label{sec/service}Establishing a service}
 
 Having seen how a client connects to a server, we now show how a
 server can provide a service for clients. First we need to associate a
@@ -692,7 +691,7 @@ service and that it does not start to execute the server loop.
 So far we ignored the fact that children will become zombie processes
 and that we need to recover them. There are two ways to to so. The
 simple approach is to have a grandchild process handle the connection
-using a double fork (see section \ref{double-fork}).
+using a double fork (see page~\pageref{double-fork}).
 %
 \begin{codefile}{misc.mli}
 val double_fork_treatment :
@@ -903,7 +902,7 @@ elegant, but it still needs a timeout, for example by programming an alarm
 (see section~\ref{sec/usingsignals}).
 
 
-\section{Communication in connectionless mode\label{sec/mode-deconnecte}}
+\section{\label{sec/mode-deconnecte}Communication in connectionless mode}
 
 The \textsc{tcp} protocol used by most connections of type
 \ml+SOCK_STREAM+ works only in connection-oriented mode. Conversely,
@@ -1473,7 +1472,7 @@ let geturl () =
 handle_unix_error (handle_error geturl) ();;
 \end{listingcodefile}
 
-\subsection*{{\normalfont\http} relay\label{sec/relay}}
+\subsection*{\label{sec/relay}{\normalfont\http} relay}
 
 We program an {\http} relay (or \emph{proxy}), which is a server 
 that redirects {\http} requests from a client to another server
@@ -1715,7 +1714,7 @@ indicate errors on the client side while \ml+5XX+ errors on the server
 side.
 
 \begin{exercise}[noanswer]
-\label {ex/proxy-1.1}
+\label{ex/proxy-1.1}
 Write a relay that works with the \http/1.1 protocol.
 \end{exercise}
 
@@ -1726,7 +1725,7 @@ In that case the server is queried again and the cache updated.
 \end{exercise}
 
 \begin{exercise}[noanswer]
-\label {ex/wget}
+\label{ex/wget}
 Write a program \ml+wget+ such that \ml+wget u1 u2 ... un+ makes the
 requests \ml+u1+, \ml+u2+, \ldots, \ml+un+ and saves the responses in
 the files \ml+./m1/p1+, \ml+./m2/p2+, \ldots, \ml+./mn/pn+ where

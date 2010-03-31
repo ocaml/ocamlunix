@@ -8,8 +8,7 @@
 % Translation by Mark Wong-VanHaren
 %------------------------------------------------------------------------------
 
-\chapter{Processes}
-\label{sec/processes}
+\chapter{\label{sec/processes}Processes}
 \cutname{processes.html}
 
 A process is a program executing on the operating system.  It
@@ -114,7 +113,7 @@ control to the user.  The child process (whose return value from
 indicated time (the call to \ml+sleep+), then displays its message and
 terminates.
 
-\section{Awaiting the termination of a process} \label{double-fork}
+\section{Awaiting the termination of a process}
 
 The system call \ml+wait+ waits for one of the child processes created
 by \ml+fork+ to terminate and returns information about how it did.
@@ -235,6 +234,7 @@ Once the parent calls \ml+wait+, the zombie process is removed from
 the process table. Since this table is of fixed size, it is important
 to call \ml+wait+ on each forked process to avoid leaks.
 
+\label{double-fork}
 If the parent process terminates before the child, the child is
 given the process number~$1$ (usually \ml+init+) as parent. This
 process contains an infinite loop of \ml+wait+ calls, and will

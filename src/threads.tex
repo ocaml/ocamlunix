@@ -8,8 +8,7 @@
 % Translation by Eric Cooper <ecc@cmu.edu>
 %------------------------------------------------------------------------------
 
-\chapter{Threads}
-\label{sec/coprocessus}
+\chapter{\label{sec/coprocessus}Threads}
 \cutname{threads.html}
 
 A \emph{thread}, also called a \emph{lightweight process}, is a flow
@@ -684,7 +683,7 @@ dynamically respects the hierarchy: a thread never acquires a lock
 unless that lock is dominated by all the other locks that the thread
 already holds.
 
-\section{Complete example: {\normalfont\http} relay\label{ex/th-relais}}
+\section{\label{ex/th-relais}Complete example: {\normalfont\http} relay}
 
 We modify the {\http} relay developed in section~\ref{sec/relay} so
 that it services requests using threads.
@@ -1297,8 +1296,7 @@ Luckily, since that is the only way to start other programs!
 Inversely, one can do \ml+fork+ (not followed by \ml+exec+), and then launch
 several threads in the child and the parent, without any problem.
 
-\paragraph {Native and simulated implementation in {\ocaml}}
-\label{sec/thread-implementation}
+\paragraph {\label{sec/thread-implementation}Native and simulated implementation in {\ocaml}}
 
 When the underlying operating system has threads, {\ocaml} can provide
 a native implementation of threads, leaving their management to the

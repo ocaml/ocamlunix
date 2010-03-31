@@ -8,8 +8,7 @@
 % Translation by Thaddeus Meyer
 %------------------------------------------------------------------------------
 
-\chapter{Signals}
-\label{sec/signals}
+\chapter{\label{sec/signals}Signals}
 \cutname{signals.html}
 
 Signals, or software interrupts, are external, asynchronous events
@@ -125,7 +124,7 @@ The signals received by a process come from several possible sources:
 \end{itemize}
 
 
-\section{Using signals\label{sec/usingsignals}}
+\section{\label{sec/usingsignals}Using signals}
 
 The system call \syscall{kill} makes it possible to send a
 signal to a process.
@@ -356,7 +355,7 @@ let reset () = ignore (sigprocmask SIG_SETMASK old_mask) in
 Misc.try_finalize treat () reset ()
 \end{listingcodefile}
 
-\section{Signals and system calls} 
+\section{\label{sec/sigsyscalls}Signals and system calls} 
 
 Certain system calls can be interrupted by unignored signals. These
 system calls are known as \emph{slow} calls, which can take an
@@ -380,10 +379,9 @@ process id of the child.  This is a blocking system call, it is thus
 especially since the \ml+sigchld+ signal is sent to the parent when a
 child process dies.
 
-The module \ml+Misc+ contains the function \ml+restart_on_EINTR+ which
+The module \ml+Misc+ define the function \ml+restart_on_EINTR+ which
 makes it possible to repeat a system call when it is interrupted by a
 signal, \ie{} when the \ml+EINTR+ exception is raised.
-
 %
 \begin{codefile}{misc.mli}
 val restart_on_EINTR : ('a -> 'b) -> 'a -> 'b
@@ -395,7 +393,6 @@ with [EINTR] *)
 let rec restart_on_EINTR f x = 
   try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x
 \end{listingcodefile}
-\label{restart_on_EINTR}%
 To wait on a child correctly, call
 \ml+restart_on_EINTR (waitpid flags) pid+.
 
