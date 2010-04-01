@@ -19,8 +19,8 @@ common to Unix and other operating systems under which {\ocaml} runs.
 The second module, \libmodule{Unix}, contains everything specific to
 Unix. 
 
-In what follows, we will refer to identifiers of modules \ml+Sys+ and
-\ml+Unix+ without saying which modules they come from.  That is, we
+In what follows, we will refer to identifiers from the \ml+Sys+ and
+\ml+Unix+ modules without specifying which modules they come from.  That is, we
 will suppose that we are within the scope of the directives 
 \ml+open Sys+ and \ml+open Unix+. In complete examples, we explicitly write
 \ml+open+, in order to be truly complete.
@@ -38,7 +38,7 @@ Unix library, do this:
 ocamlc -o prog unix.cma mod1.ml mod2.ml mod3.ml 
 \end{lstlisting}
 %
-Assuming that the program  \ml+prog+ is made of the three modules  \ml+mod1+,
+where the program \ml+prog+ is assumed to comprise of the three modules \ml+mod1+,
 \ml+mod2+ and \ml+mod3+. The modules can also be compiled separately:
 %
 \begin{lstlisting}
@@ -189,11 +189,11 @@ exception $\libexn{Unix}{Unix\_error}$ of error * string * string
 %
 The second argument of the \ml+Unix_error+ exception is the name of
 the system call that raised the error. The third argument identifies,
-if possible, the object on which the error occurred; for example, for
-a system call taking a file name as an argument, this file name will be
+if possible, the object on which the error occurred; for example, in
+the case of a system call taking a file name as an argument, this file name will be
 in the third position in \ml+Unix_error+. Finally, the first argument
 of the exception is an error code indicating the nature of the
-error. It belongs to the variant type \ml+error+
+error. It belongs to the variant type \ml+error+:
 %
 \begin{lstlisting}
 type $\libtype{Unix}{error}$ = E2BIG | EACCES | EAGAIN | ...  | EUNKNOWNERR of int
@@ -206,9 +206,9 @@ used in the \textsc{posix} convention and  certain errors from
 Given the semantics of exceptions, an error that is not specifically
 foreseen and intercepted by a \ml+try+ propagates up to the top of a
 program and causes it to terminate prematurely.  In small
-applications, treating unforeseen errors as fatal is a good behavior.
+applications, treating unforeseen errors as fatal is a good practice.
 However, it is appropriate to display the error clearly. To do this,
-the module \ml+Unix+ supplies the function \ml+handle_unix_error+:
+the \ml+Unix+ module supplies the \ml+handle_unix_error+ function:
 %
 \begin{listingcodefile}{tmpunix.mli}
 val $\indexlibvalue{Unix}{handle\_unix\_error}$ : ('a -> 'b) -> 'a -> 'b
@@ -249,7 +249,7 @@ let handle_unix_error f arg =
 % 
 Functions of the form \ml+prerr_xxx+ are like the functions
 \ml+print_xxx+, except that they write on the error channel
-\ml+stderr+ rather than on the standard channel \ml+stdout+.
+\ml+stderr+ rather than on the standard output channel \ml+stdout+.
 Furthermore, \ml+prerr_endline+ flushes \ml+stderr+ (whereas
 \ml+print_endline+ does not).
 
@@ -259,13 +259,13 @@ argument (line~\ref{prog:errmsg}). The argument number zero of the
 program, namely \ml+Sys.argv.(0)+, contains the name of the command
 that was used to invoke the program (line~\ref{prog:argv}).
 
-The function \ml+handle_unix_error+ treats fatal errors, \ie{} errors
+The function \ml+handle_unix_error+ handles fatal errors, \ie{} errors
 that stop the program.  An advantage of {\ocaml} is that it requires
-all errors to be taken into account, if only at the highest level by
+all errors to be handled, if only at the highest level by
 halting the program. Indeed, any error in a system call raises an
 exception, and the execution thread in progress is interrupted up to
-the level where it is explicitly caught and treated. This avoids
-continuing the program in an incoherent state.
+the level where the exception is explicitly caught and handled. This avoids
+continuing the program in an inconsistent state.
 
 Errors of type \ml+Unix_error+  can, of course, be
 selectively matched. We will often see the following
@@ -276,24 +276,24 @@ let rec restart_on_EINTR f x =
   try f x with Unix_error (EINTR, _, _) -> restart_on_EINTR f x 
 \end{lstlisting}
 %
-which is used to execute a function and to start it again automatically
-when it is interrupted by a system call (see section~\ref{sec/sigsyscalls}).
+which is used to execute a function and to restart it automatically
+when it executes a system call that is interrupted (see section~\ref{sec/sigsyscalls}).
 
 \section{Library functions}
 
 As we will see throughout the examples, system programming often
 repeats the same patterns. To reduce the code of each application to
-its essential part, we will want to define library functions that
+its essentials, we will want to define library functions that
 factor out the common parts.
 
-While in a complete program one knows precisely which errors can be
-raised (and those are often fatal, the program is stopped), for
-library functions, we generally do not know the execution context. We
+Whereas in a complete program one knows precisely which errors can be
+raised (and these are often fatal, resulting in the program being stopped),
+we generally do not know the execution context in the case of library functions. We
 cannot suppose that all errors are fatal. It is therefore necessary to
 let the error return to the caller, which will decide on a suitable
-action (to stop the program, to handle or ignore the error). However,
-the library function in general will not allow the error to pass
-through, since it must maintain the system in a coherent state. For
+course of action (\eg{} stop the program, or handle or ignore the error). However,
+the library function in general will not allow the error to simply pass
+through, since it must maintain the system in a consistent state. For
 example, a library function that opens a file and then applies an
 operation to its file descriptor must take care to close the
 descriptor in all cases, including those where the processing of the
@@ -303,11 +303,11 @@ leak, leading to the exhaustion of file descriptors.
 Furthermore, the operation applied to a file may be defined by a
 function that was received as an argument, and we don't know precisely
 when or how it can fail (but the caller in general will know). We are
-thus often led to protect the body of the processing with \quotes
-{finalization} code, which must be executed just before the function
-returns, whether normaly or exceptionally.
+thus often led to protect the body of the processing with
+\quotes{finalization} code, which must be executed just before the
+function returns, whether normally or exceptionally.
 
-There is no built-in finalizer construct \ml+try+ ... \ml+finalize+ in
+There is no built-in finalize construct \ml+try+ \ldots \ml+finalize+ in
 the {\ocaml} language, but it can be easily defined\footnote{A
   built-in construct would not be less useful.}:
 \begin{codefile}{misc.mli}
@@ -320,11 +320,11 @@ open Unix
 
 val try_finalize : ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
 (** [try_finalize f x g y] applies the main code [f] to [x] and
-    the result after having executed the finalization 
-   code [g] applied to [y]. If the main code raises the exception
-   [exn] the finalization finalization code and [exn] is raised.
+   returns the result after having applied the finalization 
+   code [g] to [y]. If the main code raises the exception
+   [exn], the finalization code is executed and [exn] is raised.
    If the finalization code itself fails, the exception
-   return is always the one of the finalization code. *)
+   returned is always the one from the finalization code. *)
 \end{codefile}
 %
 \begin{listingcodefile}{misc.ml}
@@ -348,7 +348,7 @@ function's exception raised instead).
 \paragraph{Note}
 
 In the rest of this course, we use an auxiliary library \ml+Misc+
-which contains several useful functions like \ml+try_finalize+ often
+which contains several useful functions like \ml+try_finalize+ that are often
 used in the examples. We will introduce them as they are needed. To
 compile the examples of the course, the definitions of the \ml+Misc+
 module need to be collected and compiled.
@@ -366,11 +366,12 @@ The course provides numerous examples. They can be compiled with
 Some programs will have to be slightly modified in order to work with 
 older versions.
 
-There are two kind of examples: \quotes{library functions} (very
+There are two kinds of examples: \quotes{library functions} (very
 general functions that can be reused) and small applications. It is
-important to distinguish between these two. In library functions, we
-want the usage context to be the broadest as possible. We will thus
-carefully specify their interface and pay attention to treat all
-particular cases. In small applications, it it is sufficient to report
-error causes, without needing to return to a consistent state, since
-the program is stopped immediately after.
+important to distinguish between the two. In the case of library functions, we
+want their context of use to be as general as possible. We will thus
+carefully specify their interface and attentively treat all
+particular cases. In the case of small applications, an error is often
+fatal and causes the program to stop executing. It is sufficient to report
+the cause of an error, without needing to return to a consistent state, since
+the program is stopped immediately thereafter.
