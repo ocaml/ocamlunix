@@ -111,7 +111,7 @@ The signals received by a process come from several possible sources:
   \ml+kill -KILL 194+ sends the \ml+sigkill+ signal to the process with id 194, which 
   causes the process to be killed.
 
-\item Another program invoked the system call 
+\item Another program may invoke the system call 
   \ml+kill+ (the preceding example being a specific case).
 
 \item The system, for misbehaving processes.  For example, a process 
@@ -169,14 +169,14 @@ type signal_behavior = Sys.signal_behavior
 val $\libvalue{Sys}{signal}$ : int -> signal_behavior -> signal_behavior
 \end{listingcodefile}
 % 
-The first argument is the signal number and the second argument a
+The first argument is the signal number and the second argument, a
 value of type \libtype{Sys}{signal\_behavior}, indicates the desired
 behavior for the signal. With:
 \begin{mltypecases}
 \begin{tabular}{@{}ll}
 \ml+Signal_ignore+ & The signal is ignored. \\
 %
-\ml+Signal_default+ & The default behavior.\\
+\ml+Signal_default+ & The default behavior occurs.\\
 %
 \ml+Signal_handle f+ & The function \ml+f+ is
 invoked each time the signal is received.  
@@ -191,7 +191,7 @@ those of the parent at the time when \ml+fork+ was executed.  The
 ignored afterward.
 
 \begin{example}
-Occasionally we wants to log-off or end a session while allowing 
+Occasionally we want to log-off or end a session while allowing 
 background tasks (large calculations, \quotes{spyware} programs, \etc) 
 to continue to run.  If this is desired, processes which normally
 exit on receiving \ml+sighup+ (sent at the time the user disconnects)
@@ -289,13 +289,14 @@ In fact, {\ocaml} does not treat signals in a strictly asynchronous
 fashion.  On receiving a signal, {\ocaml} records the receipt of the
 signal but the signal handling function will only be executed at
 certain \emph{checkpoints}.  These are frequent enough to provide the
-illusion of asynchronous treatment.  The checkpoints typically occur
+illusion of asynchronous execution.  The checkpoints typically occur
 during allocations, loop controls, or interactions with the system
 (particularly system calls). {\ocaml} guarantees that a program that
 does not loop, does not allocate, and does not interact with the
-system will not interleave a the signal handler. As such writing an
-unallocated value (integer, boolean, \etc{}~---~but not a float!) in a
-reference cell cannot result in a race condition as described above.
+system will not have its execution interleaved with that of a
+signal handler. In particular, storing an unallocated value (integer,
+boolean, \etc{}~---~but not a float!) in a reference cell cannot
+result in the race condition described above.
 
 \section{How to mask signals}
 
@@ -324,7 +325,7 @@ effect of the call:
 to the list of blocked signals. \\
 %
 \ml+SIG_UNBLOCK+ & The signals \ml+sigs+ are removed
-from signal mask. \\
+from the set of blocked signals. \\
 %
 \ml+SIG_SETMASK+ & The signals \ml+sigs+ are exactly the 
 signals to be blocked.
@@ -371,7 +372,7 @@ process.
 
 Ignored signals are never delivered and a masked signal is not
 delivered until unmasked. But in all other cases we must protect our
-system calls against unwanted interrupted. A typical example is a
+system calls against unwanted interruptions. A typical example is a
 parent waiting for the termination of a child.  In this case, the
 parent executes \indexvalue{waitpid} \ml+[] pid+ where \ml+pid+ is the
 process id of the child.  This is a blocking system call, it is thus
@@ -443,7 +444,7 @@ let system cmd = match fork () with
 The specification of the \ml+system+ function in the C standard
 library states that the parent ignores \ml+sigint+ and
 \ml+sigquit+ signals and masks the \ml+sigchld+ signal during the
-command's execution.  That makes it possible to stop or kill the child
+command's execution.  This makes it possible to stop or kill the child
 process without affecting the main program's execution.
 
 We prefer to define the function \ml+system+ as a specialization of the
@@ -499,8 +500,8 @@ preserved by \ml+fork+.  The \ml+exec+ system call uses the
 default behavior of signals except if the calling process ignores a
 signal in which case it also does. 
 
-Finally, the parent must also reset the changes immediatly after the
-call, including if an error occurs. This is why
+Finally, the parent must also reset the changes immediately after the
+call, even if an error occurs. This is why
 \ml+try_finalize+ is used on line~\ref{prog:stry}.
 \end{example}
 
@@ -529,7 +530,7 @@ val $\libvalue{Unix}{sleep}$ : int -> unit
 %
 
 However, this function is not primitive. It is programmable with 
-more elementary system calls using the function alarm (see 
+more elementary system calls using the function \ml+alarm+ (see 
 above) and \ml+sigsuspend+: 
 
 %
@@ -562,10 +563,10 @@ let sleep s =
   ignore (sigprocmask SIG_SETMASK old_mask)$\label{prog:ssigproc}$;;
 \end{listingcodefile}
 %
-Initially, the behavior of the \ml+sigalarm+ signal does nothing.  Note
-that \quotes{doing nothing} is the same as ignoring the signal.  In
-the second instance, the process would not be awakened by the reception
-of the signal. The \ml+sigalarm+ signal is put in a non-blocking
+Initially, the behavior of the \ml+sigalrm+ signal does nothing.  Note
+that \quotes{doing nothing} is the same as ignoring the signal.  To
+ensure that the process will be awakened by the reception
+of the signal, the \ml+sigalrm+ signal is put in an unblocked
 state.  Then the process is put on standby by suspending all other
 signals which were not already suspended (\ml+old_mask+). After the alarm
 is signaled, the preceding modifications are erased. (Note that
@@ -607,7 +608,7 @@ representing time:
 \begin{itemize}
 \item The field \ml+it_interval+ is the period of the timer.
 \item The field \ml+it_value+ is the current value of the timer; 
-when it returns \ml+0+ the signal \ml+sigvtalrm+ is sent and 
+when it turns \ml+0+ the signal \ml+sigvtalrm+ is sent and 
 the timer is reset to the value in \ml+it_interval+.
 \end{itemize}
 %
@@ -625,7 +626,7 @@ val $\indexlibvalue{Unix}{setitimer}$ :
     interval_timer -> interval_timer_status -> interval_timer_status
 \end{listingcodefile}
 %
-The value returned by \ml+settitimer+ is the old value of 
+The value returned by \ml+setitimer+ is the old value of 
 the timer at the time of the modification.
 
 \begin{exercise}[noanswer]
@@ -642,9 +643,9 @@ end
 \end{listingcodefile}
 %
 The function \ml+new_timer k f+ should create a new timer of the 
-timer-type \ml+k+ starting the action \ml+f+, inactive at its creation with 
-the function \ml+set_timer t+ allowing the regulation of the timer \ml+t+ 
-(returning the old value). 
+timer-type \ml+k+ starting the action \ml+f+, and inactive on creation; 
+the function \ml+set_timer t+ should set the value of the timer \ml+t+ 
+(and return the old value). 
 
 \end{exercise}
 
@@ -667,7 +668,7 @@ presents some limitations and difficulties:
 type and nothing else.
 
 \item A signal may occur at any point during the execution of the
-  program, therefore, signal handling function that access global
+  program. Therefore, a signal handling function that accesses global
   variables must cooperate with the main program to avoid race
   conditions. 
 
@@ -675,7 +676,7 @@ type and nothing else.
   calls made by the program may be interrupted, even if the signals
   keep their default behavior.
 
-\item Reusable functions must always consider the possibility of
+\item Library functions must always consider the possibility of
   signal use and guard against system call interruption.
 
 \end{itemize}
@@ -706,12 +707,12 @@ However the problem is that the signals that are received between the
 instant were the behavior is automatically reset to
 \ml+Signal_default+ and the moment were \ml+set_signal+ is invoked are
 not treated correctly and depending on the type of the signal they may
-be ignored or case the process to die instead of invoking the signal
+be ignored or cause the process to die instead of invoking the signal
 handling function. 
 
 Other flavors of Unix (\textsc{bsd} or Linux) provide better support:
 the behavior associated with a signal is not altered when it is
-received, and during the treatement of a signal other signals of the
+received, and during the handling of a signal other signals of the
 same type are put on hold.
 
 
