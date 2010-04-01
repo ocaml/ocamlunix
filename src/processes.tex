@@ -59,7 +59,7 @@ current contents is made at the moment of the \ml+fork+; after the
 reference without affecting the other process.
 
 Similarly, the open file descriptors are copied at the moment of the
-\ml+fork+: one may be closed and the other remain open.  On the other
+\ml+fork+: one may be closed and the other kept open.  On the other
 hand, the two descriptors designate the same entry in the file table
 (residing in system memory) and share their current position: if one
 reads and then the other, each will read a different part of the file;
@@ -345,9 +345,10 @@ the execution environment of the program which called \ml+exec+:
 
 The following program is a simplified command interpreter: it reads
 lines from standard input, breaks them into words, launches the
-corresponding command, and repeats until the end of file on stdin.  We
-begin with the function which splits a string into a list of words.
-Please, no comments on this horror.
+corresponding command, and repeats until the end of file on the
+standard input.  We begin with the function which splits a string into
+a list of words.  Please, no comments on this horror.
+
 \begin{listingcodefile}{minishell.ml}
 open Unix;;
 open Printf;;
