@@ -321,7 +321,10 @@ desired number.
 ADDR_INET((gethostbyname "pauillac.inria.fr").h_addr_list.(0),
           (getservbyname "ftp" "tcp").s_port)
 \end{lstlisting}
+\enlargethispage{1\onelineskip} %% To avoid a widow
 \end{example}
+
+\pagebreak
 
 \section{Connection to a server}
 
@@ -1067,7 +1070,9 @@ fills a polygon, sends a message with the following structure to the
 \item $4n$ bytes encoding the coordinates of the polygon's vertices
   by two 16 bit integers
 \end{itemize}
+\enlargethispage{1\onelineskip} %% To avoid a widow
 \end{example}
+\pagebreak
 
 With binary protocols we must pay attention to the computer
 architecture of the communicating machines. In particular for

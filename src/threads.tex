@@ -305,7 +305,9 @@ let search v = let r = simple_search pcond v in found := !found && r
 \end{lstlisting}
 %
 would be incorrect.
+\enlargethispage{1\onelineskip} %% To avoid a widow
 \end{example}
+\pagebreak
 
 The parallel search is interesting even on a uniprocessor machine if
 the comparison of elements could be blocked temporarily (for example by
@@ -318,7 +320,7 @@ Access to certain elements can have significant latency, on the order
 of a second if information must be retrieved over the network.  In
 this case, the difference in behavior between a sequential search and
 a parallel search becomes obvious.
-
+\medskip
 \begin{exercise}
 \label{ex/qsort}
 Parallelize quicksort on arrays.

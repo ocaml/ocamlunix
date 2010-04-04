@@ -873,7 +873,6 @@ overwriting any data that may already be there.
   the abnormal termination of a process holding a lock may never
   release it.
 \end{itemize}
-
 \begin{example} 
 Most programs use \ml+0o666+ for the third argument
 to \ml+openfile+. This means \ml+rw-rw-rw-+ in symbolic notation. 
@@ -881,7 +880,11 @@ With the default creation mask of \ml+0o022+, the
 file is thus created with the permissions \ml+rw-r--r--+. With a more 
 lenient mask of \ml+0o002+, the file is created with the permissions 
 \ml+rw-rw-r--+.
+\enlargethispage{1\baselineskip} %% To avoid a widow
+\enlargethispage{2\medskipamount} %% To avoid a widow
 \end{example}
+
+\pagebreak
 
 \begin{example} 
 To read from a file:
@@ -1546,6 +1549,7 @@ val output_string : out_channel -> string -> unit
 %
 which behaves like a sequence of \ml+output_char+ on each 
 character of the string, but is more efficient.
+\enlargethispage{2\baselineskip} %% To avoid a widow
 \end{exercise}
 \begin{answer}
 The idea is to copy the string to output into the buffer. We need to
@@ -1692,6 +1696,7 @@ The command \ml+tail+ displays the last $n$ lines of a file.
 How can it be implemented efficiently on regular files? What can we 
 do for the other kind of files? How can the option \ml+-f+ be
 implemented (cf. \ml+man tail+)?
+\enlargethispage{3\baselineskip} %% To avoid a widow
 \end{exercise}
 \begin{answer}
 A naive implementation of \ml+tail+ is to read the file sequentially
