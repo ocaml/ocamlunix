@@ -250,8 +250,6 @@ let handle_unix_error f arg =
 Functions of the form \ml+prerr_xxx+ are like the functions
 \ml+print_xxx+, except that they write on the error channel
 \ml+stderr+ rather than on the standard output channel \ml+stdout+.
-Furthermore, \ml+prerr_endline+ flushes \ml+stderr+ (whereas
-\ml+print_endline+ does not).
 
 The primitive \indexlibvalue{Unix}{error\_message}, of type 
 \ml+error -> string+, returns a message describing the error given as an
