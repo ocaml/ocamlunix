@@ -16,11 +16,11 @@ $RM -rf $TMP
 $MKDIR -p $TMP
 INSTALLDIR=$TMP ./build install-distrib
 
-$UNISON empty $TMP ssh://$HOST/$ROOTDIR -force $TMP \
-  -ignore "Name .htaccess" -ignore "Path french"
+#$UNISON empty $TMP ssh://$HOST/$ROOTDIR -force $TMP \
+#  -ignore "Name .htaccess" -ignore "Path french"
 
-# Without unison use the line below
-# $SCP $TMP/* $HOST:$ROOTDIR/
+#Without unison use the line below
+$SCP $TMP/* $HOST:$ROOTDIR/
 
 
 
