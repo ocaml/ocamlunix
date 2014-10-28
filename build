@@ -70,18 +70,18 @@ install_distrib ()
   $CD $ROOTDIR
   action clean
 
-  $RM publish
-  $RM -rf _darcs
   $FIND $ROOTDIR \
     \( -name "*~" -o -name ".DS_Store" -o -name ".gdb_history" \) \
     -exec $RM {} ';'
-  for file in `$FIND $ROOTDIR -type f -print`; do
-    $SED "s/!!VERSION!!/$VERSION/; \
-               s/!!COPYRIGHTYEAR!!/$COPYRIGHTYEAR/; \
-               s/!!SHORTDESCRIPTION!!/$SHORTDESCRIPTION/; \
-               s/!!PROJECTNAME!!/$PROJECTNAME/;" \
-        $file > $file.tmp
-    $MV -f $file.tmp $file
+  for file in `git ls-files`; do
+      if [ ! -x "$file" ]; then                # skip scripts
+          $SED "s/!!VERSION!!/$VERSION/; \
+                s/!!COPYRIGHTYEAR!!/$COPYRIGHTYEAR/; \
+                s/!!SHORTDESCRIPTION!!/$SHORTDESCRIPTION/; \
+                s/!!PROJECTNAME!!/$PROJECTNAME/;" \
+               $file > $file.tmp
+          $MV -f $file.tmp $file
+      fi
   done
 
   action all
