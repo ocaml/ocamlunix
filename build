@@ -82,6 +82,10 @@ install_distrib ()
       fi
   done
 
+  rm -f publish 
+  rm -f publish-gh
+  rm -rf .git
+
   action all
   action install
   action check-signatures
