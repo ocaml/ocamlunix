@@ -8,7 +8,7 @@ ocamlunix is the english translation of Xavier Leroy and Didier Rémy's
 ocamlunix is distributed under a Creative Commons by-nc-sa
 license. For the details see the file [`LICENSE`](LICENSE).
 
-[1] http://gallium.inria.fr/~remy/camlunix/
+[1]: http://gallium.inria.fr/~remy/camlunix/ 
 
 Project home page : http://ocaml.github.io/ocamlunix  
 Contact & typos : `Daniel Bünzli daniel.buenzl i@erratique.ch`
