@@ -4,7 +4,6 @@ set -e
 # Project info 
 PROJECTNAME="ocamlunix"
 SHORTDESCRIPTION="Unix System Programming in OCaml"
-COPYRIGHTYEAR="1991-"`date +"%Y"`
 VERSION=`date +"%Y-%m-%d"`
 
 INSTALLDIR=${INSTALLDIR:="`ocamlc -where`/$PROJECTNAME"}
@@ -75,8 +74,7 @@ install_distrib ()
     -exec $RM {} ';'
   for file in `git ls-files`; do
       if [ ! -x "$file" ]; then                # skip scripts
-          $SED "s/!!VERSION!!/$VERSION/; \
-                s/!!COPYRIGHTYEAR!!/$COPYRIGHTYEAR/; \
+          LC_ALL=C $SED "s/!!VERSION!!/$VERSION/; \
                 s/!!SHORTDESCRIPTION!!/$SHORTDESCRIPTION/; \
                 s/!!PROJECTNAME!!/$PROJECTNAME/;" \
                $file > $file.tmp
