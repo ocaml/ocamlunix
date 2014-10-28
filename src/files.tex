@@ -376,10 +376,10 @@ val $\libvalue{Unix}{chown}$ : string -> int -> int -> unit
 val $\libvalue{Unix}{fchown}$ : file_descr -> int -> int -> unit
 \end{listingcodefile}
 
-%% Le changement de groupe peut se faire sans privilège lorsque le
-%% programme à un \ml+uid+ (effectif) égal à celui du fichier et un
-%% \ml+gid+ (effectif) égal au group désiré ou à un de ses groupes
-%% supplémentaire
+%% Le changement de groupe peut se faire sans privilÃ¨ge lorsque le
+%% programme Ã  un \ml+uid+ (effectif) Ã©gal Ã  celui du fichier et un
+%% \ml+gid+ (effectif) Ã©gal au group dÃ©sirÃ© ou Ã  un de ses groupes
+%% supplÃ©mentaire
 
 \subsection*{Access rights}
 
@@ -654,7 +654,7 @@ we wrap these exceptions in the \ml+Hidden+ exception (see
 \ml+hide_exn+ and \ml+reveal_exn+).
 %
 %%% commented in the french version
-%% De plus on arrête la visite récursive d'un répertoire que l'on est en train
+%% De plus on arrÃªte la visite rÃ©cursive d'un rÃ©pertoire que l'on est en train
 %% de visiter (ce qui ne peut arriver que lorsqu'on suit les liens symboliques)
 \begin{listingcodefile}[style=numbers]{findlib.ml}
 open Unix;;

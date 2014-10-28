@@ -462,19 +462,19 @@ However, we cannot expect any significant gain from this example,
 which uses few processes relative to computation time.
 \end{example}
 
-%% Pour attendre sur un seul descripteur de fichier (en écriture ou en
-%% lecture), on peut utiliser l'une des deux versions spécialisée:
+%% Pour attendre sur un seul descripteur de fichier (en Ã©criture ou en
+%% lecture), on peut utiliser l'une des deux versions spÃ©cialisÃ©e:
 %% \begin{lstlisting}
 %% val $\indexlibvalue{Thread}{wait_timed_read}$ : file_descr -> float -> bool
 %% val $\indexlibvalue{Thread}{wait_timed_write}$ : file_descr -> float -> bool
 %% \end{lstlisting}
-%% On peut également attendre la terminaison d'un (vrai) processus fils
+%% On peut Ã©galement attendre la terminaison d'un (vrai) processus fils
 %% ou attendre sur un signal. 
 %% \begin{lstlisting}
 %% val $\indexlibvalue{Thread}{wait_pid}$ : int -> int * process_status
 %% val $\indexlibvalue{Thread}{wait_signal}$ : int -> int * process_status
 %% \end{lstlisting}
-%% Expliquer la différence entre la primitive \ml+wait\_pid+ et
+%% Expliquer la diffÃ©rence entre la primitive \ml+wait\_pid+ et
 %% \ml+Unix.waitpid+. 
 
 \section{Synchronization among threads: locks}
@@ -879,16 +879,16 @@ Sending a signal or a broadcast on a condition does not require
 holding a lock (unlike waiting), in the sense that it will not trigger
 a \quotes{system} error.
 %%
-%% Est-ce vrai? c'est à celui qui se met en attente à avoir pris le verrou
-%% avant de tester, puis fait wait. Il est donc sûr que la condition n'est
-%% pas vrai à ce moment là. 
+%% Est-ce vrai? c'est Ã  celui qui se met en attente Ã  avoir pris le verrou
+%% avant de tester, puis fait wait. Il est donc sÃ»r que la condition n'est
+%% pas vrai Ã  ce moment lÃ . 
 %% 
 However, it can sometimes be a programming error.
-%% En effet, émettre un signal sans posséder le verrou sur
-%% lequel les récepteurs de ce signal sont en attente signifie que
-%% l'émission du signal n'est pas synchronisée avec la mise en attente et
-%% peut donc se produire avant la mise en attente qu'il est supposé
-%% interrompre: le signal sera alors ignoré et l'attente jamais
+%% En effet, Ã©mettre un signal sans possÃ©der le verrou sur
+%% lequel les rÃ©cepteurs de ce signal sont en attente signifie que
+%% l'Ã©mission du signal n'est pas synchronisÃ©e avec la mise en attente et
+%% peut donc se produire avant la mise en attente qu'il est supposÃ©
+%% interrompre: le signal sera alors ignorÃ© et l'attente jamais
 %% interrompue (voir l'exemple des queues ci-dessous).  
 
 The choice between waking up one thread or all the threads depends on

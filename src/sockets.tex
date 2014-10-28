@@ -894,8 +894,8 @@ only accept a limited number of simultaneous connections to avoid
 system resources exhaustion and it must terminate connections that
 remain inactive for too long. 
 
-%% Il devra aussi, pouvoir continuer à servir normalement les requêtes en cours
-%% indépendemment de l'attaque.
+%% Il devra aussi, pouvoir continuer Ã  servir normalement les requÃªtes en cours
+%% indÃ©pendemment de l'attaque.
 
 A sequential server handling connections without forking is
 immediately exposed to this blocking issue. It will be unresponsive for
@@ -1755,15 +1755,15 @@ responses which are documents in \textsc{html} format.
 %%%% This is commented in the french version.
 
 %% \begin{answer}
-%% Il n'y a pas de difficulté particulière dans cette exercice, mais
-%% l'analyse des réponses doit être méticuleuse, car le non respect du
+%% Il n'y a pas de difficultÃ© particuliÃ¨re dans cette exercice, mais
+%% l'analyse des rÃ©ponses doit Ãªtre mÃ©ticuleuse, car le non respect du
 %% protocole peut produite une perte de synchronisation entre le serveur
 %% et le client qui ne se comprennent plus. De plus, ces erreurs peuvent
-%% être difficile à découvrir, car la plupart des serveurs fournissent
-%% des réponses à un format \quotes{standard} alors que le protocole
-%% permet plus de flexibilité.
+%% Ãªtre difficile Ã  dÃ©couvrir, car la plupart des serveurs fournissent
+%% des rÃ©ponses Ã  un format \quotes{standard} alors que le protocole
+%% permet plus de flexibilitÃ©.
 
-%% Le formattage des requêtes quant à lui est immédiat.
+%% Le formattage des requÃªtes quant Ã  lui est immÃ©diat.
 %% %
 %% \begin{listingcodefile}{wgetlib.ml}
 %% open Unix
@@ -1784,8 +1784,8 @@ responses which are documents in \textsc{html} format.
 %%     ];;
 %% \end{listingcodefile}
 %% %
-%% L'analyse des entêtes des réponses est une partie facile mais peu
-%% intéressante. On laisse au lecteur le soin d'écrire des fonctions
+%% L'analyse des entÃªtes des rÃ©ponses est une partie facile mais peu
+%% intÃ©ressante. On laisse au lecteur le soin d'Ã©crire des fonctions
 %% d'analyse:
 %% %
 %% \begin{lstlisting}
@@ -1797,10 +1797,10 @@ responses which are documents in \textsc{html} format.
 %% \end{lstlisting}
 %% %
 %% L'appel \ml+parse_header chan+ lit une suite de champs (les noms
-%% champs de champs sont transformés en lettre minuscules).  L'appel
-%% \ml+parse response chan+ lit une réponse complète retourne le statut
-%% de la réponse (entier), le message et la liste de champs.  L'appel
-%% \ml+parse chunk chan+ lit l'entête d'une tranche et retourne sa taille
+%% champs de champs sont transformÃ©s en lettre minuscules).  L'appel
+%% \ml+parse response chan+ lit une rÃ©ponse complÃ¨te retourne le statut
+%% de la rÃ©ponse (entier), le message et la liste de champs.  L'appel
+%% \ml+parse chunk chan+ lit l'entÃªte d'une tranche et retourne sa taille
 %% suivit de la liste des champs. L'appel \ml+parse_crlf chan+ lit
 %% %
 %% \begin{listingcodefile}{wgetlib.ml}
@@ -1823,7 +1823,7 @@ responses which are documents in \textsc{html} format.
 %%   };;
 %% \end{listingcodefile}
 %% %
-%% La copie du corps de la réponse doit être modifiée pour s'arrêter sur
+%% La copie du corps de la rÃ©ponse doit Ãªtre modifiÃ©e pour s'arrÃªter sur
 %% la taille et non plus sur la fin de fichier.
 %% %
 %% \begin{listingcodefile}{wgetlib.ml}
