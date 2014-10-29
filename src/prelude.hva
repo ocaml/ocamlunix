@@ -31,7 +31,7 @@
               font-size: 100\%;}
 
 \newstyle{BODY} { margin: 2em 10\% 2em 10\%;
-                  font-size: 9pt; line-height: 140\%; text-align: justify;
+                  font-size: 10pt; line-height: 140\%; text-align: justify;
                   background: white; color: black;
                   max-width: 75ex; min-width: 40ex;}
 
