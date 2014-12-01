@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 12</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec104">Answer of <a href="pipes.html#ex12">exercise 12</a></h5>
+<p>
+<a id="exans12"></a>
+Of course the parent must wait on its child. However, before that the
+input of the pipe on which the child reads must be closed by the
+parent, otherwise the child will wait indefinitely for new integers from the
+parent. This leads to a deadlock (closing the channel empties the
+buffer before closing the corresponding descriptor, therefore no data
+is lost). Concretely, the line <a href="pipes.html#prog%3Agen">10</a> of the <code>sieve</code>
+function needs to be replaced by:
+</p><div class="mylisting"><span class="c006">let</span> output = out_channel_of_descr fd_out <span class="c006">in</span>
+generate len output;
+close_out output;
+ignore(waitpid [] p);;</div><p>Accordingly, we enclose the 
+lines <a href="pipes.html#prog%3Asievefilterwhile">12</a>–<a href="pipes.html#prog%3Asievefilterdone">16</a> of the 
+<code>filter</code> function (represented by <code>...</code> below) with the
+following lines:
+</p><div class="mylisting"><span class="c006">try</span>
+  ...
+<span class="c006">with</span> End_of_file -&gt;
+  close_out output;
+  ignore (waitpid [] p)</div><div class="fancybreak">* * *</div></div></body>
+</html>

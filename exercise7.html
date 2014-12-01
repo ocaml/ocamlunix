@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 7</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec61">Answer of <a href="files.html#ex7">exercise 7</a></h5>
+<p>
+<a id="exans7"></a>
+Behind this apparently trivial requirement are hidden difficulties.
+Symbolic links are arbitrary paths, they can point on directories
+(which is not allowed for hard links) and they may not correspond to
+files contained in the archive.</p><p>A simple solution is to recreate, in memory, the file hierarchy
+contained in the archive.
+
+</p><div class="mylisting"><span class="c006">type</span> info = File | Link <span class="c006">of</span> string list | Dir <span class="c006">of</span> (string * inode) list
+<span class="c006">and</span> inode = { <span class="c006">mutable</span> record : record option; <span class="c006">mutable</span> info : info;}</div><p>Nodes of this in-memory file system are described by the <code>inode</code>
+type. The <code>info</code> field describes the file type, limited to ordinary
+files, symbolic links and directories. Paths are represented by lists
+of strings and directories by lists that associate a node to each file
+name in the directory. The <code>record</code> field stores the <code>tar</code>
+record associated to the node. This field is optional because
+intermediate directories are not always present in the archive; it is
+mutable because a file may appear more than once in the archive and
+the last occurrence takes precedence over the other.
+</p><div class="mylisting"><span class="c006">let</span> root () =
+  <span class="c006">let rec</span> i =
+    { record = None; info = Dir [ Filename.current_dir_name, i ] }
+  <span class="c006">in</span> i
+<span class="c006">let</span> link inode name nod = <span class="c006">match</span> inode.info <span class="c006">with</span>
+  | File | Link _ -&gt; error name "Not a directory"
+  | Dir list -&gt;
+      <span class="c006">try let</span> _ = List.assoc name list <span class="c006">in</span> error name "Already exists"
+      <span class="c006">with</span> Not_found -&gt; inode.info &lt;- Dir ((name, nod) :: list)
+
+<span class="c006">let</span> mkfile inode name r =
+  <span class="c006">let</span> f =  { record = r; info = File } <span class="c006">in</span>
+  link inode name f; f
+<span class="c006">let</span> symlink inode name r path =
+  <span class="c006">let</span> s =  { record = r; info = Link path } <span class="c006">in</span>
+  link inode name s; s
+<span class="c006">let</span> mkdir inode name r =
+  <span class="c006">let</span> d = mkfile inode name r <span class="c006">in</span>
+  d.info &lt;-
+    Dir [ Filename.current_dir_name, d; Filename.parent_dir_name, inode ];
+  d</div><p>As in Unix, each directory contains a link to itself and 
+to its parent, except for the root directory (in contrast to Unix
+where it is its own parent). This allows us to detect and
+forbid any access outside the hierarchy contained in the archive.
+</p><div class="mylisting"><span class="c006">let rec</span> find link inode path = <span class="c006">match</span> inode.info, path <span class="c006">with</span>
+  | _, [] -&gt; inode
+  | Dir list, name :: rest -&gt;
+      <span class="c006">let</span> subnode = List.assoc name list <span class="c006">in
+      let</span> subnode =
+        <span class="c006">match</span> subnode.info <span class="c006">with</span>
+          Link q -&gt;
+            <span class="c006">if</span> link &amp;&amp; rest = [] <span class="c006">then</span> subnode <span class="c006">else</span> find <span class="c006">false</span> inode q
+        | _ -&gt; subnode  <span class="c006">in</span>
+      find link subnode rest
+  | _, _ -&gt; raise Not_found;;</div><p>The function <code>find</code> finds in the archive the node corresponding to
+<code>path</code> by starting from the initial node <code>inode</code>. If the search
+result is a link, the flag <code>link</code> indicates whether the link itself
+should be returned (true) or the file pointed by the link (false).
+</p><div class="mylisting"><span class="c006">let rec</span> mkpath inode path =
+  <span class="c006">match</span> inode.info, path <span class="c006">with</span>
+  | _, [] -&gt; inode
+  | Dir list, name :: rest -&gt;
+      <span class="c006">let</span> subnode =
+        <span class="c006">try</span> List.assoc name list
+        <span class="c006">with</span> Not_found -&gt;  mkdir inode name None <span class="c006">in</span>
+      mkpath subnode rest
+  | _, _ -&gt; raise Not_found;;</div><p>The function <code>mkpath</code> traverses the path <code>path</code> creating missing
+nodes along the path. 
+</p><div class="mylisting"><span class="c006">let</span> explode f =
+  <span class="c006">let rec</span> dec f p =
+    <span class="c006">if</span> f = Filename.current_dir_name <span class="c006">then</span> p
+    <span class="c006">else</span> dec (Filename.dirname f) (Filename.basename f :: p) <span class="c006">in</span>
+  dec (<span class="c006">if</span> Filename.basename f = "" <span class="c006">then</span> Filename.dirname f <span class="c006">else</span> f) [];;</div><p>The function <code>explode</code> parses a Unix path into a list of strings. 
+It removes the end “<code>/</code>” of directory names which are allowed 
+in archives. 
+
+</p><div class="mylisting"><span class="c006">let</span> add archive r =
+  <span class="c006">match</span> r.header.kind <span class="c006">with</span>
+  | CHR (_,_) | BLK (_,_) | FIFO -&gt; ()
+  | kind -&gt;
+      <span class="c006">match</span> List.rev (explode r.header.name) <span class="c006">with</span>
+      | []  -&gt; ()
+      | name :: parent_rev -&gt;
+          <span class="c006">let</span> inode = mkpath archive (List.rev parent_rev) <span class="c006">in
+          match</span> kind <span class="c006">with</span>
+          | DIR -&gt; ignore (mkdir inode name (Some r))
+          | REG | CONT -&gt; ignore (mkfile inode name (Some r))
+          | LNK f -&gt; ignore (symlink inode name (Some r) (explode f))
+          | LINK f -&gt; link inode name (find <span class="c006">true</span> archive (explode f))
+          | _ -&gt; <span class="c006">assert false</span>;;</div><p>The function <code>add</code> adds the record <code>r</code> to
+the archive. The archive, represented by its root node, is modified by a 
+side effect. 
+</p><div class="mylisting"><span class="c006">let</span> find_and_copy tarfile filename =
+  <span class="c006">let</span> fd = openfile tarfile [ O_RDONLY ] 0 <span class="c006">in
+  let</span> records = List.rev (fold (<span class="c006">fun</span> x y -&gt; x :: y) [] fd) <span class="c006">in
+  let</span> archive = root () <span class="c006">in</span>
+  List.iter (add archive) records;
+  <span class="c006">let</span> inode =
+    <span class="c006">try</span> find <span class="c006">false</span> archive (explode filename)
+    <span class="c006">with</span> Not_found -&gt; error filename "File not found" <span class="c006">in
+  begin match</span> inode.record <span class="c006">with</span>
+  | Some ({ header = { kind = (REG | CONT) }} <span class="c006">as</span> r) -&gt; copy_file r stdout
+  | Some _ -&gt; error filename "Not a regular file"
+  | None -&gt; error filename "Not found"
+  <span class="c006">end</span>;
+  close fd;;</div><p>We end as before. 
+</p><div class="mylisting"><span class="c006">let</span> readtar () =
+  <span class="c006">let</span> nargs = Array.length Sys.argv <span class="c006">in
+  if</span> nargs = 2 <span class="c006">then</span> list Sys.argv.(1)
+  <span class="c006">else if</span> nargs = 3 <span class="c006">then</span> find_and_copy Sys.argv.(1) Sys.argv.(2)
+  <span class="c006">else</span> prerr_endline ("Usage: " ^Sys.argv.(0)^ " &lt;tarfile&gt; [ &lt;source&gt; ]");;
+
+Printexc.print (handle_unix_error (handle_error readtar)) ();;</div><div class="fancybreak">* * *</div></div></body>
+</html>

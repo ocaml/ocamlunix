@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Files</title>
+</head>
+<body>
+<a href="generalities.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="processes.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec11"> 2  Files</h1>
+<p>The term “file” in Unix covers several types of objects:
+</p><ul class="itemize"><li class="li-itemize">
+standard files: finite sets of bytes containing text or binary
+information, often referred to as “ordinary” files,
+</li><li class="li-itemize">directories,
+</li><li class="li-itemize">symbolic links,
+</li><li class="li-itemize">special files (<em>devices</em>), which primarily provide access
+to computer peripherals,
+</li><li class="li-itemize">named pipes,
+</li><li class="li-itemize">sockets named in the Unix domain.
+</li></ul><p>
+The file concept includes both the data contained in the file and
+information about the file itself (also called meta-data) like its
+type, its access rights, the latest access times, etc.</p>
+<h2 class="section" id="sec12">2.1  The file system</h2>
+<p>To a first approximation, the file system can be considered to be a tree. The root is
+represented by <code>'/'</code>. The branches are labeled by (file) names,
+which are strings of any characters excluding <code>'\000'</code> and <code>'/'</code>
+(but it is good practice to also avoid non-printing characters and
+spaces). The non-terminal nodes are <em>directories</em>: these nodes
+always contain two branches <code>.</code> and <code>..</code> which respectively
+represent the directory itself and the directory’s parent. The other
+nodes are sometimes called <em>files</em>, as opposed to directories,
+but this is ambiguous, as we can also designate any node as a
+“file”. To avoid all ambiguity we refer to them as
+<em>non-directory files</em>.</p><p>The nodes of the tree are addressed by paths. If the start of the path
+is the root of the file hierarchy, the path is <em>absolute</em>, whereas if the
+start is a directory it is <em>relative</em>. More precisely, a <em>relative
+path</em> is a string of file names separated by the character
+<code>'/'</code>. An <em>absolute path</em> is a relative path preceded by the
+the character <code>'/'</code> (note the double use of this character both as
+a separator and as the name of the root node).</p><p>The <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html"><span class="c001">Filename</span></a> module handles paths in a portable
+manner. In particular, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html#VALconcat"><span class="c001">concat</span></a> concatenates paths without
+referring to the character <code>'/'</code>, allowing the code to function equally
+well on other operating systems (for example, the path separator character
+under Windows is <code>'\'</code>). Similarly, the <code>Filename</code> module
+provides the string values <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html#VALcurrent_dir_name"><span class="c001">current_dir_name</span></a> and
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html#VALparent_dir_name"><span class="c001">parent_dir_name</span></a> to represent the branches
+<code>.</code> and <code>..</code> The functions <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html#VALbasename"><span class="c001">basename</span></a> and
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Filename.html#VALdirname"><span class="c001">dirname</span></a> return the prefix <code>d</code> and the suffix
+<code>b</code> from a path <code>p</code> such that the paths <code>p</code> and
+<code>d/b</code> refer to the same file, where <code>d</code> is the directory in
+which the file is found and <code>b</code> is the name of the file. The
+functions defined in <code>Filename</code> operate only on paths,
+independently of their actual existence within the file hierarchy.</p><p>In fact, strictly speaking, the file hierarchy is not a tree. First
+the directories <code>.</code> and <code>..</code> allow a directory to refer to
+itself and to move up in the hierarchy to define paths leading from a
+directory to itself. Moreover, non-directory files can have many
+parents (we say that they have many <em>hard links</em>). Finally,
+there are also <em>symbolic links</em> which can be seen as
+non-directory files containing a path. Conceptually, this path can be
+obtained by reading the contents of the symbolic link like an ordinary
+file. Whenever a symbolic link occurs in the middle of a path we have
+to follow its path transparently. If <code>s</code> is a symbolic link whose
+value is the path <code>l</code>, then the path <code>p/s/q</code> represents the file
+<code>l/q</code> if <code>l</code> is an absolute path or the file <code>p/l/q</code> if
+<code>l</code> is a relative path.</p><p>Figure <a href="#fig%2Fhierarchy">1</a> gives an example of a file hierarchy. The
+symbolic link <code>11</code> corresponding to the path <code>/tmp/bar</code> whose
+path value is the relative path <code>../gnu</code>, does not refer to any
+existing file in the hierarchy (at the moment).</p><div class="figure">
+<div class="image"><img src="ocamlunix-image1.png" width="100%"></div>
+
+
+
+<a id="fig/hierarchy"></a>
+<div class="caption">Figure 1 — An example of a file hierarchy</div></div><p>In general, a recursive traversal of the hierarchy will terminate
+if the following rules are respected:
+</p><ul class="itemize"><li class="li-itemize">
+the directories <code>.</code> and <code>..</code> are ignored.
+</li><li class="li-itemize">symbolic links are not followed. 
+</li></ul><p>
+But if symbolic links are followed we are traversing a graph and
+we need to keep track of the nodes we have already visited to avoid loops.</p><p>Each process has a current working directory. It is returned by the
+function <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetcwd"><span class="c001">getcwd</span></a><a id="hevea_default7"></a> and can be changed with
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALchdir"><span class="c001">chdir</span></a><a id="hevea_default8"></a>. It is also possible to constrict the
+view of the file hierarchy by calling 
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALchroot"><span class="c001">chroot</span></a><a id="hevea_default9"></a> <code>p</code>. This makes the node <code>p</code>, which 
+should be a directory, the root of the restricted view of the
+hierarchy. Absolute file paths are then
+interpreted according to this new root <code>p</code> (and of course <code>..</code> at the
+new root is <code>p</code> itself).</p>
+<h2 class="section" id="sec13">2.2  File names and file descriptors</h2>
+<p>There are two ways to access a file. The first is by its <em>file
+name</em> (or <em>path name</em>) in the file system hierarchy. Due to
+hard links, a file can have many different names. Names are values of
+type <code>string</code>. For example the system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/unlink.html"><span class="c001">unlink</span></a><a id="hevea_default10"></a>,
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/link.html"><span class="c001">link</span></a><a id="hevea_default11"></a>, <a href="http://www.opengroup.org/onlinepubs/009696799/functions/symlink.html"><span class="c001">symlink</span></a><a id="hevea_default12"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/rename.html"><span class="c001">rename</span></a><a id="hevea_default13"></a> all operate at
+the file name level.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALunlink">unlink</a> : string -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlink">link</a> : string -&gt; string -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsymlink">symlink</a> : string -&gt; string -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALrename">rename</a> : string -&gt; string -&gt; unit</div><p>Their effect is as follows:
+</p><ul class="itemize"><li class="li-itemize">
+<code>unlink f</code> erases the file <code>f</code> like the Unix command
+<code>rm -f f</code>.
+</li><li class="li-itemize"><code>link f1 f2</code> creates a hard link named <code>f2</code> to
+the file <code>f1</code> like the command <code>ln f1 f2</code>.
+</li><li class="li-itemize"><code>symlink f1 f2</code> creates a symbolic link named <code>f2</code> to the file 
+<code>f1</code> like the command <code>ln -s f1 f2</code>. 
+</li><li class="li-itemize"><code>rename f1 f2</code> renames the file <code>f1</code> to <code>f2</code> 
+like the command <code>mv f1 f2</code>.
+</li></ul><p>The second way of accessing a file is by a file descriptor. A
+descriptor represents a pointer to a file along with other information
+like the current read/write position in the file, the access rights of
+the file (is it possible to read? write?) and flags which control the
+behavior of reads and writes (blocking or non-blocking, overwrite,
+append, etc.). File descriptors are values of the abstract type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEfile_descr"><span class="c001">file_descr</span></a>.</p><p>Access to a file via its descriptor is independent from the
+access via its name. In particular whenever we get a file descriptor,
+the file can be destroyed or renamed but the descriptor still points
+on the original file.</p><p>When a program is executed, three descriptors are allocated and 
+tied to the variables <code>stdin</code>, <code>stdout</code> and <code>stderr</code> of the
+<code>Unix</code> module:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALstdin">stdin</a><a id="hevea_default14"></a> : file_descr
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALstdout">stdout</a><a id="hevea_default15"></a> : file_descr
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALstderr">stderr</a><a id="hevea_default16"></a> : file_descr</div><p>They correspond, respectively, to the standard input, standard output
+and standard error of the process.</p><p>When a program is executed on the command line without any
+redirections, the three descriptors refer to the terminal. But if,
+for example, the input has been redirected using the shell expression
+<code>cmd &lt; f</code>, then the descriptor <code>stdin</code> refers to the file named <code>f</code>
+during the execution of the command <code>cmd</code>. Similarly, <code>cmd &gt; f</code>
+and <code>cmd 2&gt; f</code> respectively bind the descriptors <code>stdout</code> and
+<code>stderr</code> to the file named <code>f</code> during the execution of the
+command.</p>
+<h2 class="section" id="sec14">2.3  Meta-attributes, types and permissions</h2>
+<p>The system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/stat.html"><span class="c001">stat</span></a><a id="hevea_default17"></a>, <a href="http://www.opengroup.org/onlinepubs/009696799/functions/lstat.html"><span class="c001">lstat</span></a><a id="hevea_default18"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/fstat.html"><span class="c001">fstat</span></a><a id="hevea_default19"></a>
+return the meta-attributes of a file; that is, information about
+the node itself rather than its content. Among other things, this
+information contains the identity of the file, the type of file, the
+access rights, the time and date of last access and other information.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALstat">stat</a>  : string -&gt; stats
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlstat">lstat</a> : string -&gt; stats
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALfstat">fstat</a> : file_descr -&gt; stats</div><p>The system calls <code>stat</code> and <code>lstat</code> take a file name as an
+argument while <code>fstat</code> takes a previously opened descriptor and
+returns information about the file it points to. <code>stat</code> and
+<code>lstat</code> differ on symbolic links : <code>lstat</code> returns information
+about the symbolic link itself, while <code>stat</code> returns information
+about the file that the link points to. The result of these three
+calls is a record of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEstats"><span class="c001">stats</span></a> whose fields are
+described in table <a href="#fig%2Fstats">1</a>.
+</p><div class="table">
+<table class="c000 cellpading0"><tr><td class="c013">Field name</td><td class="c012">Description </td></tr>
+<tr><td class="hbar" colspan=2></td></tr>
+<tr><td class="c013"><code>st_dev : int</code></td><td class="c012">The id of the device on which the file is stored. </td></tr>
+<tr><td class="c013"><code>st_ino : int</code></td><td class="c012">The id of the file (inode number) in its partition. 
+The pair <code>(st_dev, st_ino)</code> uniquely identifies the file
+within the file system. </td></tr>
+<tr><td class="c013"><code>st_kind : file_kind</code></td><td class="c012">The file type. The type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEfile_kind"><span class="c001">file_kind</span></a> is an enumerated type
+whose constructors are: 
+<div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>S_REG</code></td><td class="c010">Regular file </td></tr>
+<tr><td class="c010"><code>S_DIR</code></td><td class="c010">Directory </td></tr>
+<tr><td class="c010"><code>S_CHR</code></td><td class="c010">Character device </td></tr>
+<tr><td class="c010"><code>S_BLK</code></td><td class="c010">Block device </td></tr>
+<tr><td class="c010"><code>S_LNK</code></td><td class="c010">Symbolic link </td></tr>
+<tr><td class="c010"><code>S_FIFO</code></td><td class="c010">Named pipe </td></tr>
+<tr><td class="c010"><code>S_SOCK</code></td><td class="c010">Socket 
+</td></tr>
+</table>
+</div>
+</td></tr>
+<tr><td class="c013"><code>st_perm : int</code></td><td class="c012">Access rights for the file </td></tr>
+<tr><td class="c013"><code>st_nlink : int</code></td><td class="c012">For a directory: the number of entries in the directory. For others:
+the number of hard links to this file. </td></tr>
+<tr><td class="c013"><code>st_uid : int</code></td><td class="c012">The id of the file’s user owner. </td></tr>
+<tr><td class="c013"><code>st_gid : int</code></td><td class="c012">The id of the file’s group owner. </td></tr>
+<tr><td class="c013"><code>st_rdev : int</code></td><td class="c012">The id of the associated peripheral (for special files). </td></tr>
+<tr><td class="c013"><code>st_size : int</code></td><td class="c012">The file size, in bytes. </td></tr>
+<tr><td class="c013"><code>st_atime : int</code></td><td class="c012">Last file content access date (in seconds from
+January 1st 1970, midnight, <span class="c005">gmt</span>). </td></tr>
+<tr><td class="c013"><code>st_mtime : int</code></td><td class="c012">Last file content modification date (idem).</td></tr>
+<tr><td class="c013"><code>st_ctime : int</code></td><td class="c012">Last file state modification date: either a
+write to the file or a change in access rights, user or group owner,
+or number of links.
+<br>
+</td></tr>
+<tr><td class="hbar" colspan=2></td></tr>
+</table>
+
+<a id="fig/stats"></a>
+<div class="caption">Table 1 — Fields of the <code>stats</code> structure</div></div><h3 class="subsection" id="sec15">Identification</h3>
+<p>A file is uniquely identified by the pair made of its device number
+(typically the disk partition where it is located) <code>st_dev</code> and its
+inode number <code>st_ino</code>.</p><h3 class="subsection" id="sec16">Owners</h3>
+<p>A file has one user owner <code>st_uid</code> and one group owner
+<code>st_gid</code>. All the users and groups 
+on the machine are usually described in the 
+<code>/etc/passwd</code> and <code>/etc/groups</code> files. We can look up them by
+name in a portable manner with the functions <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getpwnam.html"><span class="c001">getpwnam</span></a><a id="hevea_default20"></a> and 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/getgrnam.html"><span class="c001">getgrnam</span></a><a id="hevea_default21"></a> or by id with 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/getpwuid.html"><span class="c001">getpwuid</span></a><a id="hevea_default22"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getgrgid.html"><span class="c001">getgrgid</span></a><a id="hevea_default23"></a>.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetpwnam">getpwnam</a> : string -&gt; passwd_entry
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetgrnam">getgrnam</a> : string -&gt; group_entry
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetpwuid">getpwuid</a> : int -&gt; passwd_entry
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetgrgid">getgrgid</a> : int -&gt; group_entry</div><p>The name of the user of a running process and all the groups
+to which it belongs can be retrieved with the commands
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/getlogin.html"><span class="c001">getlogin</span></a><a id="hevea_default24"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getgroups.html"><span class="c001">getgroups</span></a><a id="hevea_default25"></a>.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetlogin">getlogin</a> : unit -&gt; string
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetgroups">getgroups</a> : unit -&gt; int array</div><p>The call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/chown.html"><span class="c001">chown</span></a><a id="hevea_default26"></a> changes the owner (second argument) and the
+group (third argument) of a file (first argument). If we have a file
+descriptor, <a href="http://www.opengroup.org/onlinepubs/009696799/functions/fchown.html"><span class="c001">fchown</span></a><a id="hevea_default27"></a> can be used instead. Only the super user
+can change this information arbitrarily.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALchown">chown</a> : string -&gt; int -&gt; int -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALfchown">fchown</a> : file_descr -&gt; int -&gt; int -&gt; unit</div><h3 class="subsection" id="sec17">Access rights</h3>
+<p>Access rights are encoded as bits in an integer, and the type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEfile_perm"><span class="c001">file_perm</span></a> is just an abbreviation for the type
+<code>int</code>. They specify special bits and read, write and
+execution rights for the user owner, the group owner and the other
+users as vector of bits:
+</p><div class="center">
+<table class="cellpadding1" border=1 style="border-spacing:0;"><tr><td class="c008" colspan=3><span class="c001">S</span>pecial</td><td class="c008" colspan=3><span class="c001">U</span>ser</td><td class="c008" colspan=3><span class="c001">G</span>roup</td><td class="c008" colspan=3><span class="c001">O</span>ther </td></tr>
+<tr><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td><td class="c008">–</td></tr>
+<tr><td class="c008" colspan=12><code>OoSUGO</code>
+</td></tr>
+</table>
+</div><p>
+
+where in each of the user, group and other fields, the order of bits
+indicates read (<code>r</code>), write (<code>w</code>) and execute (<code>x</code>) rights.
+The permissions on a file are the union of all these individual
+rights, as shown in table <a href="#sec17">2</a>.</p><div class="table">
+<table class="c000 cellpading0"><tr><td class="c010">Bit (octal)</td><td class="c009">Notation <code>ls -l</code></td><td class="c010">Access right </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><code>0o100</code></td><td class="c009"><code>--x------</code></td><td class="c010">executable by the user owner </td></tr>
+<tr><td class="c010"><code>0o200</code></td><td class="c009"><code>-w-------</code></td><td class="c010">writable by the user owner </td></tr>
+<tr><td class="c010"><code>0o400</code></td><td class="c009"><code>r--------</code></td><td class="c010">readable by the user owner </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><code>0o10</code></td><td class="c009"><code>-----x---</code></td><td class="c010"> executable by members of the group owner </td></tr>
+<tr><td class="c010"><code>0o20</code></td><td class="c009"><code>----w----</code></td><td class="c010"> writable by members of the group owner </td></tr>
+<tr><td class="c010"><code>0o40</code></td><td class="c009"><code>---r----</code></td><td class="c010"> readable by members of the group owner </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><code>0o1</code></td><td class="c009"><code>--------x</code></td><td class="c010">executable by other users</td></tr>
+<tr><td class="c010"><code>0o2</code></td><td class="c009"><code>-------w-</code></td><td class="c010">writable by other users </td></tr>
+<tr><td class="c010"><code>0o4</code></td><td class="c009"><code>------r--</code></td><td class="c010">readable by other users </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><code>0o1000</code></td><td class="c009"><code>--------t</code></td><td class="c010">the bit <code>t</code> on the group (sticky bit)</td></tr>
+<tr><td class="c010"><code>0o2000</code></td><td class="c009"><code>-----s---</code></td><td class="c010">the bit <code>s</code> on the group (<code>set-gid</code>)</td></tr>
+<tr><td class="c010"><code>0o4000</code></td><td class="c009"><code>--s------</code></td><td class="c010">the bit <code>s</code> on the user (<code>set-uid</code>)</td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+</table>
+
+<div class="caption">Table 2 — Permission bits</div></div><p>For files, the meaning of read, write and execute permissions is
+obvious. For a directory, the execute permission means the right to
+enter it (to <code>chdir</code> to it) and read permission the right to list
+its contents. Read permission on a directory is however not needed to
+read its files or sub-directories (but we then need to know their
+names).</p><p>The special bits do not have meaning unless the <code>x</code> bit is set (if
+present without <code>x</code> set, they do not give additional rights). This
+is why their representation is superimposed on the bit <code>x</code> and
+the letters <code>S</code> and <code>T</code> are used instead of <code>s</code> and <code>t</code>
+whenever <code>x</code> is not set. The bit <code>t</code> allows sub-directories to
+inherit the permissions of the parent directory. On a directory, 
+the bit <code>s</code> allows the use of the directory’s <code>uid</code> or <code>gid</code> rather
+than the user’s to create directories. For an executable file, 
+the bit <code>s</code> allows the changing at execution time of the user’s
+effective identity or group with the system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/setuid.html"><span class="c001">setuid</span></a><a id="hevea_default28"></a> 
+and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/setgid.html"><span class="c001">setgid</span></a><a id="hevea_default29"></a>.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsetuid">setuid</a> : int -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsetgid">setgid</a> : int -&gt; unit</div><p>The process also preserves its original identities unless 
+it has super user privileges, in which case <code>setuid</code> and
+<code>setgid</code> change both its effective and original user and group
+identities. The original identity is preserved to allow 
+the process to subsequently recover it as its effective identity
+without needing further privileges. The system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getuid.html"><span class="c001">getuid</span></a><a id="hevea_default30"></a> and 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/getgid.html"><span class="c001">getgid</span></a><a id="hevea_default31"></a> return the original identities and 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/geteuid.html"><span class="c001">geteuid</span></a><a id="hevea_default32"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getegid.html"><span class="c001">getegid</span></a><a id="hevea_default33"></a> return the effective identities.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetuid">getuid</a> : unit -&gt; int
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgeteuid">geteuid</a> : unit -&gt; int
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetgid">getgid</a> : unit -&gt; int
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetegid">getegid</a> : unit -&gt; int</div><p>A process also has a file creation mask encoded the same way file
+permissions are. As its name suggests, the mask specifies prohibitions
+(rights to remove): during file creation a bit set to 1 in the
+mask is set to 0 in the permissions of the created file. The mask
+can be consulted and changed with the system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/umask.html"><span class="c001">umask</span></a><a id="hevea_default34"></a>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALumask">umask</a> : int -&gt; int</div><p>Like many system calls that modify system variables, the modifying
+function returns the old value of the variable. Thus, to just look up
+the value we need to call the function twice. Once with an arbitrary
+value to get the mask and a second time to put it back. For example:
+
+</p><div class="mylisting"><span class="c006">let</span> m = umask 0 <span class="c006">in</span> ignore (umask m); m</div><p>File access permissions can be modified with the system calls
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/chmod.html"><span class="c001">chmod</span></a><a id="hevea_default35"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/fchmod.html"><span class="c001">fchmod</span></a><a id="hevea_default36"></a>:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALchmod">chmod</a> : string -&gt; file_perm -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALfchmod">fchmod</a> : file_descr -&gt; file_perm -&gt; unit</div><p>and they can be tested “dynamically” with the system 
+call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/access.html"><span class="c001">access</span></a><a id="hevea_default37"></a>:
+</p><div class="mylisting"><span class="c006">type</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEaccess_permission">access_permission</a> = R_OK | W_OK | X_OK | F_OK
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALaccess">access</a> : string -&gt; access_permission list -&gt; unit</div><p>where requested access rights to the file are specified by a list of
+values of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEaccess_permission"><span class="c001">access_permission</span></a> whose meaning is 
+obvious except for <code>F_OK</code> which just checks for the file’s
+existence (without checking for the other rights). The function
+raises an error if the access rights are not granted.</p><p>Note that the information inferred by <code>access</code> may be more
+restrictive than the information returned by <code>lstat</code> because a file
+system may be mounted with restricted rights — for example in
+read-only mode. In that case <code>access</code> will deny a write permission
+on a file whose meta-attributes would allow it. This is why we
+distinguish between “dynamic” (what a process can actually do)
+and “static” (what the file system specifies) information.</p>
+<h2 class="section" id="sec18">2.4  Operations on directories</h2>
+<p>Only the kernel can write in directories (when files are
+created). Thus opening a directory in write mode is prohibited. In
+certain versions of Unix a directory may be opened in read only mode
+and read with <span class="c001">read</span><a id="hevea_default38"></a>, but other versions prohibit
+it. However, even if this is possible, it is preferable not to do so
+because the format of directory entries vary between Unix versions and
+is often complex. The following functions allow reading a directory
+sequentially in a portable manner:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALopendir">opendir</a>   : string -&gt; dir_handle
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALreaddir">readdir</a>   : dir_handle -&gt; string
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALrewinddir">rewinddir</a> : dir_handle -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALclosedir">closedir</a>  : dir_handle -&gt; unit</div><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/opendir.html"><span class="c001">opendir</span></a><a id="hevea_default39"></a> returns a directory descriptor for a
+directory. <a href="http://www.opengroup.org/onlinepubs/009696799/functions/readdir.html"><span class="c001">readdir</span></a><a id="hevea_default40"></a> reads the next entry of a descriptor, and
+returns a file name relative to the directory or raises the exception
+<code>End_of_file</code> if the end of the directory is
+reached. <a href="http://www.opengroup.org/onlinepubs/009696799/functions/rewinddir.html"><span class="c001">rewinddir</span></a><a id="hevea_default41"></a> repositions the descriptor at the
+beginning of the directory and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/closedir.html"><span class="c001">closedir</span></a><a id="hevea_default42"></a> closes the directory
+descriptor.</p><div class="example">
+<h5 class="paragraph" id="sec19">Example</h5>
+<p>
+The following library function, in <code>Misc</code>, iterates a
+function <code>f</code> over the entries of the directory <code>dirname</code>.
+
+
+</p><div class="mylisting"><span class="c006">let</span> iter_dir f dirname =
+  <span class="c006">let</span> d = opendir dirname <span class="c006">in
+  try while true do</span> f (readdir d) <span class="c006">done
+  with</span> End_of_file -&gt; closedir d</div><div class="fancybreak">* * *</div></div><p>To create a directory or remove an empty directory, we have
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/mkdir.html"><span class="c001">mkdir</span></a><a id="hevea_default43"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/rmdir.html"><span class="c001">rmdir</span></a><a id="hevea_default44"></a>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALmkdir">mkdir</a> : string -&gt; file_perm -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALrmdir">rmdir</a> : string -&gt; unit</div><p>The second argument of <code>mkdir</code> determines the access rights of the
+new directory. Note that we can only remove a directory that is
+already empty. To remove a directory and its contents, it is thus
+necessary to first recursively empty the contents of the directory and
+then remove the directory.</p>
+<h2 class="section" id="sec20">2.5  Complete example: search in a file hierarchy</h2>
+<p>The Unix command <code>find</code> lists the files of a hierarchy matching
+certain criteria (file name, type and permissions etc.). In this
+section we develop a library function <code>Findlib.find</code> which
+implements these searches and a command <code>find</code> that provides a version
+of the Unix command <code>find</code> that supports the options <code>-follow</code>
+and <code>-maxdepth</code>.</p><p>We specify the following interface for <code>Findlib.find</code>:
+</p><div class="mylisting"><span class="c006">val</span> find :
+  (Unix.error * string * string -&gt; unit) -&gt;
+  (string -&gt; Unix.stats -&gt; bool) -&gt; bool -&gt; int -&gt; string list -&gt;
+  unit</div><p>The function call
+</p><div class="mylisting">find handler action follow depth roots</div><p>traverses the file hierarchy starting from the roots specified in the
+list <code>roots</code> (absolute or relative to the current directory of the
+process when the call is made) up to a maximum depth <code>depth</code> and following
+symbolic links if the flag <code>follow</code> is set. The paths found under
+the root <code>r</code> include <code>r</code> as a prefix. Each found path <code>p</code> is
+given to the function <code>action</code> along with the data returned by
+<code>Unix.lstat p</code> (or <code>Unix.stat p</code> if <code>follow</code> is <code><span class="c006">true</span></code>).
+The function <code>action</code> returns a boolean indicating, for
+directories, whether the search should continue for its contents (<code><span class="c006">true</span></code>)
+or not (<code><span class="c006">false</span></code>).</p><p>The <code>handler</code> function reports traversal errors of type
+<code>Unix_error</code>. Whenever an error occurs the arguments of the
+exception are given to the handler function and the traversal
+continues. However when an exception is raised by the functions
+<code>action</code> or <code>handler</code> themselves, we immediately stop the
+traversal and let it propagate to the caller. To propagate an
+<code>Unix_error</code> exception without catching it like a traversal error,
+we wrap these exceptions in the <code>Hidden</code> exception (see
+<code>hide_exn</code> and <code>reveal_exn</code>).
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Unix;;
+<span class="c003">   2</span> 
+<span class="c003">   3</span> <span class="c006">exception</span> Hidden <span class="c006">of</span> exn
+<span class="c003">   4</span> <span class="c006">let</span> hide_exn f x = <span class="c006">try</span> f x <span class="c006">with</span> exn -&gt; raise (Hidden exn);;
+<span class="c003">   5</span> <span class="c006">let</span> reveal_exn f x = <span class="c006">try</span> f x <span class="c006">with</span> Hidden exn -&gt; raise exn;;
+<span class="c003">   6</span> 
+<span class="c003">   7</span> <span class="c006">let</span> find on_error on_path follow depth roots =
+<span class="c003">   8</span>   <span class="c006">let rec</span> find_rec depth visiting filename =
+<span class="c003">   9</span>     <span class="c006">try</span>
+<span class="c003">  10</span>       <span class="c006">let</span> infos = (<span class="c006">if</span> follow <span class="c006">then</span> stat <span class="c006">else</span> lstat) filename <span class="c006">in</span>
+<span class="c003">  11</span>       <span class="c006">let</span> continue = hide_exn (on_path filename) infos <span class="c006">in</span>
+<span class="c003">  12</span>       <span class="c006">let</span> id = infos.st_dev, infos.st_ino <span class="c006">in</span> <a id="prog:did"></a>
+<span class="c003">  13</span>       <span class="c006">if</span> infos.st_kind = S_DIR &amp;&amp; depth &gt; 0 &amp;&amp; continue &amp;&amp;
+<span class="c003">  14</span>         (not follow || not (List.mem id visiting))
+<span class="c003">  15</span>       <span class="c006">then</span>
+<span class="c003">  16</span>         <span class="c006">let</span> process_child child =
+<span class="c003">  17</span>           <span class="c006">if</span> (child &lt;&gt; Filename.current_dir_name &amp;&amp;
+<span class="c003">  18</span>               child &lt;&gt; Filename.parent_dir_name) <span class="c006">then</span>
+<span class="c003">  19</span>             <span class="c006">let</span> child_name = Filename.concat filename child <span class="c006">in</span>
+<span class="c003">  20</span>             <span class="c006">let</span> visiting =
+<span class="c003">  21</span>               <span class="c006">if</span> follow <span class="c006">then</span> id :: visiting <span class="c006">else</span> visiting <span class="c006">in</span> <a id="prog:follow"></a>
+<span class="c003">  22</span>             find_rec (depth-1) visiting child_name <span class="c006">in</span>
+<span class="c003">  23</span>         Misc.iter_dir process_child filename
+<span class="c003">  24</span>     <span class="c006">with</span> Unix_error (e, b, c) -&gt; hide_exn on_error (e, b, c) <span class="c006">in</span>
+<span class="c003">  25</span>   reveal_exn (List.iter (find_rec depth [])) roots;;</div><p>A directory is identified by the <code>id</code> pair (line <a href="#prog%3Adid">12</a>)
+made of its device and inode number. The list <code>visiting</code> keeps
+track of the directories that have already been visited. In fact
+this information is only needed if symbolic links are followed
+(line <a href="#prog%3Afollow">21</a>).</p><p>It is now easy to program the <code>find</code> command. The essential part of
+the code parses the command line arguments with the <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Arg.html"><span class="c001">Arg</span></a>
+module.
+</p><div class="mylisting"><span class="c006">let</span> find () =
+  <span class="c006">let</span> follow = <span class="c006">ref false in
+  let</span> maxdepth = <span class="c006">ref</span> max_int <span class="c006">in
+  let</span> roots = <span class="c006">ref</span> [] <span class="c006">in
+  let</span> usage_string  =
+    ("Usage: " ^ Sys.argv.(0) ^ " [files...] [options...]") <span class="c006">in
+  let</span> opt_list =  [
+    "-maxdepth", Arg.Int ((:=) maxdepth), "max depth search";
+    "-follow", Arg.Set follow, "follow symbolic links";
+  ] <span class="c006">in</span>
+  Arg.parse opt_list (<span class="c006">fun</span> f -&gt; roots := f :: !roots) usage_string;
+  <span class="c006">let</span> action p infos = print_endline p; <span class="c006">true in
+  let</span> errors = <span class="c006">ref false in
+  let</span> on_error (e, b, c) =
+    errors := <span class="c006">true</span>; prerr_endline (c ^ ": " ^ Unix.error_message e) <span class="c006">in</span>
+  Findlib.find on_error action !follow !maxdepth
+    (<span class="c006">if</span> !roots = [] <span class="c006">then</span> [ Filename.current_dir_name ]
+     <span class="c006">else</span> List.rev !roots);
+  <span class="c006">if</span> !errors <span class="c006">then</span> exit 1;;
+
+Unix.handle_unix_error find ();;</div><p>
+Although our <code>find</code> command is quite limited, the library
+function <code>FindLib.find</code> is far more general, as the following
+exercise shows.
+</p><div class="exercise">
+<h5 class="paragraph" id="sec21">Exercise 1</h5>
+<p><a id="ex1"></a>
+Use the function <code>FindLib.find</code> to write a command
+<code>find_but_CVS</code> equivalent to the Unix command:
+</p><div class="mylisting">find . -<span class="c006">type</span> d -name CVS -prune -o -print</div><p>which, starting from the current directory, recursively prints
+files without printing or entering directories whose name is <code>CVS</code>.
+<a href="exercise1.html#exans1">Answer</a>.</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec23">Exercise 2</h5>
+<p><a id="ex2"></a>
+The function <code>getcwd</code> is not a system call but is defined in the
+<code>Unix</code> module. Give a “primitive” implementation of
+<code>getcwd</code>. First describe the principle of your algorithm with words
+and then implement it (you should avoid repeating the same system
+call).
+<a href="exercise2.html#exans2">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec25">2.6  Opening a file</h2>
+<p>The <code>openfile</code> function allows us to obtain a descriptor for
+a file of a given name (the corresponding system call
+is <a href="http://www.opengroup.org/onlinepubs/009696799/functions/open.html"><span class="c001">open</span></a><a id="hevea_default45"></a>, however <code><span class="c006">open</span></code> is a keyword in OCaml).
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALopenfile">openfile</a> :
+ string -&gt; open_flag list -&gt; file_perm -&gt; file_descr</div><p>The first argument is the name of the file to open. The second
+argument, a list of flags from the enumerated type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEopen_flag"><span class="c001">open_flag</span></a>, describes the mode in which the file should
+be opened and what to do if it does not exist. The third argument of
+type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEfile_perm"><span class="c001">file_perm</span></a> defines the file’s access rights,
+should the file be created. The result is a file descriptor for the
+given file name with the read/write position set to the beginning of the
+file.</p><p>The flag list must contain exactly one of the following flags:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>O_RDONLY</code></td><td class="c010">Open in read-only mode. </td></tr>
+<tr><td class="c010"><code>O_WRONLY</code></td><td class="c010">Open in write-only mode. </td></tr>
+<tr><td class="c010"><code>O_RDWR</code></td><td class="c010">Open in read and write mode.
+</td></tr>
+</table>
+</div><p>
+These flags determine whether read or write calls can be done on the
+descriptor. The call <code>openfile</code> fails if a process requests an open
+in write (resp. read) mode on a file on which it has no right to
+write (resp. read). For this reason <code>O_RDWR</code> should not be used
+systematically.</p><p>The flag list can also contain one or more of the following values:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>O_APPEND</code></td><td class="c010">Open in append mode. </td></tr>
+<tr><td class="c010"><code>O_CREAT</code></td><td class="c010">Create the file if it does not exist. </td></tr>
+<tr><td class="c010"><code>O_TRUNC</code></td><td class="c010">Truncate the file to zero if it already exists. </td></tr>
+<tr><td class="c010"><code>O_EXCL</code></td><td class="c010">Fail if the file already exists.
+</td></tr>
+</table>
+</div><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>O_NONBLOCK</code></td><td class="c010">Open in non-blocking mode. </td></tr>
+<tr><td class="c010"><code>O_NOCTTY</code></td><td class="c010">Do not function in console mode.
+</td></tr>
+</table>
+</div><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>O_SYNC</code></td><td class="c010">Perform the writes in synchronous mode. </td></tr>
+<tr><td class="c010"><code>O_DSYNC</code></td><td class="c010">Perform the data writes in synchronous mode. </td></tr>
+<tr><td class="c010"><code>O_RSYN</code></td><td class="c010">Perform the reads in synchronous mode. 
+</td></tr>
+</table>
+</div><p>
+The first group defines the behavior to follow if
+the file exists or not. With:
+</p><ul class="itemize"><li class="li-itemize">
+<code>O_APPEND</code>, the read/write position will be set at the end of
+the file before each write. Consequently any written data will be
+added at the end of file. Without <code>O_APPEND</code>, writes occur at the
+current read/write position (initially, the beginning of the file).</li><li class="li-itemize"><code>O_TRUNC</code>, the file is truncated when it
+is opened. The length of the file is set to zero and the bytes
+contained in the file are lost, and writes start from an empty file. 
+Without <code>O_TRUNC</code>, the writes are made at the start of the file
+overwriting any data that may already be there.</li><li class="li-itemize"><code>O_CREAT</code>, creates the file if it does not exist. The created
+file is empty and its access rights are specified by the third argument 
+and the creation mask of the process (the mask can be retrieved 
+and changed with <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALumask"><span class="c001">umask</span></a>).</li><li class="li-itemize"><code>O_EXCL</code>, <code>openfile</code> fails if the file already exists.
+This flag, used in conjunction with <code>O_CREAT</code> allows to use
+files as <a id="page/lock"></a><em>locks</em><sup><a id="text2" href="#note2">1</a></sup>. A process
+which wants to take the lock calls <code>openfile</code> on the file with
+<code>O_EXCL</code> and <code>O_CREAT</code>. If the file already exists, this means
+that another process already holds the lock and <code>openfile</code> raises
+an error. If the file does not exist <code>openfile</code> returns without
+error and the file is created, preventing other processes from
+taking the lock. To release the lock the process calls
+<code>unlink</code> on it. The creation of a file is an atomic operation: if
+two processes try to create the same file in parallel with the
+options <code>O_EXCL</code> and <code>O_CREAT</code>, at most one of them can
+succeed. The drawbacks of this technique is that a process must
+busy wait to acquire a lock that is currently held and
+the abnormal termination of a process holding a lock may never
+release it.
+</li></ul><div class="example">
+<h5 class="paragraph" id="sec26">Example</h5>
+<p> 
+Most programs use <code>0o666</code> for the third argument
+to <code>openfile</code>. This means <code>rw-rw-rw-</code> in symbolic notation. 
+With the default creation mask of <code>0o022</code>, the
+file is thus created with the permissions <code>rw-r--r--</code>. With a more 
+lenient mask of <code>0o002</code>, the file is created with the permissions 
+<code>rw-rw-r--</code>.
+  </p><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec27">Example</h5>
+<p> 
+To read from a file:
+</p><div class="mylisting">openfile filename [O_RDONLY] 0</div><p>The third argument can be anything as <code>O_CREAT</code> is not specified, 0
+is usually given.</p><p>To write to an empty a file without caring about any previous content:
+</p><div class="mylisting">openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o666</div><p>If the file will contain executable code (e.g. files
+created by <code>ld</code>, scripts, etc.), we create it with execution permissions:
+</p><div class="mylisting">openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o777</div><p>If the file must be confidential (e.g. “mailbox” files where
+<code>mail</code> stores read messages), we create it with write permissions
+only for the user owner:
+</p><div class="mylisting">openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o600</div><p>To append data at the end of an existing file or create it if it 
+doesn’t exist:
+</p><div class="mylisting">openfile filename [O_WRONLY; O_APPEND; O_CREAT] 0o666</div><div class="fancybreak">* * *</div></div><p>The <code>O_NONBLOCK</code> flag guarantees that if the file is a named pipe
+or a special file then the file opening and subsequent reads and
+writes will be non-blocking.</p><p>The <code>O_NOCTYY</code> flag guarantees that if the file is a control
+terminal (keyboard, window, etc.), it won’t become the controlling
+terminal of the calling process. </p><p>The last group of flags specifies how to synchronize 
+read and write operations. By default these operations are not
+synchronized. With:
+</p><ul class="itemize"><li class="li-itemize">
+<code>O_DSYNC</code>, the data is written synchronously such that
+the process is blocked until all the writes have been done
+physically on the media (usually a disk). 
+</li><li class="li-itemize"><code>O_SYNC</code>, the file data and its meta-attributes are written 
+synchronously.
+</li><li class="li-itemize"><code>O_RSYNC</code>, with <code>O_DSYNC</code> specifies that the data reads are
+also synchronized: it is guaranteed that all current writes
+(requested but not necessarily performed) to the file are really
+written to the media before the next read. If <code>O_RSYNC</code> is
+provided with <code>O_SYNC</code> the above also applies to meta-attributes
+changes.
+</li></ul>
+<h2 class="section" id="sec28">2.7  Reading and writing</h2>
+<p>The system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/read.html"><span class="c001">read</span></a><a id="hevea_default46"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/write.html"><span class="c001">write</span></a><a id="hevea_default47"></a> read and write
+bytes in a file. For historical reasons, the system
+call <code>write</code> is provided in OCaml under the name
+<code>single_write</code>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALread">read</a>  : file_descr -&gt; string -&gt; int -&gt; int -&gt; int
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsingle_write">single_write</a> : file_descr -&gt; string -&gt; int -&gt; int -&gt; int</div><p>The two calls <code>read</code> and <code>single_write</code> have the same
+interface. The first argument is the file descriptor to act on. The
+second argument is a string which will hold the read bytes (for
+<code>read</code>) or the bytes to write (for <code>single_write</code>). The third
+argument is the position in the string of the first byte to be written
+or read. The fourth argument is the number of the bytes to be read or
+written. In fact the third and fourth argument define a sub-string of
+the second argument (the sub-string should be valid, <code>read</code> and
+<code>single_write</code> do not check this).
+</p><div class="image"><img src="ocamlunix-image2.png" width="85%"></div><p>
+
+
+<code>read</code> and <code>single_write</code> return the number of bytes actually
+read or written.</p><p>Reads and write calls are performed from the file descriptor’s current
+read/write position (if the file was opened in <code>O_APPEND</code> mode,
+this position is set at the end of the file prior to any
+write). After the system call, the current position is advanced by
+the number of bytes read or written.</p><p>For writes, the number of bytes actually written is usually the number
+of bytes requested. However there are exceptions: (i) if it is not
+possible to write the bytes (e.g. if the disk is full) (ii) the
+descriptor is a pipe or a socket open in non-blocking mode (iii) due to
+OCaml, if the write is too large.</p><p>The reason for (iii) is that internally OCaml uses auxiliary
+buffers whose size is bounded by a maximal value. If this value is
+exceeded the write will be partial. To work around this problem
+OCaml also provides the function <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALwrite"><span class="c001">write</span></a> which
+iterates the writes until all the data is written or an error occurs.
+The problem is that in case of error there’s no way to know the number
+of bytes that were actually written. Hence <code>single_write</code> should be
+preferred because it preserves the atomicity of writes (we know
+exactly what was written) and it is more faithful to the original Unix
+system call (note that the implementation of <code>single_write</code> is
+described in section <a href="pipes.html#sec118">5.7</a>).</p><div class="example">
+<h5 class="paragraph" id="sec29">Example</h5>
+<p> 
+Assume <code>fd</code> is a descriptor open in write-only mode. 
+</p><div class="mylisting">write fd "Hello world!" 3 7</div><p>writes the characters <code>"lo worl"</code> in the corresponding file,
+and returns 7.
+</p><div class="fancybreak">* * *</div></div><p>For reads, it is possible that the number bytes actually read is
+smaller than the number of requested bytes. For example when the end
+of file is near, that is when the number of bytes between the current
+position and the end of file is less than the number of requested
+bytes. In particular, when the current position is at the end of file,
+<code>read</code> returns zero. The convention “zero equals end of
+file” also holds for special files, pipes and sockets. For example,
+<code>read</code> on a terminal returns zero if we issue a <code>ctrl-D</code> on the
+input.</p><p>Another example is when we read from a terminal. In that case,
+<code>read</code> blocks until an entire line is available. If the line length
+is smaller than the requested bytes <code>read</code> returns immediately with
+the line without waiting for more data to reach the number of
+requested bytes. (This is the default behavior for terminals, but it
+can be changed to read character-by-character instead of
+line-by-line, see section <a href="#sec47">2.13</a> and the type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEterminal_io"><span class="c001">terminal_io</span></a> for more details.)</p><div class="example">
+<h5 class="paragraph" id="sec30">Example</h5>
+<p> 
+The following expression reads at most 100 characters from standard
+input and returns them as a string.
+</p><div class="mylisting"><span class="c006">let</span> buffer = String.create 100 <span class="c006">in
+let</span> n = read stdin buffer 0 100 <span class="c006">in</span>
+  String.sub buffer 0 n</div><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec31">Example</h5>
+<p> 
+The function <code>really_read</code> below has the same interface as
+<code>read</code>, but makes additional read attempts to try to get
+the number of requested bytes. It raises the exception
+<code>End_of_file</code> if the end of file is reached while doing this.
+</p><div class="mylisting"><span class="c006">let rec</span> really_read fd buffer start length =
+  <span class="c006">if</span> length &lt;= 0 <span class="c006">then</span> () <span class="c006">else
+  match</span> read fd buffer start length <span class="c006">with</span>
+  | 0 -&gt; raise End_of_file
+  | r -&gt; really_read fd buffer (start + r) (length - r);;</div><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec32">2.8  Closing a descriptor</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/close.html"><span class="c001">close</span></a><a id="hevea_default48"></a> closes a file descriptor.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALclose">close</a> : file_descr -&gt; unit</div><p>Once a descriptor is closed, all attempts to read, write, or do
+anything else with the descriptor will fail. Descriptors should be
+closed when they are no longer needed; but it is not mandatory. In
+particular, and in contrast to <code>Pervasives</code>’
+channels, a file descriptor doesn’t need to be closed to ensure that
+all pending writes have been performed as write requests made with
+<code>write</code> are immediately transmitted to the kernel. On the other
+hand, the number of descriptors allocated by a process is limited by
+the kernel (from several hundreds to thousands). Doing a <code>close</code> on
+an unused descriptor releases it, so that the process does not run out
+of descriptors.</p>
+<h2 class="section" id="sec33">2.9  Complete example: file copy</h2>
+<p>We program a command <code>file_copy</code> which, given two arguments 
+<code>f1</code> and <code>f2</code>, copies to the file <code>f2</code> the bytes contained 
+in <code>f1</code>.
+</p><div class="mylisting"><span class="c006">open</span> Unix;;
+
+<span class="c006">let</span> buffer_size = 8192;;
+<span class="c006">let</span> buffer = String.create buffer_size;;
+
+<span class="c006">let</span> file_copy input_name output_name =
+  <span class="c006">let</span> fd_in = openfile input_name [O_RDONLY] 0 <span class="c006">in
+  let</span> fd_out = openfile output_name [O_WRONLY; O_CREAT; O_TRUNC] 0o666 <span class="c006">in
+  let rec</span> copy_loop () = <span class="c006">match</span> read fd_in buffer 0 buffer_size <span class="c006">with</span>
+    |  0 -&gt; ()
+    | r -&gt; ignore (write fd_out buffer 0 r); copy_loop ()
+  <span class="c006">in</span>
+  copy_loop ();
+  close fd_in;
+  close fd_out;;</div><div class="mylisting"><span class="c006">let</span> copy () =
+  <span class="c006">if</span> Array.length Sys.argv = 3 <span class="c006">then begin</span>
+    file_copy Sys.argv.(1) Sys.argv.(2);
+    exit 0
+  <span class="c006">end else begin</span>
+    prerr_endline
+      ("Usage: " ^ Sys.argv.(0) ^ " &lt;input_file&gt; &lt;output_file&gt;");
+    exit 1
+  <span class="c006">end</span>;;
+
+handle_unix_error copy ();;</div><p>The bulk of the work is performed by the the function <code>file_copy</code>.
+First we open a descriptor in read-only mode on the input file and
+another in write-only mode on the output file. </p><p>If the output file already exists, it is truncated (option
+<code>O_TRUNC</code>) and if it does not exist it is created (option
+<code>O_CREAT</code>) with the permissions <code>rw-rw-rw-</code> modified by the creation
+mask. (This is unsatisfactory: if we copy an executable file, we would
+like the copy to be also executable. We will see later how to give
+a copy the same permissions as the original.)</p><p>In the <code>copy_loop</code> function we do the copy by blocks of
+<code>buffer_size</code> bytes. We request <code>buffer_size</code> bytes to read. If
+<code>read</code> returns zero, we have reached the end of file and the copy
+is over. Otherwise we write the <code>r</code> bytes we have read in the
+output file and start again.</p><p>Finally, we close the two descriptors. The main program <code>copy</code>
+verifies that the command received two arguments and passes them to
+the function <code>file_copy</code>.</p><p>Any error occurring during the copy results in a <code>Unix_error</code>
+caught and displayed by <code>handle_unix_error</code>. Example of errors
+include inability to open the input file because it does not
+exist, failure to read because of restricted permissions, failure to
+write because the disk is full, etc.</p><div class="exercise">
+<h5 class="paragraph" id="sec34">Exercise 3</h5>
+<p><a id="ex3"></a> 
+Add an option <code>-a</code> to the program, such that 
+<code>file_copy -a f1 f2</code> appends the contents of <code>f1</code> to the end of
+the file <code>f2</code>. 
+<a href="exercise3.html#exans3">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec36">2.10  The cost of system calls and buffers</h2>
+<p>In the example <code>file_copy</code>, reads were made in blocks of 8192
+bytes. Why not read byte per by byte, or megabyte per by megabyte?
+The reason is efficiency.</p><p>Figure <a href="#fig%2Fcopy-speed">2</a> shows the copy speed of <code>file_copy</code>, in
+bytes per second, against the size of blocks (the value
+<code>buffer_size</code>). The amount of data transferred is the same
+regardless of the size of the blocks.
+</p><div class="figure">
+<div class="image"><img src="ocamlunix-image3.png" width="100%"></div>
+
+
+
+<a id="fig/copy-speed"></a>
+<div class="caption">Figure 2 — Copy speed as a function of block size</div></div><p>
+For small block sizes, the copy speed is almost proportional to the
+block size. Most of the time is spent not in data transfers but in the
+execution of the loop <code>copy_loop</code> and in the calls to <code>read</code> and
+<code>write</code>. By profiling more carefully we can see that most of the
+time is spent in the calls to <code>read</code> and <code>write</code>. We conclude
+that a system call, even if it has not much to do, takes a minimum of
+about 4 micro-seconds (on the machine that was used for the test — a
+2.8 GHz Pentium 4 ), let us say from 1 to 10 microseconds. For small
+input/output blocks, the duration of the system call dominates.</p><p>For larger blocks, between 4KB and 1MB, the copy speed is constant and
+maximal. Here, the time spent in system calls and the loop is small
+relative to the time spent on the data transfer. Also, the buffer
+size becomes bigger than the cache sizes used by the system and the
+time spent by the system to make the transfer dominates the cost of a
+system call<sup><a id="text3" href="#note3">2</a></sup>.</p><p>Finally, for very large blocks (8MB and more) the speed is slightly
+under the maximum. Coming into play here is the time needed to
+allocate the block and assign memory pages to it as it fills up.</p><p>The moral of the story is that, a system call, even if it does very little work,
+costs dearly — much more than a normal function call: roughly, 2 to
+20 microseconds for each system call, depending on the
+architecture. It is therefore important to minimize the number of
+system calls. In particular, read and write operations should be made
+in blocks of reasonable size and not character by character.</p><p>In examples like <code>file_copy</code>, it is not difficult to do
+input/output with large blocks. But other types of programs are more
+naturally written with character by character input or output (e.g.
+reading a line from a file, lexical analysis, displaying a number etc.).
+To satisfy the needs of these programs, most systems provide
+input/output libraries with an additional layer of software between
+the application and the operating system. For example, in OCaml the
+<code>Pervasives</code> module defines the abstract types
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#TYPEin_channel"><span class="c001">in_channel</span></a> and
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#TYPEout_channel"><span class="c001">out_channel</span></a>, similar to file descriptors, and
+functions on these types like <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALinput_char"><span class="c001">input_char</span></a>,
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALinput_line"><span class="c001">input_line</span></a>,
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALoutput_char"><span class="c001">output_char</span></a>, or
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALoutput_string"><span class="c001">output_string</span></a>. This layer uses buffers to
+group sequences of character by character reads or writes into a
+single system call to read or write. This results in better
+performance for programs that proceed character by character.
+Moreover this additional layer makes programs more portable: we just
+need to implement this layer with the system calls provided by another
+operating system to port all the programs that use this library on
+this new platform.</p>
+<h2 class="section" id="sec37">2.11  Complete example: a small input/output library</h2>
+<p>To illustrate the buffered input/output techniques, we implement a fragment
+of OCaml <code>Pervasives</code> library. Here is the interface:
+</p><div class="mylisting"><span class="c006">exception</span> End_of_file
+
+<span class="c006">type</span> in_channel
+<span class="c006">val</span> open_in : string -&gt; in_channel
+<span class="c006">val</span> input_char : in_channel -&gt; char
+<span class="c006">val</span> close_in : in_channel -&gt; unit
+
+<span class="c006">type</span> out_channel
+<span class="c006">val</span> open_out : string -&gt; out_channel
+<span class="c006">val</span> output_char : out_channel -&gt; char -&gt; unit
+<span class="c006">val</span> close_out : out_channel -&gt; unit</div><p>We start with the “input” part. The abstract type 
+<code>in_channel</code> is defined as follows: 
+</p><div class="mylisting"><span class="c006">open</span> Unix;;
+
+<span class="c006">type</span> in_channel =
+  { in_buffer: string;
+    in_fd: file_descr;
+    <span class="c006">mutable</span> in_pos: int;
+    <span class="c006">mutable</span> in_end: int };;
+<span class="c006">exception</span> End_of_file</div><p>The character string of the <code>in_buffer</code> field is, literally, the
+buffer. The field <code>in_fd</code> is a (Unix) file descriptor, opened on
+the file to read. The field <code>in_pos</code> is the current read position
+in the buffer. The field <code>in_end</code> is the number of valid
+characters preloaded in the buffer.
+</p><div class="image"><img src="ocamlunix-image4.png" width="85%"></div><p>
+
+
+The fields <code>in_pos</code> and <code>in_end</code> will be modified in place during 
+read operations; we therefore declare them as <code><span class="c006">mutable</span></code>.
+</p><div class="mylisting"><span class="c006">let</span> buffer_size = 8192;;
+<span class="c006">let</span> open_in filename =
+  { in_buffer = String.create buffer_size;
+    in_fd = openfile filename [O_RDONLY] 0;
+    in_pos = 0;
+    in_end = 0 };;</div><p>When we open a file for reading, we create a buffer of reasonable size
+(large enough so as not to make too many system calls; small enough so
+as not to waste memory). We then initialize the field <code>in_fd</code> with
+a Unix file descriptor opened in read-only mode on the given file. The
+buffer is initially empty (it does not contain any character from the
+file); the field <code>in_end</code> is therefore initialized to zero.
+</p><div class="mylisting"><span class="c006">let</span> input_char chan =
+  <span class="c006">if</span> chan.in_pos &lt; chan.in_end <span class="c006">then begin
+    let</span> c =  chan.in_buffer.[chan.in_pos] <span class="c006">in</span>
+      chan.in_pos &lt;- chan.in_pos + 1;
+      c
+  <span class="c006">end else begin
+    match</span> read chan.in_fd chan.in_buffer 0 buffer_size
+    <span class="c006">with</span> 0 -&gt; raise End_of_file
+       | r -&gt; chan.in_end &lt;- r;
+              chan.in_pos &lt;- 1;
+              chan.in_buffer.[0]
+  <span class="c006">end</span>;;</div><p>To read a character from an <code>in_channel</code>, we do one of two
+things. Either there is at least one unread character in the buffer;
+that is to say, the field <code>in_pos</code> is less than the field
+<code>in_end</code>. We then return this character located at <code>in_pos</code>, and
+increment <code>in_pos</code>. Or the buffer is empty and we call <code>read</code> to
+refill the buffer. If <code>read</code> returns zero, we have reached the end
+of the file and we raise the exception <code>End_of_file</code>. Otherwise, we
+put the number of characters read in the field <code>in_end</code> (we may
+receive less characters than we requested, thus the buffer may be
+only partially refilled) and we return the first character read.
+</p><div class="mylisting"><span class="c006">let</span> close_in chan =
+  close chan.in_fd;;</div><p>Closing an <code>in_channel</code> just closes the underlying Unix file descriptor. </p><p>The “output” part is very similar to the “input”
+part. The only asymmetry is that the buffer now contains incomplete
+writes (characters that have already been buffered but not written to
+the file descriptor), and not reads in advance (characters that have
+buffered, but not yet read).</p><div class="image"><img src="ocamlunix-image5.png" width="85%"></div><div class="mylisting"><span class="c006">type</span> out_channel =
+  { out_buffer: string;
+    out_fd: file_descr;
+    <span class="c006">mutable</span> out_pos: int };;
+
+<span class="c006">let</span> open_out filename =
+  { out_buffer = String.create 8192;
+    out_fd = openfile filename [O_WRONLY; O_TRUNC; O_CREAT] 0o666;
+    out_pos = 0 };;
+
+<span class="c006">let</span> output_char chan c =
+  <span class="c006">if</span> chan.out_pos &lt; String.length chan.out_buffer <span class="c006">then begin</span>
+    chan.out_buffer.[chan.out_pos] &lt;- c;
+    chan.out_pos &lt;- chan.out_pos + 1
+  <span class="c006">end else begin</span>
+    ignore (write chan.out_fd chan.out_buffer 0 chan.out_pos);
+    chan.out_buffer.[0] &lt;- c;
+    chan.out_pos &lt;- 1
+  <span class="c006">end</span>;;
+
+<span class="c006">let</span> close_out chan =
+  ignore (write chan.out_fd chan.out_buffer 0 chan.out_pos);
+  close chan.out_fd;;</div><p>To write a character on an <code>out_channel</code>, we do one of two things.
+Either the buffer is not full and we just store the character in the
+buffer at the position <code>out_pos</code> and increment that value. Or the
+buffer is full and we empty it with a call to <code>write</code> and then
+store the character at the beginning of the buffer.</p><p>When we close an <code>out_channel</code>, we must not forget to write the
+buffer contents (the characters from 0 to <code>out_pos - 1</code>) to the
+file otherwise the writes made on the channel since the last time
+the buffer was emptied would be lost.</p><div class="exercise">
+<h5 class="paragraph" id="sec38">Exercise 4</h5>
+<p><a id="ex4"></a> 
+Implement the function:
+</p><div class="mylisting"><span class="c006">val</span> output_string : out_channel -&gt; string -&gt; unit</div><p>which behaves like a sequence of <code>output_char</code> on each 
+character of the string, but is more efficient.
+ <a href="exercise4.html#exans4">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec40">2.12  Positioning</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/lseek.html"><span class="c001">lseek</span></a><a id="hevea_default49"></a> allows to set the current read/write
+position of a file descriptor.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlseek">lseek</a> : file_descr -&gt; int -&gt; seek_command -&gt; int</div><p>The first argument is the file descriptor and the second one the
+desired position. The latter is interpreted according to the value
+of the third argument of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEseek_command"><span class="c001">seek_command</span></a>. This
+enumerated type specifies the kind of position:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c013"><code>SEEK_SET</code></td><td class="c012">Absolute position. The second argument specifies
+the character number to point to. The first character of a file is at
+position zero.</td></tr>
+<tr><td class="c013"><code>SEEK_CUR</code></td><td class="c012">Position relative to the current position. 
+The second argument is an offset relative to the 
+current position. A positive value moves forward and a negative value
+moves backwards.</td></tr>
+<tr><td class="c013"><code>SEEK_END</code></td><td class="c012">Position relative to the end of file. The 
+second argument is an offset relative to the end of file.
+As for <code>SEEK_CUR</code>, the offset may be positive or negative.
+</td></tr>
+</table>
+</div><p>
+The value returned by <code>lseek</code> is the resulting absolute
+read/write position.</p><p>An error is raised if a negative absolute position is
+requested. The requested position can be located after the end
+of file. In that case, a <code>read</code> returns zero (end of
+file reached) and a <code>write</code> extends the file with zeros until 
+that position and then writes the supplied data.</p><div class="example">
+<h5 class="paragraph" id="sec41">Example</h5>
+<p> 
+To position the cursor on the 1000th character of a file:
+</p><div class="mylisting">lseek fd 1000 SEEK_SET</div><p>To rewind by one character:
+</p><div class="mylisting">lseek fd (-1) SEEK_CUR</div><p>To find out the size of a file:
+</p><div class="mylisting"><span class="c006">let</span> file_size = lseek fd 0 SEEK_END <span class="c006">in</span> ...</div><div class="fancybreak">* * *</div></div><p>For descriptors opened in <code>O_APPEND</code> mode, the read/write position
+is automatically set at the end of the file before each write. Thus
+a call <code>lseek</code> is useless to set the write position, it may however
+be useful to set the read position. </p><p>The behavior of <code>lseek</code> is undefined on certain type of files for
+which absolute access is meaningless: communication devices (pipes,
+sockets) but also many special files like the terminal.
+In most Unix implementations a call to <code>lseek</code> on these files is
+simply ignored: the read/write position is set but read/write
+operations ignore it. In some implementations, <code>lseek</code> on a pipe or
+a socket triggers an error.</p><div class="exercise">
+<h5 class="paragraph" id="sec42">Exercise 5</h5>
+<p><a id="ex5"></a>
+The command <code>tail</code> displays the last <span class="c004">n</span> lines of a file.
+How can it be implemented efficiently on regular files? What can we 
+do for the other kind of files? How can the option <code>-f</code> be
+implemented (cf. <code>man tail</code>)?
+ <a href="exercise5.html#exans5">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec44">2.13  Operations specific to certain file types</h2>
+<p>In Unix, data communication is done via file descriptors representing
+either permanent files (files, peripherals) or volatile ones (pipes
+and sockets, see chapters <a href="pipes.html#sec99">5</a> and <a href="sockets.html#sec119">6</a>). File
+descriptors provide a uniform and media-independent interface for data
+communication. Of course the actual implementation of the operations
+on a file descriptor depends on the underlying media.</p><p>However this uniformity breaks when we need to access all the
+features provided by a given media. General operations (opening,
+writing, reading, etc.) remain uniform on most descriptors but even,
+on certain special files, these may have an ad hoc behavior defined
+by the kind of peripheral and its parameters. There are also
+operations that work only with certain kind of media.</p><h3 class="subsection" id="sec45">Normal files</h3>
+<p>We can shorten a normal file with the system calls
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/truncate.html"><span class="c001">truncate</span></a><a id="hevea_default50"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/ftruncate.html"><span class="c001">ftruncate</span></a><a id="hevea_default51"></a>.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtruncate">truncate</a>  : string -&gt; int -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALftruncate">ftruncate</a> : file_descr -&gt; int -&gt; unit</div><p>The first argument is the file to truncate and the second the desired
+size. All the data after this position is lost.</p><h3 class="subsection" id="sec46">Symbolic links</h3>
+<p>Most operations on files “follow” symbolic links in the sense
+that they do not apply to the link itself but to the file on which the
+link points (for example <span class="c001">openfile</span><a id="hevea_default52"></a>,
+<span class="c001">stat</span><a id="hevea_default53"></a>, <span class="c001">truncate</span><a id="hevea_default54"></a>, <span class="c001">opendir</span><a id="hevea_default55"></a>, etc.). </p><p>The two system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/symlink.html"><span class="c001">symlink</span></a><a id="hevea_default56"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/readlink.html"><span class="c001">readlink</span></a><a id="hevea_default57"></a> operate
+specifically on symbolic links:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsymlink">symlink</a>  : string -&gt; string -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALreadlink">readlink</a> : string -&gt; string</div><p>The call <code>symlink f1 f2</code> creates the file <code>f2</code> as a symbolic
+link to <code>f1</code> (like the Unix command <code>ln -s f1 f2</code>). The call
+<code>readlink</code> returns the content of a symbolic link, i.e. the name of
+the file to which the link points.</p><h3 class="subsection" id="sec47">Special files</h3>
+<p>Special files can be of “character” or “block” type.
+The former are character streams: we can read or write characters only
+sequentially. These are the terminals, sound devices, printers, etc.
+The latter, typically disks, have a permanent medium: characters can
+be read by blocks and even seeked relative to the current position.</p><p>Among the special files, we may distinguish:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c013"><code>/dev/null</code></td><td class="c012">This is the black hole which swallows
+everything we put into and from which nothing comes out. This is
+extremely useful for ignoring the results of a process: we redirect
+its output to <code>/dev/null</code> (see chapter <a href="pipes.html#sec99">5</a>).</td></tr>
+<tr><td class="c013"><code>/dev/tty*</code></td><td class="c012">These are the control terminals. </td></tr>
+<tr><td class="c013"><code>/dev/pty*</code></td><td class="c012">These are the pseudo-terminals: they are not real
+terminals but simulate them (they provide the same interface). </td></tr>
+<tr><td class="c013"><code>/dev/hd*</code></td><td class="c012">These are the disks. </td></tr>
+<tr><td class="c013"><code>/proc</code></td><td class="c012">Under Linux, system parameters organized as a
+file system. They allow reads and writes.
+</td></tr>
+</table>
+</div><p>The usual file system calls on special files can behave differently.
+However, most special files (terminals, tape drives, disks, etc.)
+respond to <code>read</code> and <code>write</code> in the obvious manner (but
+sometimes with restrictions on the number of bytes written or read),
+but many ignore <span class="c001">lseek</span><a id="hevea_default58"></a>.</p><p>In addition to the usual file system calls, special files which
+represent peripherals must be commanded and/or configured
+dynamically. For example, for a tape drive, rewind or fast forward the
+tape; for a terminal, choice of the line editing mode, behavior of
+special characters, serial connection parameters (speed, parity,
+etc.). These operations are made in Unix with the system call
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/ioctl.html"><span class="c001">ioctl</span></a><a id="hevea_default59"></a> which group together all the particular
+cases. However, this system call is not provided by OCaml; it is
+ill-defined and cannot be treated in a uniform way.</p><h3 class="subsection" id="sec48">Terminals</h3>
+<p>Terminals and pseudo-terminals are special files of type character
+which can be configured from OCaml. The system call
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcgetattr.html"><span class="c001">tcgetattr</span></a><a id="hevea_default60"></a> takes a file descriptor open on a special file
+and returns a structure of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEterminal_io"><span class="c001">terminal_io</span></a> which
+describes the status of the terminal according to the <span class="c005">posix</span> 
+standard.
+
+</p><div class="mylisting"><span class="c006">type</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEterminal_io">terminal_io</a> =
+  { c_ignbrk : bool; c_brk_int : bool; ...;  c_vstop : char }</div><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcgetattr">tcgetattr</a> : file_descr -&gt; terminal_io</div><p>This structure can be modified and given to the function 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcsetattr.html"><span class="c001">tcsetattr</span></a><a id="hevea_default61"></a> to change the attributes of the peripheral.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcsetattr">tcsetattr</a> : file_descr -&gt; setattr_when -&gt; terminal_io -&gt; unit</div><p>The first argument is the file descriptor of the peripheral. The last
+argument is a structure of type <code>terminal_io</code> describing the
+parameters of the peripheral as we want them. The second argument is a
+value of the enumerated type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEsetattr_when"><span class="c001">setattr_when</span></a> that
+indicates when the change must be done: immediately (<code>TCSANOW</code>),
+after having transmitted all written data (<code>TCSADRAIN</code>) or after
+having read all the received data (<code>TCAFLUSH</code>). <code>TCSADRAIN</code> is
+recommended for changing write parameters and <code>TCSAFLUSH</code> for read
+parameters.</p><div class="example">
+<h5 class="paragraph" id="sec49">Example</h5>
+<p>
+When a password is read, characters entered by the user should not be
+echoed if the standard input is connected to a terminal or a
+pseudo-terminal.
+
+</p><div class="mylisting"><span class="c006">let</span> read_passwd message =
+  <span class="c006">match
+    try
+      let</span> default = tcgetattr stdin <span class="c006">in
+      let</span> silent =
+        { default <span class="c006">with</span>
+          c_echo = <span class="c006">false</span>;
+          c_echoe = <span class="c006">false</span>;
+          c_echok = <span class="c006">false</span>;
+          c_echonl = <span class="c006">false</span>;
+        } <span class="c006">in</span>
+      Some (default, silent)
+    <span class="c006">with</span> _ -&gt; None
+  <span class="c006">with</span>
+  | None -&gt; input_line Pervasives.stdin
+  | Some (default, silent) -&gt;
+      print_string message;
+      flush Pervasives.stdout;
+      tcsetattr stdin TCSANOW silent;
+      <span class="c006">try
+        let</span> s = input_line Pervasives.stdin <span class="c006">in</span>
+        tcsetattr stdin TCSANOW default; s
+      <span class="c006">with</span> x -&gt;
+        tcsetattr stdin TCSANOW default; raise x;;</div><p>The <code>read_passwd</code> function starts by getting the current settings
+of the terminal connected to <code>stdin</code>. Then it defines a modified
+version of these in which characters are not echoed. If this fails the
+standard input is not a control terminal and we just read a
+line. Otherwise we display a message, change the terminal settings, read the
+password and put the terminal back in its initial state. Care must be
+taken to set the terminal back to its initial state even after a read
+failure.
+</p><div class="fancybreak">* * *</div></div><p>
+Sometimes a program needs to start another and connect its standard input
+to a terminal (or pseudo-terminal). OCaml does not provide any
+support for this<sup><a id="text4" href="#note4">3</a></sup>. To achieve that, we must manually look among the
+pseudo-terminals (in general, they are files with names in the form of
+<code>/dev/tty[a-z][a-f0-9]</code>) and find one that is not already open. We
+can then open this file and start the program with this file on its
+standard input.</p><p>Four other functions control the stream of data of a terminal
+(flush waiting data, wait for the end of transmission and restart
+communication).
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcsendbreak">tcsendbreak</a> : file_descr -&gt; int -&gt; unit</div><p>The function <a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcsendbreak.html"><span class="c001">tcsendbreak</span></a><a id="hevea_default62"></a> sends an interrupt to the 
+peripheral. The second argument is the duration of the interrupt
+(<code>0</code> is interpreted as the default value for the 
+peripheral).
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcdrain">tcdrain</a> : file_descr -&gt; unit</div><p>The function <a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcdrain.html"><span class="c001">tcdrain</span></a><a id="hevea_default63"></a> waits for all written data to
+be transmitted.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcflush">tcflush</a> : file_descr -&gt; flush_queue -&gt; unit</div><p>Depending on the value of the second argument, a call to the
+function <a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcflush.html"><span class="c001">tcflush</span></a><a id="hevea_default64"></a> discards the data written but not yet
+transmitted (<code>TCIFLUSH</code>), or the data received but not yet read
+(<code>TCOFLUSH</code>) or both (<code>TCIOFLUSH</code>).
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtcflow">tcflow</a> : file_descr -&gt; flow_action -&gt; unit</div><p>Depending on the value of the second argument, a call to the
+function <a href="http://www.opengroup.org/onlinepubs/009696799/functions/tcflow.html"><span class="c001">tcflow</span></a><a id="hevea_default65"></a> suspends the data transmission
+(<code>TCOOFF</code>), restarts the transmission (<code>TCOON</code>), sends a control
+character <span class="c005">stop</span> or <span class="c005">start</span> to request the
+transmission to be suspended (<code>TCIOFF</code>) or restarted (<code>TCION</code>).
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsetsid">setsid</a> : unit -&gt; int</div><p>The function <a href="http://www.opengroup.org/onlinepubs/009696799/functions/setsid.html"><span class="c001">setsid</span></a><a id="hevea_default66"></a> puts the process in a new
+session and detaches it from the terminal.</p>
+<h2 class="section" id="sec50">2.14  Locks on files</h2>
+<p>Two processes can modify the same file in parallel; however, their
+writes may collide and result in inconsistent data. In some cases data
+is always written at the end and opening the file with <code>O_APPEND</code>
+prevents this. This is fine for <code>log</code> files but it does not
+work for files that store, for example, a database because writes are
+performed at arbitrary positions. In that case processes using the
+file must collaborate in order not to step on each others toes. A
+lock on the whole file can be implemented with an auxiliary file (see
+page <a href="#page%2Flock">??</a>) but the system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/lockf.html"><span class="c001">lockf</span></a><a id="hevea_default67"></a> allows
+for finer synchronization patterns by locking only parts of a file.
+
+</p><div class="mylisting"> <span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlockf">lockf</a> : file_descr -&gt; lock_command -&gt; int -&gt; unit</div>
+<h2 class="section" id="sec51">2.15  Complete example: recursive copy of files</h2>
+<p>We extend the function <code>file_copy</code> (section <a href="#sec33">2.9</a>) to
+support symbolic links and directories in addition to normal files.
+For directories, we recursively copy their contents.</p><p>To copy normal files we reuse the function <code>file_copy</code> we already
+defined.
+</p><div class="mylisting"><span class="c006">open</span> Unix
+...
+<span class="c006">let</span> file_copy input_name output_name =
+...</div><p>The function <code>set_infos</code> below modifies the owner, the 
+access rights and the last dates of access/modification
+of a file. We use it to preserve this information for copied files.
+
+</p><div class="mylisting"><span class="c006">let</span> set_infos filename infos =
+  utimes filename infos.st_atime infos.st_mtime;
+  chmod filename infos.st_perm;
+  <span class="c006">try</span>
+    chown filename infos.st_uid infos.st_gid
+  <span class="c006">with</span> Unix_error(EPERM,_,_) -&gt; ()</div><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/utime.html"><span class="c001">utime</span></a><a id="hevea_default68"></a> modifies the dates of access and 
+modification. We use <code>chmod</code> and <code>chown</code> to re-establish 
+the access rights and the owner. For normal users, there are 
+a certain number of cases where <code>chown</code> will fail with a
+“permission denied” error. We catch this error and ignore it.</p><p>Here’s the main recursive function. 
+</p><div class="mylisting"><span class="c006">let rec</span> copy_rec source dest =
+  <span class="c006">let</span> infos = lstat source <span class="c006">in
+  match</span> infos.st_kind <span class="c006">with</span>
+  | S_REG -&gt;
+      file_copy source dest;
+      set_infos dest infos
+  | S_LNK -&gt;
+      <span class="c006">let</span> link = readlink source <span class="c006">in</span>
+      symlink link dest
+  | S_DIR -&gt;
+      mkdir dest 0o200;
+      Misc.iter_dir
+        (<span class="c006">fun</span> file -&gt;
+          <span class="c006">if</span> file &lt;&gt; Filename.current_dir_name
+              &amp;&amp; file &lt;&gt; Filename.parent_dir_name
+          <span class="c006">then</span>
+            copy_rec
+              (Filename.concat source file)
+              (Filename.concat dest file))
+        source;
+      set_infos dest infos
+  | _ -&gt;
+      prerr_endline ("Can't cope with special file " ^ source)</div><p>We begin by reading the information of the <code>source</code> file. If it is
+a normal file, we copy its contents with <code>file_copy</code> and its
+information with <code>set_infos</code>. If it is a symbolic link, we read
+where it points to and create a link pointing to the same object. If
+it is a directory, we create a destination directory, then we read the
+directory’s entries (ignoring the entries about the directory itself
+or its parent) and recursively call <code>copy_rec</code> for each entry. All
+other file types are ignored, with a warning.</p><p>The main program is straightforward:
+
+</p><div class="mylisting"><span class="c006">let</span> copyrec () =
+  <span class="c006">if</span> Array.length Sys.argv &lt;&gt; 3 <span class="c006">then begin</span>
+    prerr_endline ("Usage: " ^Sys.argv.(0)^ " &lt;source&gt; &lt;destination&gt;");
+    exit 2
+  <span class="c006">end else begin</span>
+    copy_rec Sys.argv.(1) Sys.argv.(2);
+    exit 0
+  <span class="c006">end</span>
+;;
+handle_unix_error copyrec ();;</div><div class="exercise">
+<h5 class="paragraph" id="sec52">Exercise 6</h5>
+<p><a id="ex6"></a> 
+<a id="ex/copyrec"></a>
+Copy hard links cleverly. As written above <code>copy_rec</code> creates <span class="c004">n</span>
+duplicates of the same file whenever a file occurs under <span class="c004">n</span> different
+names in the hierarchy to copy. Try to detect this situation, copy
+the file only once and make hard links in the destination hierarchy.
+<a href="exercise6.html#exans6">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec54">2.16  Complete example: <span class="c001">T</span>ape <span class="c001">AR</span>chive</h2>
+<p>The <code>tar</code> file format (for <code>t</code>ape <code>ar</code>chive) can store a file
+hierarchy into a single file. It can be seen as a mini file system.</p><p>In this section we define functions to read and write <code>tar</code>
+files. We also program a command <code>readtar</code> such that <code>readtar a</code>
+displays the name of the files contained in the archive <code>a</code> and
+<code>readtar a f</code> extracts the contents of the file <code>f</code> contained in
+<code>a</code>. Extracting the whole file hierarchy of an archive and
+generating an archive for a file hierarchy is left as an exercise.</p>
+<h5 class="paragraph" id="sec55">File format specification</h5>
+<p>A <code>tar</code> archive is a set of records. Each record represents a
+file; it starts with a header which encodes the information
+about the file (its name, type, size, owners, etc.) and is followed by 
+the contents of the file. The header is a block of 512 bytes structured as
+shown in table <a href="#fig%2Ftar">3</a>.</p><div class="table">
+<table class="c000 cellpading0"><tr><td class="c011">Offset</td><td class="c011">Length</td><td class="c010">Code Type</td><td class="c010">Name</td><td class="c010">Description </td></tr>
+<tr><td class="hbar" colspan=5></td></tr>
+<tr><td class="c011"> 0</td><td class="c011">100</td><td class="c010">string</td><td class="c010"><code>name</code></td><td class="c010">File name </td></tr>
+<tr><td class="c011">100</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>perm</code></td><td class="c010">File permissions</td></tr>
+<tr><td class="c011">108</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>uid</code></td><td class="c010">Id of user owner</td></tr>
+<tr><td class="c011">116</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>gid</code></td><td class="c010">Id of group owner</td></tr>
+<tr><td class="c011">124</td><td class="c011">12</td><td class="c010">octal</td><td class="c010"><code>size</code></td><td class="c010">File size (in bytes)</td></tr>
+<tr><td class="c011">136</td><td class="c011">12</td><td class="c010">octal</td><td class="c010"><code>mtime</code></td><td class="c010">Date of last modification</td></tr>
+<tr><td class="c011">148</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>checksum</code></td><td class="c010">Header checksum </td></tr>
+<tr><td class="c011">156</td><td class="c011">1</td><td class="c010">character</td><td class="c010"><code>kind</code></td><td class="c010">File type </td></tr>
+<tr><td class="c011">157</td><td class="c011">100</td><td class="c010">octal</td><td class="c010"><code>link</code></td><td class="c010">Link</td></tr>
+<tr><td class="c011">257</td><td class="c011">8</td><td class="c010">string</td><td class="c010"><code>magic</code></td><td class="c010">Signature (<code>"ustar\032\032\0"</code>)</td></tr>
+<tr><td class="c011">265</td><td class="c011">32</td><td class="c010">string</td><td class="c010"><code>user</code></td><td class="c010">Name of user owner</td></tr>
+<tr><td class="c011">297</td><td class="c011">32</td><td class="c010">string</td><td class="c010"><code>group</code></td><td class="c010">Name of group owner</td></tr>
+<tr><td class="c011">329</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>major</code></td><td class="c010">Peripheral major number</td></tr>
+<tr><td class="c011">337</td><td class="c011">8</td><td class="c010">octal</td><td class="c010"><code>minor</code></td><td class="c010">Peripheral minor number</td></tr>
+<tr><td class="c011">345</td><td class="c011">167</td><td class="c010">&nbsp;</td><td class="c010">&nbsp;</td><td class="c010">Padding <br>
+</td></tr>
+<tr><td class="hbar" colspan=5></td></tr>
+</table>
+<div class="flushleft">
+<span class="c002"><span class="c006">Note.</span>  Field lengths are in number of
+bytes. All fields are encoded with character strings terminated with
+the null character <code>'\000'</code>; except the fields <code>kind</code> and
+<code>size</code> in which <code>'\000'</code> optional.
+</span></div>
+
+
+<a id="fig/tar"></a>
+<div class="caption">Table 3 — Header structure</div></div><p>
+The file contents is stored right after the header, its size is
+rounded to a multiple of 512 bytes (the extra space is filled with
+zeros). Records are stored one after the other. If needed, the file is
+padded with empty blocks to reach at least 20 blocks.</p><p>Since tar archives are also designed to be written on brittle media
+and reread many years later, the header contains a <code>checksum</code>
+field which allows to detect when the header is damaged. Its value is
+the sum of all the bytes of the header (to compute that sum we assume
+that the <code>checksum</code> field itself is made of zeros).</p><p>The <code>kind</code> header field encodes the file type in a byte as follows<sup><a id="text5" href="#note5">4</a></sup>:
+</p><div class="center">
+<table class="c000 cellpading0"><tr><td class="c009"><code>'\0'</code> or <code>'0'</code></td><td class="c009"><code>'1'</code></td><td class="c009"><code>'2'</code></td><td class="c009"><code>'3'</code></td><td class="c009"><code>'4'</code></td><td class="c009"><code>'5'</code></td><td class="c009"><code>'6'</code></td><td class="c009"><code>'7'</code></td></tr>
+<tr><td class="hbar" colspan=8></td></tr>
+<tr><td class="c009"><code>REG</code></td><td class="c009"><code>LINK</code></td><td class="c009"><code>LNK</code></td><td class="c009"><code>CHR</code></td><td class="c009"><code>BLK</code></td><td class="c009"><code>DIR</code></td><td class="c009"><code>FIFO</code></td><td class="c009"><code>CONT</code>
+</td></tr>
+</table>
+</div><p>
+Most of the cases correspond to the values of the Unix file type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEfile_kind"><span class="c001">file_kind</span></a> stored in the <code>st_kind</code> field of the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEstats"><span class="c001">stats</span></a> structure. <code>LINK</code> is for hard links which
+must lead to another file already stored within the archive. <code>CONT</code>
+is for ordinary file, but stored in a contiguous area of memory (this
+is a feature of some file systems, we can treat it like an ordinary
+file).</p><p>The <code>link</code> header field stores the link when <code>kind</code> is <code>LNK</code>
+or <code>LINK</code>. The fields <code>major</code> and <code>minor</code> contain the major
+and minor numbers of the peripheral when <code>kind</code> is <code>CHR</code> or
+<code>BLK</code>. These three fields are not used in other cases.</p><p>The value of the <code>kind</code> field is naturally represented by a
+variant type and the header by a record:
+
+</p><div class="mylisting"><span class="c006">type</span> kind =
+  | REG | LNK <span class="c006">of</span> string | LINK <span class="c006">of</span> string | CHR <span class="c006">of</span> int * int
+  | BLK <span class="c006">of</span> int * int | DIR | FIFO | CONT
+
+<span class="c006">type</span> header =
+    { name : string; perm : int; uid : int; gid : int; size : int;
+      mtime : int; kind : kind; user : string; group : string }</div>
+<h5 class="paragraph" id="sec56">Reading a header</h5>
+<p>
+Reading a header is not very interesting, but it cannot be ignored.
+</p><div class="mylisting"><span class="c006">exception</span> Error <span class="c006">of</span> string * string
+<span class="c006">let</span> error err mes = raise (Error (err, mes));;
+<span class="c006">let</span> handle_error f s =
+  <span class="c006">try</span> f s <span class="c006">with</span>
+  | Error (err, mes) -&gt;
+      Printf.eprintf "Error: %s: %s" err mes;
+      exit 2
+
+<span class="c006">let</span> substring s offset len =
+  <span class="c006">let</span> max_length = min (offset + len + 1) (String.length s) <span class="c006">in
+  let rec</span> real_length j =
+    <span class="c006">if</span> j &lt; max_length &amp;&amp; s.[j] &lt;&gt; '\000' <span class="c006">then</span> real_length (succ j)
+    <span class="c006">else</span> j - offset <span class="c006">in</span>
+  String.sub s offset (real_length offset);;
+
+<span class="c006">let</span> integer_of_octal nbytes s offset =
+  <span class="c006">let</span> i = int_of_string ("0o" ^ substring s offset nbytes) <span class="c006">in
+  if</span> i &lt; 0 <span class="c006">then</span> error "Corrupted archive" "integer too large" <span class="c006">else</span> i;;
+
+<span class="c006">let</span> kind s i = <span class="c006">match</span> s.[i] <span class="c006">with</span>
+  | '\000' | '0' -&gt; REG
+  | '1' -&gt; LINK (substring s (succ i) 99)
+  | '2' -&gt; LNK (substring s (succ i) 99)
+  | '3' -&gt; CHR (integer_of_octal 8 s 329, integer_of_octal 8 s 329)
+  | '4' -&gt; BLK (integer_of_octal 8 s 329, integer_of_octal 8 s 337)
+  | '5' -&gt; DIR | '6' -&gt; FIFO | '7' -&gt; CONT
+  | _ -&gt; error "Corrupted archive" "kind"
+
+<span class="c006">let</span> header_of_string s =
+  { name = substring s 0 99;
+    perm = integer_of_octal 8 s 100;
+    uid = integer_of_octal 8 s 108;
+    gid = integer_of_octal 8 s 116;
+    size = integer_of_octal 12 s 124;
+    mtime = integer_of_octal 12 s 136;
+    kind = kind s 156;
+    user = substring s 265 32;
+    group = substring s 297 32; }
+
+<span class="c006">let</span> block_size = 512;;
+<span class="c006">let</span> total_size size =
+  block_size + ((block_size -1 + size) / block_size) * block_size;;</div><p>An archive ends either at the end of file where a new record would
+start or on a complete, but empty, block. To read a header we thus try
+to read a block which must be either empty or complete. For that we
+reuse the <code>really_read</code> function defined earlier. The end of file
+should not be reached when we try to read a block.
+
+</p><div class="mylisting"><span class="c006">let</span> buffer_size = block_size;;
+<span class="c006">let</span> buffer = String.create buffer_size;;
+
+<span class="c006">let</span> end_of_file_error () =
+  error "Corrupted archive" "unexpected end of file"
+<span class="c006">let</span> without_end_of_file f x =
+  <span class="c006">try</span> f x <span class="c006">with</span> End_of_file -&gt; end_of_file_error ()
+
+<span class="c006">let</span> read_header fd =
+  <span class="c006">let</span> len = read fd buffer 0 buffer_size <span class="c006">in
+  if</span> len = 0 ||  buffer.[0] = '\000' <span class="c006">then</span> None
+  <span class="c006">else begin
+    if</span> len &lt; buffer_size <span class="c006">then</span>
+      without_end_of_file (really_read fd buffer len) (buffer_size - len);
+    Some (header_of_string buffer)
+  <span class="c006">end</span>;;</div>
+<h5 class="paragraph" id="sec57">Reading an archive</h5>
+<p>
+To perform an operation in an archive, we need to read the records
+sequentially until we find the target of the operation. Usually we
+just need to read the header of each record without its contents but
+sometimes we also need to get back to a previous one to read its
+contents. As such we keep, for each record, its header and its location
+in the archive:
+</p><div class="mylisting"><span class="c006">type</span> record = { header : header; offset : int; descr : file_descr };;</div><p>We define a general iterator that reads and accumulates the records
+of an archive (without their contents). To remain general, the
+accumulating function <code>f</code> is abstracted. This allows to use the 
+same iterator function to display records, destroy them, etc. 
+</p><div class="mylisting"><span class="c006">let</span> fold f initial fd  =
+  <span class="c006">let rec</span> fold_aux offset accu =
+    ignore (without_end_of_file (lseek fd offset) SEEK_SET);
+    <span class="c006">match</span> without_end_of_file read_header fd <span class="c006">with</span>
+      Some h -&gt;
+        <span class="c006">let</span> r =
+          { header = h; offset = offset + block_size; descr = fd } <span class="c006">in</span>
+        fold_aux (offset + total_size h.size) (f r accu)
+    | None -&gt; accu <span class="c006">in</span>
+  fold_aux 0 initial;;</div><p>The function <code>fold_aux</code> starts from a position <code>offset</code> with a
+partial result <code>accu</code>. It moves to <code>offset</code> where a record
+should start, reads a header, constructs the record <code>r</code> and starts
+again at the end of the record with the new (less partial) result
+<code>f r accu</code>. It stops when there’s no header: the end of the archive
+was reached.</p>
+<h5 class="paragraph" id="sec58">Display the record names</h5>
+<p>
+We just display the name of records without keeping them:
+</p><div class="mylisting"><span class="c006">let</span> list tarfile =
+  <span class="c006">let</span> fd = openfile tarfile [ O_RDONLY ] 0o0 <span class="c006">in
+  let</span> add r () = print_string r.header.name; print_newline () <span class="c006">in</span>
+  fold add () fd;
+  close fd</div>
+<h5 class="paragraph" id="sec59">Display the contents of a record</h5>
+<p>
+The command <code>readtar a f</code> must look for the file <code>f</code> in the
+archive and, if it is a regular file, display its contents. If <code>f</code>
+is a hard link on <code>g</code> in the archive, we follow the link and
+display <code>g</code> since even though <code>f</code> and <code>g</code> are represented
+differently in the archive they represent the same file. The fact that
+<code>g</code> or <code>f</code> is a link on the other or vice versa depends only on
+the order in which the files were traversed when the archive was
+created. For now we do not follow symbol links.</p><p>Hard link resolution is done by the following mutually recursive
+functions:
+</p><div class="mylisting"><span class="c006">let rec</span> find_regular r list = <span class="c006">match</span> r.header.kind <span class="c006">with</span>
+  | REG | CONT -&gt; r
+  | LINK name -&gt; find_file name list
+  | _ -&gt; error r.header.name "Not a regular file"
+
+<span class="c006">and</span> find_file name list = <span class="c006">match</span> list <span class="c006">with</span>
+  | r :: rest -&gt;
+      <span class="c006">if</span> r.header.name = name <span class="c006">then</span> find_regular r rest
+      <span class="c006">else</span> find_file name rest
+  | [] -&gt; error name "Link not found (corrupted archive)";;</div><p>The function <code>find_regular</code> finds the regular file corresponding to
+the record <code>r</code>. If <code>r</code> is a regular file itself, <code>r</code> is
+returned. If <code>r</code> is a hard link the function looks for the regular
+file in the archive’s previous records stored in <code>list</code> with the
+function <code>find_file</code>. In all other cases, the function aborts.</p><p>Once the record is found we just need to display its contents. After
+positioning the descriptor at the start of the record’s contents this
+operation is very similar to the <code>file_copy</code> example.
+</p><div class="mylisting"><span class="c006">let</span> copy_file file output =
+  ignore (lseek file.descr file.offset SEEK_SET);
+  <span class="c006">let rec</span> copy_loop len =
+    <span class="c006">if</span> len &gt; 0 <span class="c006">then
+      match</span> read file.descr buffer 0 (min buffer_size len) <span class="c006">with</span>
+      | 0 -&gt; end_of_file_error ()
+      | r -&gt; ignore (write output buffer 0 r); copy_loop (len-r) <span class="c006">in</span>
+  copy_loop file.header.size</div><p>We now just need to combine these functions correctly.
+</p><div class="mylisting"><span class="c006">exception</span> Done
+<span class="c006">let</span> find_and_copy tarfile filename =
+  <span class="c006">let</span> fd = openfile tarfile [ O_RDONLY ] 0o0 <span class="c006">in
+  let</span> found_or_collect r accu =
+    <span class="c006">if</span> r.header.name = filename <span class="c006">then begin</span>
+      copy_file (find_regular r accu) stdout;
+      raise Done
+    <span class="c006">end else</span> r :: accu <span class="c006">in
+  try</span>
+     ignore (fold found_or_collect [] fd);
+     error "File not found" filename
+  <span class="c006">with</span>
+  | Done -&gt; close fd</div><p>We read the records in the archive (but not their contents) until we
+find the record with the target name. We then call the function
+<code>find_regular</code> to find the record that actually contains the file.
+This second, backward, search must succeed if the archive is
+well-formed. The first search may however fail if the target name is
+not in the archive. In case of failure, the program takes care to
+distinguish between these two cases.</p><p>Here is the main function which implements the command <code>readtar</code>:
+
+</p><div class="mylisting"><span class="c006">let</span> readtar () =
+  <span class="c006">let</span> nargs = Array.length Sys.argv <span class="c006">in
+  if</span> nargs = 2 <span class="c006">then</span> list Sys.argv.(1)
+  <span class="c006">else if</span> nargs = 3 <span class="c006">then</span> find_and_copy Sys.argv.(1) Sys.argv.(2)
+  <span class="c006">else</span>
+    prerr_endline ("Usage: " ^Sys.argv.(0)^ " &lt;tarfile&gt; [ &lt;source&gt; ]");;
+
+handle_unix_error (handle_error readtar) ();;</div><div class="exercise">
+<h5 class="paragraph" id="sec60">Exercise 7</h5>
+<p><a id="ex7"></a><a id="ex/readtar"></a>
+Extend the command <code>readtar</code> so that it follows symbolic links in
+the sense that if the link points to a file of the archive that file’s
+contents should be extracted. 
+<a href="exercise7.html#exans7">Answer</a>.</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec62">Exercise 8</h5>
+<p><a id="ex8"></a><a id="ex/untar"></a>
+Write a command <code>untar</code> such that <code>untar a</code> extracts and creates 
+all the files in the archive <code>a</code> (except special files) 
+restoring if possible the information about the files
+(owners, permissions) as found in the archive.</p><p>The file hierarchy should be reconstructed in the current working
+directory of the <code>untar</code> command. If the archive tries to create
+files outside a sub-directory of the current working directory this
+should be detected and prohibited. Nonexistent directories not explicitly
+mentioned in the archive should be created with the user’s default
+permissions.
+<a href="exercise8.html#exans8">Answer</a>.</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec64">Exercise 9</h5>
+<p><a id="ex9"></a>
+<a id="ex/maketar"></a>
+Write a program <code>tar</code> such that <code>tar -xvf a f1 f2 ...</code>
+constructs the archive <code>a</code> containing the list of files <code>f1</code>,
+<code>f2</code>, etc. and their sub-directories. 
+<a href="exercise9.html#exans9">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<hr class="footnoterule"><dl class="thefootnotes"><dt class="dt-thefootnotes">
+<a id="note2" href="#text2">1</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">This is not 
+possible if the lock file
+is located on a <span class="c005">nfs</span> partition, because <span class="c005">nfs</span> does
+not implement the option <code>O_CREAT</code> of <code><span class="c006">open</span></code> correctly.</div>
+</dd><dt class="dt-thefootnotes"><a id="note3" href="#text3">2</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">In fact, OCaml limits the size of data
+transfers to 16KB (in the current version) and repeats <code>write</code>
+system calls to make the complete transfer — see the discussion in
+section <a href="pipes.html#sec118">5.7</a>. But this limit is bigger than the
+size of system caches and it is not observable.</div>
+</dd><dt class="dt-thefootnotes"><a id="note4" href="#text4">3</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">The Cash library [<a href="references.html#Cash">3</a>] supplies
+such functions.</div>
+</dd><dt class="dt-thefootnotes"><a id="note5" href="#text5">4</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">This field can 
+also take different values to encode
+pathological cases, for example when the value of a field exceeds
+its size or in extensions of the
+<code>tar</code> format.</div>
+</dd></dl>
+<hr>
+<a href="generalities.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="processes.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Threads</title>
+</head>
+<body>
+<a href="sockets.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="more.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec149"> 7  Threads</h1>
+<p>A <em>thread</em>, also called a <em>lightweight process</em>, is a flow
+of control that can execute in parallel with other threads in the same
+program.</p><p>This chapter describes the functions that allow a program to create
+threads (<code>Thread</code> module) and synchronize by means of locks
+(<code>Mutex</code> module), conditions (<code>Condition</code> module), and
+synchronous events (<code>Event</code> module).</p>
+<h2 class="section" id="sec150">7.1  Introduction</h2>
+<p>The creation of a thread is very different from the <span class="c001">fork</span><a id="hevea_default142"></a>
+operation that creates a copy of the current process (and therefore a
+copy of the program). After a fork, the address spaces of the parent
+and child are totally disjoint, and the two processes can communicate
+only through system calls (like reading or writing a file or a pipe).</p><p>In contrast, all the threads within a program share the same address
+space. The only information that is not shared, and differentiates one
+thread from another, is the thread’s identity and its execution stack
+(along with certain system information such as the signal mask, the
+state of locks and conditions, etc.) From this viewpoint, threads
+resemble coroutines. The threads within a given program are all
+treated in the same fashion, except for the initial thread that was
+created when the program started. When this thread terminates, so do
+all the other threads and therefore the program as a whole. (Whenever
+we speak of multiple threads, we will implicitly mean threads within a
+given program.)</p><p>But unlike coroutines, which pass control explicitly from one to another
+and cannot execute in parallel, threads can execute in parallel and
+can be scheduled preemptively by the system. From this viewpoint,
+threads resemble processes.</p><p>The common address space permits threads to communicate directly among
+themselves using shared memory. The fact that threads can execute in
+parallel means that they must synchronize their access to shared data,
+so that one finishes writing before the other begins reading.
+Although not necessary in principle, in practice this requires going
+through the operating system. Synchronization is often a difficult
+part of programming with threads. It can be done with locks and
+conditions, or in a higher-level fashion with events.</p><p>The advantages of threads over processes are the lower cost of
+creation and the ability to exchange large data structures simply by
+passing pointers rather than copying.</p><p>On the other hand, using threads incurs the cost of managing the
+synchronization among them, including the case of a fatal error in one
+of the threads. In particular, a thread must be careful to release its
+locks and preserve its invariant before stopping. Processes may also
+be preferable to threads when we cannot really benefit from the
+latter’s advantages.</p>
+<h5 class="paragraph" id="sec151">Implementation in OCaml</h5>
+<p>To compile an application using native threads, use the following:
+</p><div class="mylisting">ocamlc -thread unix.cma threads.cma -o prog mod1.ml mod2.ml mod3.ml
+
+ocamlopt -thread unix.cmxa threads.cmxa -o prog mod1.ml mod2.ml mod3.ml</div><p>If the <code>ocamlbuild</code> tool is used, all that is needed is to add the
+following to the <code>_tags</code> file:
+</p><div class="mylisting">&lt;<span class="c006">mod</span>{1,2,3}.ml&gt; : thread
+&lt;prog.{native,byte}&gt; : use_unix, thread</div><p>If your installation does not support native threads, you can refer to
+section <a href="#sec172">7.8</a> or the manual for instructions
+how to use simulated “<span class="c005">vm</span>-level” threads. The text
+and examples in this chapter assume native threads and do not apply,
+in general, to <span class="c005">vm</span>-level threads.</p>
+<h2 class="section" id="sec152">7.2  Creation and termination of threads</h2>
+<p>The functions described in this section are defined in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html"><span class="c001">Thread</span></a> module.<br>
+</p><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_create.html"><span class="c001">create</span></a><a id="hevea_default143"></a> <code>f v</code> creates a new thread that
+executes the function application <code>f v</code> and returns a <em>thread id</em> that
+the caller can use to control the newly-created thread.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALcreate">create</a> : ('a -&gt; 'b) -&gt; 'a -&gt; t</div><p>The function application executes concurrently with the other threads
+in the program. The thread terminates when the application returns and
+its result is simply ignored. If the thread terminates with an
+uncaught exception, the exception is not propagated to any other
+thread: a message is printed on the standard error output and the
+exception is otherwise ignored. (The other threads have proceeded
+independently and would not be able to receive the exception.)</p><p>A thread can also terminate prematurely with the system call
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_exit.html"><span class="c001">exit</span></a><a id="hevea_default144"></a> of the <code>Thread</code> module, not to be confused with
+<code>Pervasives.</code><a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALexit"><span class="c001">exit</span></a><a id="hevea_default145"></a> that terminates the
+entire program, i.e. all its threads.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALexit">exit</a><a id="hevea_default146"></a> : unit -&gt; unit</div><p>The initial thread of a program implicitly calls the
+<code>Pervasives.exit</code> function when it terminates.</p><p>When another thread terminates before the initial thread, it is
+deallocated immediately by the OCaml runtime library. It does not
+become a zombie as in the case of a Unix process created by <code>fork</code>.</p><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_self.html"><span class="c001">self</span></a><a id="hevea_default147"></a> returns the thread id of the
+calling thread.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALself">self</a> : unit -&gt; t</div><p>We already know enough to propose an alternative to the preceding
+model for the concurrent server that used “fork” (or
+“double fork”) — by using a thread rather than a child process.
+To establish such a server, we introduce a variant
+<code>Misc.co_treatment</code> of the function <code>Misc.fork_treatment</code>
+defined in section <a href="sockets.html#sec127">6.7</a>.
+
+</p><div class="mylisting"><span class="c006">let</span> co_treatment server_sock service (client_descr, _ <span class="c006">as</span> client) =
+  <span class="c006">try</span> ignore (Thread.create service client)
+  <span class="c006">with</span> exn -&gt; close client_descr; raise exn;;</div><p>If the thread was successfully created, the treatment is handled
+entirely by the <code>service</code> function, including closing
+<code>client_descr</code>. Otherwise, we close the <code>client_descr</code>
+descriptor, the client is abandoned, and we let the main program
+handle the error.</p><p>Note that all the difficulty of the co-server is hidden in the
+<code>service</code> function, which must handle the connection robustly until
+disconnection. In the case of a concurrent server where the service
+is executed by another process, premature termination of the service
+due to a fatal error produces by default the desired behavior — closing
+the connection — because the system closes the file descriptors when a
+process exits. But in the case where the service is executed by a
+thread, the descriptors of the different threads are shared by default
+and not closed at the termination of the thread. It is therefore up
+to the thread to close its descriptors before exiting. In addition, a
+thread cannot call <code>Pervasives.exit</code> in the case of a fatal error
+during the handling of a service, because it would stop not only the
+service but also the entire server. Calling <code>Thread.exit</code> is often
+not a solution either, because we risk not having properly
+deallocated the thread’s open resources, and in particular the
+connection.</p><p>One solution consists of raising an exception to signify a fatal stop
+(for example an <code>Exit</code> exception), causing finalization code to be
+executed as it is handled. For similar reasons, it is essential to
+block the <code>sigpipe</code> signal during the handling of a service by a
+thread, replacing the immediate termination of the thread by the
+raising of an <code>EPIPE</code> exception.</p>
+<h2 class="section" id="sec153">7.3  Waiting</h2>
+<p>The functions described in this section are defined in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html"><span class="c001">Thread</span></a> module.<br>
+</p><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_join.html"><span class="c001">join</span></a><a id="hevea_default148"></a> allows one thread to wait for another
+to finish.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALjoin">join</a> : t -&gt; unit</div><p>The calling thread is suspended until the thread with the given
+thread id has terminated its execution. This function can also be used
+by the principal thread to wait for all the other threads to finish
+before terminating itself and the program. (The default behavior is to
+kill the other threads without waiting for them to terminate.)</p><p>Although this call is blocking and therefore “long”, it
+is restarted automatically when a signal is received: it is
+effectively interrupted by the signal, the handler is invoked, then the
+call is restarted. The call therefore does not return until the
+thread has really terminated, and the call never raises the <code>EINTR</code>
+exception. From the viewpoint of the OCaml programmer, it behaves as
+if the signal was received at the moment when the call returns.</p><p>A thread does not return, since it is executed asynchronously. But
+its action can be observed — luckily! — by its side effects. For
+example, one thread can place the result of a computation in a
+reference that another thread will consult after making sure that the
+calculation has finished. We illustrate this in the following
+example.
+
+</p><div class="mylisting"><span class="c006">exception</span> Exited
+<span class="c006">type</span> 'a result = Value <span class="c006">of</span> 'a | Exception <span class="c006">of</span> exn
+<span class="c006">let</span> eval f x = <span class="c006">try</span> Value (f x) <span class="c006">with</span> z -&gt; Exception z
+<span class="c006">let</span> coexec (f : 'a -&gt; 'b) (x : 'a) : unit -&gt; 'b =
+  <span class="c006">let</span> result = <span class="c006">ref</span> (Exception Exited) <span class="c006">in
+  let</span> p = Thread.create (<span class="c006">fun</span> x -&gt; result := eval f x) x <span class="c006">in
+  function</span> () -&gt; <span class="c006">match</span> (join p; !result) <span class="c006">with</span>
+    | Value v -&gt; v
+    | Exception exn -&gt; raise exn;;
+
+<span class="c006">let</span> v1 = coexec succ 4 <span class="c006">and</span> v2 = coexec succ 5 <span class="c006">in</span> v1 () + v2 ();;</div><p>The system can suspend one thread in order to give control temporarily
+to another, or because it is waiting for a resource being used by
+another thread (locks and conditions, for example) or by another
+process (file descriptors, for example). A thread can also suspend
+itself voluntarily. The <code>yield</code> function allows a thread to give
+up control explicitly, without waiting for preemption by the system.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALyield">yield</a><a id="hevea_default149"></a> : unit -&gt; unit</div><p>It is a hint for the thread scheduler, but it may have no effect, for
+example if no other thread can execute immediately, the system may
+give control back to the same thread.</p><p>Conversely, it is not necessary to execute <code>yield</code> to permit other
+threads to execute, because the system reserves the right to execute
+the <code>yield</code> command itself at any moment. In fact, it exercises
+this right sufficiently often to permit other threads to execute and
+to give the illusion that the threads are running in parallel, even on
+a uniprocessor machine.</p><div class="example">
+<h5 class="paragraph" id="sec154">Example</h5>
+<p>
+We can revisit the example of section <a href="processes.html#ex%2Fforksearch">3.3</a> and modify it to use
+threads rather than processes.
+
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">let rec</span> psearch k cond v =
+<span class="c003">   2</span>   <span class="c006">let</span> n = Array.length v <span class="c006">in</span>
+<span class="c003">   3</span>   <span class="c006">let</span> slice i = Array.sub v (i * k) (min k (n - i * k)) <span class="c006">in</span>
+<span class="c003">   4</span>   <span class="c006">let</span> slices = Array.init (n/k) slice <span class="c006">in</span>
+<span class="c003">   5</span>   <span class="c006">let</span> found = <span class="c006">ref false in</span>
+<span class="c003">   6</span>   <span class="c006">let</span> pcond v = <span class="c006">if</span> !found <span class="c006">then</span> Thread.exit (); cond v <span class="c006">in</span>
+<span class="c003">   7</span>   <span class="c006">let</span> search v = <span class="c006">if</span> simple_search pcond v <span class="c006">then</span> found := <span class="c006">true in</span> <a id="prog:search"></a>
+<span class="c003">   8</span>   <span class="c006">let</span> proc_list = Array.map (Thread.create search) slices <span class="c006">in</span>
+<span class="c003">   9</span>   Array.iter Thread.join proc_list;
+<span class="c003">  10</span>   !found;;</div><p>
+The function <code>psearch k f v</code> searches with <code>k</code> threads in
+parallel for an array element satisfying the function <code>f</code>.
+The function <code>pcond</code> allows the search to be interrupted when an
+answer has been found. All the threads share the same reference
+<code>found</code>: they can therefore access it concurrently. No critical
+section is required, because if different threads write to this resource
+in parallel, they write the same value. It is important that the
+threads do not write the result of the search when it is false!
+For example, replacing line <a href="#prog%3Asearch">7</a> by
+</p><div class="mylisting"><span class="c006">let</span> search v = found := !found &amp;&amp; simple_search pcond v</div><p>or even:
+</p><div class="mylisting"><span class="c006">let</span> search v = <span class="c006">let</span> r = simple_search pcond v <span class="c006">in</span> found := !found &amp;&amp; r</div><p>would be incorrect.
+ </p><div class="fancybreak">* * *</div></div><p>The parallel search is interesting even on a uniprocessor machine if
+the comparison of elements could be blocked temporarily (for example by
+disk accesses or network connections). In this case, the thread
+performing the search passes control to another and the machine can
+therefore continue the computation on another part of the array and
+return to the blocked thread when its resource is free.</p><p>Access to certain elements can have significant latency, on the order
+of a second if information must be retrieved over the network. In
+this case, the difference in behavior between a sequential search and
+a parallel search becomes obvious.
+<br>
+</p><div class="exercise">
+<h5 class="paragraph" id="sec155">Exercise 18</h5>
+<p><a id="ex18"></a>
+<a id="ex/qsort"></a>
+Parallelize quicksort on arrays.
+<a href="exercise18.html#exans18">Answer</a>.</p><div class="fancybreak">* * *</div></div><p>The other forms of suspension are tied to operating system resources.
+A thread can be suspended for a certain time by calling <code>delay s</code>.
+Once <code>s</code> seconds elapse, it can be restarted.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALdelay">delay</a><a id="hevea_default150"></a> : float -&gt; unit</div><p>This primitive is provided for portability with <span class="c005">vm</span>-level threads, but
+<code>delay s</code> is simply an abbreviation for
+<code>ignore (Unix.select [] [] [] s)</code>. This call, unlike <code>join</code>, is
+not restarted when it is interrupted by a signal.</p><p>To synchronize a thread with an external operation, we can use the
+<span class="c001">select</span><a id="hevea_default151"></a> command. Note that this will block only the
+calling thread and not the entire program. (The <code>Thread</code> module
+redefines this function, because in the case of simulated threads
+calling the one in the <code>Unix</code> module would block the whole program
+and therefore all the threads. It is therefore necessary to use
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALselect"><span class="c001">select</span></a> from the <code>Thread</code> module and not
+<code>Unix.select</code>, even if the two are equivalent in the case of native
+threads.)</p><div class="example">
+<h5 class="paragraph" id="sec157">Example</h5>
+<p>
+<a id="ex/crible-copro"></a>
+To make the Sieve of Eratosthenes example of section <a href="pipes.html#sec102">5.2</a>
+work with threads instead of by duplication of Unix processes, 
+it suffices to replace the 
+lines <a href="pipes.html#prog%3Asievefilterfork">5</a>–<a href="pipes.html#prog%3Asievefilterdone">16</a> of the 
+function <code>filter</code> by:
+
+</p><div class="mylisting">    <span class="c006">let</span> p = Thread.create filter (in_channel_of_descr fd_in) <span class="c006">in
+    let</span> output = out_channel_of_descr fd_out <span class="c006">in
+    try
+      while true do
+        let</span> n = input_int input <span class="c006">in
+        if</span> List.exists (<span class="c006">fun</span> m -&gt; n <span class="c006">mod</span> m = 0) first_primes <span class="c006">then</span> ()
+        <span class="c006">else</span> output_int output n
+      <span class="c006">done</span>;
+    <span class="c006">with</span> End_of_file -&gt;
+      close_out output;
+      Thread.join p</div><p>and the lines <a href="pipes.html#prog%3Asievefork">4</a>–<a href="pipes.html#prog%3Agen">10</a> of the function
+<code>sieve</code> by:
+
+</p><div class="mylisting">  <span class="c006">let</span> k = Thread.create filter (in_channel_of_descr fd_in) <span class="c006">in
+  let</span> output = out_channel_of_descr fd_out <span class="c006">in</span>
+  generate len output;
+  close_out output;
+  Thread.join k;;</div><p>
+However, we cannot expect any significant gain from this example,
+which uses few processes relative to computation time.
+</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec158">7.4  Synchronization among threads: locks</h2>
+<p>
+The functions in this section are defined in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Mutex.html"><span class="c001">Mutex</span></a> module (as in <code>Mut</code>ual <code>ex</code>clusion).<br>
+</p><p>We mentioned above a problem of concurrent access to mutable
+resources. In particular, the following scenario illustrates the
+problem of access to shared resources. Consider a counter <span class="c004">c</span> and two
+processes <span class="c004">p</span> and <span class="c004">q</span>, each incrementing the counter in parallel.</p><p>Assume the scenario described in figure <a href="#fig%2Fcompetition">6</a>.
+Thread <span class="c004">p</span> reads the value of counter <span class="c004">c</span>, then gives control to <span class="c004">q</span>.
+In its turn, <span class="c004">q</span> reads the value of <span class="c004">c</span>, then writes the value <span class="c004">k</span>+1
+to <span class="c004">c</span>. The thread <span class="c004">p</span> resumes control and writes the value <span class="c004">k</span>+1 to
+<span class="c004">c</span>. The final value of <span class="c004">c</span> is therefore <span class="c004">k</span>+1 instead of <span class="c004">k</span>+2.</p><div class="figure">
+<div class="image"><img src="ocamlunix-image23.png" width="100%"></div>
+
+
+
+<a id="fig/competition"></a>
+<div class="caption">Figure 6 — Competition for access to a shared resource.</div></div><p>This classic problem can be resolved by using locks that
+prevent arbitrary interleaving of <span class="c004">p</span> and <span class="c004">q</span>.</p><p>Locks are shared objects that can be held by at most a single thread
+within a program at a time. A lock is created by the function
+<code>create</code>.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Mutex.html#VALcreate">create</a> : unit -&gt; t</div><p>This function returns a new lock, initially not held by any thread.
+To acquire an existing lock, it is necessary to use the system call
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_mutex_lock.html"><span class="c001">lock</span></a><a id="hevea_default152"></a> with the lock as argument. If the lock is
+held by another thread, the caller is frozen until the lock is released.
+A lock must be released explicitly by the thread that holds it with
+the system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_mutex_unlock.html"><span class="c001">unlock</span></a><a id="hevea_default153"></a>.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Mutex.html#VALlock">lock</a> : t -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Mutex.html#VALunlock">unlock</a> : t -&gt; unit</div><p>The <code>lock</code> call behaves like <code>Thread.join</code> with respect to
+signals: if the thread receives a signal while executing <code>lock</code>,
+the signal will be noted (i.e. the OCaml runtime will be notified
+that the signal has arrived), but the thread will continue to wait so
+that <code>lock</code> effectively returns only when the lock has been
+acquired, and never raises the <code>EINTR</code> exception. The real
+treatment of the signal by OCaml will happen only upon the return
+from <code>lock</code>.</p><p>We can also try to acquire a lock without blocking with the system call
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_mutex_trylock.html"><span class="c001">trylock</span></a><a id="hevea_default154"></a>
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Mutex.html#VALtry_lock">try_lock</a> : t -&gt; bool</div><p>This function returns <code><span class="c006">true</span></code> if the lock has been acquired and
+<code><span class="c006">false</span></code> otherwise. In the latter case, execution is not suspended
+since the lock is not acquired. The thread can therefore do something
+else and eventually return and try its luck later.</p><div class="example">
+<h5 class="paragraph" id="sec159">Example</h5>
+<p>Incrementing a global counter used by several threads poses a
+synchronization problem: the instants between reading the value of the
+counter and writing the incremented value are in a critical region,
+i.e. two threads cannot be in this region at the same time. The
+synchronization can easily be managed with a lock.
+</p><div class="mylisting"><span class="c006">type</span> counter = { lock : Mutex.t; <span class="c006">mutable</span> counter : int }
+<span class="c006">let</span> newcounter () = { lock = Mutex.create (); counter = 0 }
+<span class="c006">let</span> addtocounter c k =
+  Mutex.lock c.lock;
+  c.counter &lt;- c.counter + k;
+  Mutex.unlock c.lock;;</div><p>The sole read operation on the counter poses no problem. It can be
+performed in parallel with a modification of the counter: the result
+will simply be the value of the counter just before or just after the
+modification, both results being consistent.
+</p><div class="fancybreak">* * *</div></div><p>A common pattern is to hold a lock temporarily during a function call.
+It is of course necessary to make sure to release the lock at the end
+of the call, whether the call succeeded or failed. We can abstract
+this behavior in a library function:
+
+</p><div class="mylisting"><span class="c006">let</span> run_with_lock l f x =
+  Mutex.lock l; try_finalize f x Mutex.unlock l</div><p>In the preceding example, we could also have written:
+
+</p><div class="mylisting"><span class="c006">let</span> addtocounter c =
+  Misc.run_with_lock c.lock (<span class="c006">fun</span> k -&gt; c.counter &lt;- c.counter + k)</div><div class="example">
+<h5 class="paragraph" id="sec160">Example</h5>
+<p>
+An alternative to the model of the server with threads is to start a
+number of threads in advance which handle requests in parallel.
+
+</p><div class="mylisting"><span class="c006">val</span> tcp_farm_server :
+  int -&gt; (file_descr -&gt; file_descr * sockaddr -&gt; 'a) -&gt; sockaddr -&gt; unit</div><p>The <code>tcp_farm_server</code> function behaves like <code>tcp_server</code> but
+takes an additional argument which is the number of threads to start,
+each of which will become a server at the same address. The advantage
+of a pool of threads is to reduce the time to handle each connection
+by eliminating the cost of creating a thread for it, since they are
+created once and for all.
+
+</p><div class="mylisting"><span class="c006">let</span> tcp_farm_server n treat_connection addr =
+  <span class="c006">let</span> server_sock = Misc.install_tcp_server_socket addr <span class="c006">in
+  let</span> mutex = Mutex.create () <span class="c006">in
+  let rec</span> serve () =
+    <span class="c006">let</span> client =
+      Misc.run_with_lock mutex
+        (Misc.restart_on_EINTR accept) server_sock <span class="c006">in</span>
+    treat_connection server_sock client;
+    serve () <span class="c006">in
+  for</span> i = 1 <span class="c006">to</span> n-1 <span class="c006">do</span> ignore (Thread.create serve ()) <span class="c006">done</span>;
+  serve ();;</div><p>The only precaution to take is to ensure mutual exclusion around the
+<code>accept</code> so that only one of the threads accepts a connection at a
+time. The idea is that the <code>treat_connection</code> function performs a
+sequential treatment, but it is not a requirement — we can
+effectively combine a pool of threads with the creation of new
+threads, which can be dynamically adjusted depending on the load.
+</p><div class="fancybreak">* * *</div></div><p>Acquisition of a lock is an inexpensive operation when it succeeds
+without blocking. It is generally implemented with a single
+“test-and-set” instruction provided by all modern processors
+(plus other small costs that are involved, such as updating caches).
+However, when the lock is not available, the process must be suspended
+and rescheduled later, which involves a significant additional cost.
+We must therefore incur this penalty only for a real suspension of a
+process in order to give control to another, and not for its potential
+suspension during the acquisition of a lock. Consequently, we will
+almost always want to release a lock as soon as possible and take it
+back later if necessary, rather than simply holding onto the lock.
+Avoiding these two operations would have the effect of enlarging the
+critical region and therefore the frequency with which another thread
+finds itself effectively in competition for the lock and in need of
+suspension.</p><p>Locks reduce interleaving. In return, they increase the risk of
+deadlock. For example, there is a deadlock if a thread <span class="c004">p</span> waits for
+a lock <span class="c004">v</span> held by a thread <span class="c004">q</span> which itself waits for a lock <span class="c004">u</span> held
+by <span class="c004">p</span>. (In the worst case, a thread waits for a lock that it holds
+itself.) Concurrent programming is difficult, and guarding against
+deadlock is not always easy. A simple way of avoiding this situation
+that is often possible consists of defining a hierarchy among the
+locks and ensuring that the order in which the locks are acquired
+dynamically respects the hierarchy: a thread never acquires a lock
+unless that lock is dominated by all the other locks that the thread
+already holds.</p>
+<h2 class="section" id="sec161">7.5  Complete example: <span class="c005">http</span> relay</h2>
+<p>We modify the <span class="c005">http</span> relay developed in section <a href="sockets.html#sec144">6.14</a> so
+that it services requests using threads.</p><p>Intuitively, it suffices to replace the <code>establish_server</code> function
+that creates a process clone with a function that creates a
+thread. We must however take certain precautions. The challenge
+with threads is that they share the entire memory space. We must
+therefore ensure that the threads are not “stepping on each
+other’s toes” with one undoing what was just done by another.
+That typically happens when two threads modify the same mutable
+structure in parallel.</p><p>In the case of the <span class="c005">http</span> server, there are several changes to make.
+Let us start by resolving problems with access to resources. The
+<code>proxy_service</code> function, described in section <a href="sockets.html#sec144">6.14</a>,
+handles the treatment of connections. Via the intermediary functions
+<code>parse_host</code>, <code>parse_url</code> and <code>parse_request</code>, it calls the
+<code>regexp_match</code> function which uses the <code>Str</code> library. However,
+this library is not re-entrant (the result of the last search is
+stored in a global variable). This example shows that we must beware
+of calls to innocent-looking functions that hide potential collisions.
+In this case we will not rewrite the <code>Str</code> library but simply
+sequentialize its use. It suffices to protect calls to this library
+with locks (and there is really no other choice). We must still take
+the precaution of releasing the lock when returning from the function
+abnormally due to an exception.</p><p>To modify the existing code as little as possible, we can just rename
+the definition of <code>regexp_match</code> in the <code>Url</code> module as
+<code>unsafe_regexp_match</code> and then define <code>regexp_match</code> as a
+protected version of <code>unsafe_regexp_match</code>.
+
+</p><div class="mylisting"><span class="c006">let</span> strlock = Mutex.create ();;
+<span class="c006">let</span> regexp_match r string =
+  Misc.run_with_lock strlock (unsafe_regexp_match r) string;;</div><p>The change is rather minimal. It should be noted that the
+<code>regexp_match</code> function includes both the expression matching and
+the extraction of the matched groups. It would definitely have been
+incorrect to protect the <code>Str.string_match</code> and
+<code>Str.matched_group</code> functions individually.</p><p>Another solution would be to rewrite the analysis functions without using
+the <code>Str</code> library. But there is no reason for such a choice, since
+synchronizing the library primitives is easy to do and does not turn
+out to be a source of inefficiency. Obviously, a better solution
+would be for the <code>Str</code> library to be re-entrant in the first place.</p><p>The other functions that are called are already re-entrant, in particular
+the <code>Misc.retransmit</code> function that allocates different buffers for
+each call.</p><p>However, there are still some precautions to take regarding error
+handling. The handling of a connection by a thread must be robust, as
+explained above. In particular, in case of error, the other threads
+must not be affected. In other words, the thread must terminate
+“normally”, properly closing the connection in question and
+going back to accepting other pending connections. We must first of
+all replace the call to <code>exit</code> in <code>handle_error</code> because it is
+essential not to kill the whole process. A call to <code>Thread.exit</code>
+would not be correct either, because thread termination does not close
+its (shared) descriptors, the way the system does for process
+termination. An error in the handling of a connection would leave the
+connection open. The solution consists of raising an <code>Exit</code>
+exception that allows the finalization code to do what is required.
+We must now protect <code>treat_connection</code> by catching all errors, in
+particular <code>Exit</code> but also <code>EPIPE</code>, which can be raised if the
+client closes the connection prematurely. We will take care of this
+by using a protected function.
+
+
+</p><div class="mylisting"><span class="c006">let</span> allow_connection_errors f s =
+  <span class="c006">try</span> f s <span class="c006">with</span> Exit | Unix_error(EPIPE,_,_) -&gt; ()</div><div class="mylisting"><span class="c006">let</span> treat_connection s =
+  Misc.co_treatment s (allow_connection_errors proxy_service) <span class="c006">in</span></div><div class="exercise">
+<h5 class="paragraph" id="sec162">Exercise 19</h5>
+<p><a id="ex19"></a>
+Rewrite the proxy for the <span class="c005">http</span>/1.1 protocol using threads.
+</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec163">Exercise 20</h5>
+<p><a id="ex20"></a>
+Coroutines can be seen as a very particular kind of threads where each
+process must surrender control explicitly before another can execute.
+Give an implementation of coroutines using threads.
+</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec164">7.6  Conditions</h2>
+<p>The functions described in this section are defined in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Condition.html"><span class="c001">Condition</span></a> module.</p><p>Synchronization with locks is very simple, but it is not sufficient:
+locks allow waiting for shared data to be free, but do not allow
+waiting for the data to have a particular state. Let us replace the
+example of a counter by a (first-in/first-out) queue shared among
+several threads. Adding a value to the queue can be synchronized by
+using a lock as above, since no matter what the state of the queue,
+we can always add an element. But what about removing an element
+from the queue? What should be done when the queue is empty? We
+cannot hold the lock while waiting for the queue to be filled, because
+that would completely prevent another thread from filling the queue.
+So it must be released. But how can we know when the queue is no
+longer empty, except by testing it periodically? This solution,
+called “busy-waiting”, is definitely not satisfactory. Either
+it consumes computing cycles unnecessarily (period too short) or else
+it it is not reactive enough (period too long).</p><p><em>Conditions</em> provide a solution to this problem. A thread that
+holds a lock can wait for a condition object until another thread
+sends a signal on that condition. As with locks, conditions are
+passive structures that can be manipulated by synchronization
+functions. They can be created by the <code>create</code>
+function.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Condition.html#VALcreate">create</a> : unit -&gt; t</div><p>A process <span class="c004">p</span> that <em>already holds</em> a lock <code>v</code> can wait on a
+condition <code>c</code> and the lock <code>v</code> with the system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_cond_wait.html"><span class="c001">wait</span></a><a id="hevea_default155"></a>.
+The process <span class="c004">p</span> informs the system that it is waiting on the condition
+<code>c</code> and the lock <code>v</code>, then releases the lock <code>v</code> and goes to
+sleep. It will not be woken up by the system until another thread <span class="c004">q</span>
+signals a change on the condition <code>c</code> and the lock <code>v</code> is
+available; the process <span class="c004">p</span> will then hold the lock <code>v</code> again.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Condition.html#VALwait">wait</a> : t -&gt; Mutex.t -&gt; unit</div><p>Note: it is an error to call <code>wait c v</code> without holding the lock
+<code>v</code>. The behavior of <code>wait c v</code> with respect to signals is the
+same as for <code>Mutex.lock</code>.</p><p>When a thread signals a change on a condition, it can either ask for
+all threads waiting on that condition to be woken up
+(system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_cond_broadcast.html"><span class="c001">broadcast</span></a><a id="hevea_default156"></a>), or else for just one of them to be
+woken up (system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/pthread_cond_signal.html"><span class="c001">signal</span></a><a id="hevea_default157"></a>).
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Condition.html#VALsignal">signal</a> : t -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Condition.html#VALbroadcast">broadcast</a> : t -&gt; unit</div><p>Sending a signal or a broadcast on a condition does not require
+holding a lock (unlike waiting), in the sense that it will not trigger
+a “system” error.
+However, it can sometimes be a programming error.
+</p><p>The choice between waking up one thread or all the threads depends on
+the problem. To consider the example of the queue again, if a thread
+adds an element to an empty queue, there is no need to wake up all the
+others, since only one will effectively be able to remove that
+element. On the other hand, if it adds a number of elements that is
+either not statically known or very large, it must wake up all the
+threads. Note that if adding an element to a non-empty queue does not
+send a signal, then adding an element to an empty queue must send a
+broadcast, since it could be followed immediately by another addition
+(without a signal) and therefore behave like a multiple addition.
+In summary, either send a signal on every addition, or send a
+broadcast only when adding to an empty queue.
+The choice between these two strategies is a bet on whether the queue
+is usually empty (first solution) or usually non-empty (second
+solution).</p><p>Often, one thread knows only an approximation of the reason why
+another thread is waiting on a condition. It will therefore signal
+the condition whenever the situation <em>might</em> be what the other
+thread is waiting for. An awakened thread, therefore, cannot assume
+that the condition it was waiting is now satisfied. It must, in
+general, re-test the state of its shared data, and if necessary wait
+on the condition again. This does not constitute busy-waiting, because
+it only happens when another thread signals the condition.</p><p>Here is another justification for this approach: when a thread has
+just produced a lot of some resource and wakes all the others using a
+<code>broadcast</code>, nothing prevents the first one that wakes up from
+being greedy and exhausting the entire resource. The second one to
+wake up must go back to sleep, hoping to be luckier next time.</p><p>We can now give a concrete solution for shared queues. The queue
+structure defined in the <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Queue.html"><span class="c001">Queue</span></a> module is extended with a lock and
+a <code>non_empty</code> condition.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">type</span> 'a t =
+<span class="c003">   2</span>   { queue : 'a Queue.t; lock : Mutex.t; non_empty : Condition.t }
+<span class="c003">   3</span> <span class="c006">let</span> create () =
+<span class="c003">   4</span>   { queue = Queue.create ();
+<span class="c003">   5</span>     lock = Mutex.create (); non_empty = Condition.create () }
+<span class="c003">   6</span> 
+<span class="c003">   7</span> <span class="c006">let</span> add e q =
+<span class="c003">   8</span>   Mutex.lock q.lock;
+<span class="c003">   9</span>   <span class="c006">if</span> Queue.length q.queue = 0 <span class="c006">then</span> Condition.broadcast q.non_empty;<a id="prog:broadcast"></a>
+<span class="c003">  10</span>   Queue.add e q.queue;
+<span class="c003">  11</span>   Mutex.unlock q.lock;;
+<span class="c003">  12</span> 
+<span class="c003">  13</span> <span class="c006">let</span> take q =
+<span class="c003">  14</span>   Mutex.lock q.lock;
+<span class="c003">  15</span>   <span class="c006">while</span> Queue.length q.queue = 0 <a id="prog:lock"></a>
+<span class="c003">  16</span>   <span class="c006">do</span> Condition.wait q.non_empty q.lock <span class="c006">done</span>;  <a id="prog:slock"></a>
+<span class="c003">  17</span>   <span class="c006">let</span> x = Queue.take q.queue <span class="c006">in</span>
+<span class="c003">  18</span>   Mutex.unlock q.lock; x;;</div><p>Addition never blocks, but we must not forget to signal
+the <code>non_empty</code> condition when the list is empty beforehand,
+because it is possible that someone is waiting on the condition.</p><p>Removal is a little more complicated: after acquiring the lock, we
+must try to remove an element from the queue. If the queue is empty,
+we must wait on the <code>non_empty</code> condition. When awakened, we try
+again, knowing that we already have the lock.</p><p>As explained above, the <code>broadcast q.non_empty</code> signal
+(line <a href="#prog%3Abroadcast">9</a>) is executed by a thread <span class="c004">p</span> already in
+possession of the lock <code>q.lock</code>.
+This implies that a reader thread <span class="c004">q</span> executing the <code>take</code> function
+cannot be between line <a href="#prog%3Alock">15</a> and <a href="#prog%3Aslock">16</a>
+where it would have verified that the queue is empty but not yet have
+gone to sleep. In this case, the signal sent by <span class="c004">p</span> would be
+ineffective and ignored, since <span class="c004">q</span> has not gone to sleep yet; but <span class="c004">q</span>
+would then go to sleep and not be woken up, because <span class="c004">p</span> has already
+sent its signal.
+The lock therefore guarantees that either <span class="c004">q</span> is already asleep or
+else has not yet tested the state of the queue.</p><div class="exercise">
+<h5 class="paragraph" id="sec165">Exercise 21</h5>
+<p><a id="ex21"></a>
+Implement a variant in which the queue is bounded: addition to the
+queue becomes blocking when the size of the queue reaches a fixed
+value. (In a concurrent world, we might need this scheme to avoid
+having a producer that produces endlessly while the consumer is
+blocked.)
+<a href="exercise21.html#exans21">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec167">7.7  Event-based synchronous communication</h2>
+<p>The functions described in this section are defined in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html"><span class="c001">Event</span></a> module.</p><p>Locks and conditions together allow all forms of synchronization to be
+expressed. However, their use is not always easy, as shown
+by the example of the initially simple queue whose synchronization
+code subsequently turned out to be subtle.</p><p>Event-based synchronous communication is a collection of higher-level
+communication primitives that tend to facilitate concurrent
+programming. The primitives in the <code>Event</code> module were initially
+developed by John Reppy as an extension of the <em>Standard ML</em>
+language called <em>Concurrent ML</em> [<a href="references.html#CML">16</a>]. In OCaml, these
+primitives are located above the more elementary synchronization of
+locks and conditions.</p><p>Communication occurs by sending <em>events</em> along <em>channels</em>.
+Channels are like “lightweight pipes”: they allow communication
+among threads in the same program and take care of synchronization
+between producers and consumers. A channel carrying values of type
+<code>'a</code> has the type <code>'a Event.channel</code>. Channels are homogeneous
+and therefore always carry values of the same type. A channel is
+created with the <code>new_channel</code> function.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALnew_channel">new_channel</a><a id="hevea_default158"></a> : unit -&gt; 'a channel</div><p>Sending or receiving a message is not done directly, but through the
+intermediary of an event. An elementary event is “sending a
+message” or “receiving a message”. They are constructed by
+means of the following primitives:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALsend">send</a><a id="hevea_default159"></a> : 'a channel -&gt; 'a -&gt; unit event
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALreceive">receive</a><a id="hevea_default160"></a> : 'a channel -&gt; 'a event</div><p>Construction of a message does not have an immediate effect: it just
+creates a data structure describing the action to be done. To make an
+event happen, the thread must synchronize with another thread wishing
+to make the complementary event happen. The <code>sync</code> primitive
+allows a thread to wait for the occurrence of the event passed
+as argument.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALsync">sync</a><a id="hevea_default161"></a> : 'a event -&gt; 'a</div><p>Thus, to send a value <code>v</code> on the channel <code>c</code>, we can execute
+<code>sync (send c v)</code>. The thread is suspended until the event occurs,
+that is to say until another thread is ready to receive a value on the
+channel <code>c</code>. In a symmetric fashion, a thread can wait for a
+message on channel <code>c</code> by performing <code>sync (receive c)</code>.</p><p>There is a competition among all the producers on one hand and all the
+consumers on the other. For example, if several threads try to send a
+message on a channel but only one is ready to read it, it is clear
+that only one producer will make the event occur. The others will
+remain suspended, without even noticing that another was
+“served” ahead of them.</p><p>The competition can also occur within the same thread.
+Multiple events can be combined by the <code>choose</code> primitive.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALchoose">choose</a><a id="hevea_default162"></a> : 'a event list -&gt; 'a event</div><p>The resulting event is an offer, in parallel, of the events passed as
+arguments, and occurs when exactly one of them occurs. We distinguish
+between the offer of an event and its occurrence. The call
+<code>sync (choose [e1; e2])</code> synchronizes by offering a choice of two events
+<code>e1</code> and <code>e2</code>, but only one of the two events will effectively
+occur (the offer of the other event will be simultaneously canceled).
+The <code>wrap_abort</code> primitive allows to handle an event being
+canceled.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALwrap_abort">wrap_abort</a><a id="hevea_default163"></a> : 'a event -&gt; (unit -&gt; unit) -&gt; 'a event</div><p>The call <code>wrap_abort e f</code> creates an event that is equivalent to
+<code>e</code>, but if it is not chosen during synchronization, then the
+function <code>f</code> is executed. (This is only interesting when it is
+part of a complex event.)</p><p>A thread can try to synchronize on an event without blocking (somewhat
+like <code>Mutex.try_lock</code>) with <code>poll</code>.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Event.html#VALpoll">poll</a><a id="hevea_default164"></a> : 'a event -&gt; 'a option</div><p>The call <code>poll e</code> offers the event <code>e</code> but if it cannot occur
+immediately, it cancels the offer rather than blocking and has no
+effect (or more exactly, behaves as if the expression <code>poll e</code> had
+been replaced by the value <code>None</code>). By contrast, if the event can
+happen immediately, then it behaves as if the thread had done
+<code>sync e</code>, except that the value <code>Some v</code> is returned
+rather than <code>v</code>.</p><div class="example">
+<h5 class="paragraph" id="sec168">Example</h5>
+<p>
+In section <a href="#ex%2Fcrible-copro">7.3</a> the example of the Sieve of Eratosthenes,
+the communication between different threads is done with pipes as in
+the original program, using system memory (the pipe) as intermediary.
+We may think that it is more efficient to communicate
+directly by using the memory of the process. A simple solution
+consists of replacing the pipe by a channel on which integers are sent.</p><p>Sending integers on the channel is not sufficient, because we must
+also be able to detect the end of the stream. The simplest is
+therefore to pass elements of the form <code>Some n</code> and to terminate by
+sending the value <code>None</code>. To minimize the changes, we use the code
+of the example in section <a href="pipes.html#sec102">5.2</a>. We simulate pipes and the
+functions for reading and writing pipes by channels and functions for
+reading and writing channels.</p><p>It is sufficient to take the previous version of the program and
+change the input/output functions to ones that read and write a channel,
+rather than an input/output buffer from the <code>Pervasives</code> library.
+For example, we can insert the following code at the beginning of the
+program just after the <code><span class="c006">open</span> Unix;;</code> directive:
+
+</p><div class="mylisting"><span class="c006">let</span> pipe () = <span class="c006">let</span> c = Event.new_channel () <span class="c006">in</span> c, c
+<span class="c006">let</span> out_channel_of_descr x = x
+<span class="c006">let</span> in_channel_of_descr x = x
+
+<span class="c006">let</span> input_int chan =
+  <span class="c006">match</span> Event.sync (Event.receive chan) <span class="c006">with</span>
+  | Some v -&gt; v
+  | None -&gt; raise End_of_file
+<span class="c006">let</span> output_int chan x = Event.sync (Event.send chan (Some x))
+<span class="c006">let</span> close_out chan = Event.sync (Event.send chan None);;</div><p>However, if we compare the efficiency of this version with the
+previous one, we find that it is twice as slow. Communication of each
+integer requires a synchronization between two threads and therefore
+several system calls for acquiring and releasing locks. On the other
+hand, communication via pipes uses buffered <span class="c005">i/o</span> that allows several
+thousand integers to be exchanged with each system call.</p><p>To be fair, one should also provide buffered communication on
+channels, using the channel only to exchange a packet of integers.
+The child can accumulate the results in a private queue, to which it
+can therefore write without synchronization. When the queue is full,
+or upon an explicit request, it is emptied by synchronizing on the
+channel. The parent has its own queue that it receives by
+synchronizing and empties gradually.</p><p>Here is a solution:
+
+</p><div class="mylisting"><span class="c006">type</span> 'a buffered =
+    { c : 'a Queue.t Event.channel;
+      <span class="c006">mutable</span> q : 'a Queue.t;
+      size : int }
+
+<span class="c006">let</span> pipe () = <span class="c006">let</span> c = Event.new_channel () <span class="c006">in</span> c, c;;
+
+<span class="c006">let</span> size = 1024;;
+<span class="c006">let</span> out_channel_of_descr chan =
+  { c = chan; q = Queue.create (); size = size };;
+<span class="c006">let</span> in_channel_of_descr = out_channel_of_descr;;
+
+<span class="c006">let</span> input_int chan =
+  <span class="c006">if</span> Queue.length chan.q = 0 <span class="c006">then begin
+    let</span> q = Event.sync (Event.receive chan.c) <span class="c006">in
+    if</span> Queue.length q &gt; 0 <span class="c006">then</span> chan.q &lt;- q
+    <span class="c006">else</span> raise End_of_file
+  <span class="c006">end</span>;
+  Queue.take chan.q;;
+
+<span class="c006">let</span> flush_out chan =
+  <span class="c006">if</span> Queue.length chan.q &gt; 0 <span class="c006">then</span> Event.sync (Event.send chan.c chan.q);
+  chan.q &lt;- Queue.create ();;
+
+<span class="c006">let</span> output_int chan x =
+  <span class="c006">if</span> Queue.length chan.q = size <span class="c006">then</span> flush_out chan;
+  Queue.add x chan.q
+
+<span class="c006">let</span> close_out chan =
+  flush_out chan;
+  Event.sync (Event.send chan.c chan.q);;</div><p>
+This version allows us to regain efficiency comparable to (but not
+better than) the version with pipes.</p><p>Compared to the original version with processes and pipes, there are
+two potential advantages. First, threads are more lightweight and less
+costly to launch. Second, communication on a channel merely passes a
+pointer, without copying. But these advantages are not noticeable
+here, because the number of threads created and the data exchanged are
+not big enough compared to the cost of system calls and compute time.</p><p>In conclusion, we can say that communication between threads has a
+cost of up to one system call (if the process must be suspended) and
+the cost can be significantly reduced by buffering communication and
+sending larger structures less often.
+</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec169">Exercise 22</h5>
+<p><a id="ex22"></a>
+An <span class="c005">http</span> server can be subjected to a high, bursty load. To improve
+response time, we can refine the architecture of an <span class="c005">http</span> server by
+always keeping a dozen threads ready to handle new requests. This means
+that a thread does not handle only a single request, but a potentially
+infinite series of requests that it reads from a queue.</p><p>To avoid overloading the machine, we can limit the number of threads
+to a reasonable value beyond which the overhead of managing tasks
+exceeds the latency for servicing requests (time spent waiting for
+data on disk, etc.). After that, we can keep some connections waiting
+to be handled, and then finally we can refuse connections. When the
+load diminishes and the number of threads is above the “ideal”
+value, some of them are allowed to die and the others remain ready for
+the next requests.</p><p>Transform the example of section <a href="#sec161">7.5</a> into this architecture.
+</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec170">7.8  Implementation details</h2>
+<h5 class="paragraph" id="sec171">Implementation of threads in Unix</h5>
+<p>The Unix system was not originally designed to provide support for
+threads. However, most modern Unix implementations now offer such
+support. Nevertheless, threads remain an add-on that is sometimes
+apparent. For example, when using threads it is strongly discouraged
+to use <span class="c001">fork</span><a id="hevea_default165"></a> except when doing <code>exec</code> immediately afterward.
+In effect, <code>fork</code> copies the current thread, which becomes a
+crippled process that runs believing it has threads when in fact they
+do not exist. The parent continues to run normally as before.
+The special case of a call to <code>fork</code> where the child immediately
+launches another program does not cause the parent any problem.
+Luckily, since that is the only way to start other programs!</p><p>Inversely, one can do <code>fork</code> (not followed by <code>exec</code>), and then launch
+several threads in the child and the parent, without any problem.</p>
+<h5 class="paragraph" id="sec172">Native and simulated implementation in OCaml</h5>
+<p>When the underlying operating system has threads, OCaml can provide
+a native implementation of threads, leaving their management to the
+operating system as much as possible. Each thread then lives in a
+different Unix process but shares the same address space.</p><p>When the system does not provide support for threads, OCaml can
+emulate them. All the threads then execute in the same Unix process,
+and their management, including their scheduling, is handled by the
+OCaml runtime system. However, this implementation is only
+available when compiling to bytecode.</p><p>The OCaml system provides the same programming interface for the
+native and simulated versions of threads. The implementation of
+threads is therefore split: one implementation for the emulated
+version that includes its own task controller, and another
+implementation that is based on <span class="c005">posix</span> (1003.1c) threads and
+lifts the corresponding library functions to the level of the OCaml
+language. In the process, the OCaml language handles certain
+simple administrative tasks and ensures an interface identical to the
+emulated version. This guarantees that a program compilable on one
+Unix architecture remains compilable on another Unix architecture.
+However, whether threads are emulated or native can change the
+synchronization of calls to the C library, and therefore change,
+despite everything, the semantics of the program. It is therefore
+necessary to take certain precautions before believing that a program
+will behave the same way in these two versions. In this chapter, the
+discussion mainly concern these two implementations, but recall
+that by default, we have taken the viewpoint of a native
+implementation.</p><p>To use emulated threads, one must pass the <code>-vmthread</code> option
+instead of <code>-thread</code> to the <code>ocamlc</code> compiler. This option is
+not accepted by the <code>ocamlopt</code> compiler.</p>
+<h5 class="paragraph" id="sec173">Sequentialization of OCaml code</h5>
+<p>The implementation of threads in OCaml must face one of the
+peculiarities of the OCaml language: the automatic management of
+memory and its high consumption of allocated data. The solution
+adopted, which is the simplest and also generally the most efficient,
+is to sequentialize the execution of OCaml code in all threads: a
+lock in the runtime system prevents two threads from executing
+OCaml code simultaneously. This seems contrary to the whole idea
+of threads, but it is not, since the lock is released before blocking
+system calls and reacquired upon return. Other threads can therefore
+take control at that moment. A special case of such a system call is
+the call to
+<a href="http://www.opengroup.org/onlinepubs/007908799/xsh/sched_yield.html"><span class="c001">sched_yield</span></a>,
+performed at regular intervals to suspend the running thread and give
+control to another.</p><p>On a multiprocessor machine, the only source of true parallelism comes
+from the execution of C code and system calls. On a uniprocessor
+machine, the fact that the OCaml code is sequentialized is not
+really noticeable.</p><p>The programmer cannot rely on this sequentialization, because one
+thread can give control to another at almost any moment. With one
+exception, the sequentialization guarantees memory coherence: two
+threads always have the same view of memory, except perhaps when they
+execute C code. In effect, the passing of the lock implies a
+synchronization of the memory: a read operation by one thread
+occurring after a write operation to the same address by another
+thread will always return the freshly-written value, with no need for
+additional synchronization.</p>
+<h5 class="paragraph" id="sec174">Threads and signals</h5>
+<p>Generally speaking, using signals is already delicate with a single
+thread due to their asynchronous character. It is even more so in the
+presence of multiple threads because of the addition of new
+difficulties: which thread should a signal be sent to? To all, to the
+primary one, or to the one currently running? What happens if one
+thread sends a signal to another? In fact, threads were implemented
+before answering these questions, and different implementations can
+behave differently with respect to signals.</p><p>The <code>Thread.join</code>, <code>Mutex.lock</code>, and <code>Condition.wait</code> functions
+despite being long system calls, are not interruptible by a signal.
+(They cannot therefore fail with the <code>EINTR</code> error.) If a signal
+is sent while waiting, it will be received and handled when the call
+returns.</p><p>The <span class="c005">posix</span> standard specifies that the signal handler is
+shared among all the threads and in contrast the signal mask is
+private to each thread and inherited upon creation of a thread. But
+the behavior of threads with respect to signals remains largely
+underspecified and therefore non-portable.</p><p>It is therefore preferable to avoid as much as possible the use of
+asynchronous signals (such as <code>sigalrm</code>, <code>sigvtalrm</code>,
+<code>sigchld</code>, etc.) with threads. These can be blocked and examined
+with <code>Thread.</code><a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Thread.html#VALwait_signal"><span class="c001">wait_signal</span></a>. 
+We can dedicate a thread to signal
+handling and nothing else: it can wait for the reception of signals,
+undertake the necessary actions, and update certain information
+examined by other threads.</p><p>In addition, OCaml threads (since version 3.08) use the
+<code>sigvtalarm</code> signal internally to implement preemption of threads.
+This signal is therefore reserved and must not be used by the program
+itself, since there is a risk of interference.</p><hr>
+<a href="sockets.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="more.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

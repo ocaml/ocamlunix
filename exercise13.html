@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 13</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec106">Answer of <a href="pipes.html#ex13">exercise 13</a></h5>
+<p>
+<a id="exans13"></a>
+Since the child process is an exact copy of the parent, <span class="c005">i/o</span>
+buffers of the standard library are duplicated when <code>fork</code> is
+executed. If the buffers are not emptied after each write,
+they must be emptied explicitly just before the call to
+<code>fork</code>. All is needed is to add 
+<code>flush Pervasives.stdout</code> after the line <a href="pipes.html#prog%3Apprime">14</a> of the 
+function <code>read_first_prime</code>.
+</p><div class="fancybreak">* * *</div></div></body>
+</html>

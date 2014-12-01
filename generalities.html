@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Generalities</title>
+</head>
+<body>
+<a href="intro.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="files.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec3"> 1  Generalities</h1>
+
+<h2 class="section" id="sec4">1.1  Modules <span class="c001">Sys</span> and <span class="c001">Unix</span></h2>
+<p>Functions that give access to the system from OCaml are grouped into two
+modules. The first module, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html"><span class="c001">Sys</span></a>, contains those functions
+common to Unix and other operating systems under which OCaml runs.
+The second module, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html"><span class="c001">Unix</span></a>, contains everything specific to
+Unix. </p><p>In what follows, we will refer to identifiers from the <code>Sys</code> and
+<code>Unix</code> modules without specifying which modules they come from. That is, we
+will suppose that we are within the scope of the directives 
+<code><span class="c006">open</span> Sys</code> and <code><span class="c006">open</span> Unix</code>. In complete examples, we explicitly write
+<code><span class="c006">open</span></code>, in order to be truly complete.</p><p>The <code>Sys</code> and <code>Unix</code> modules can redefine certain
+identifiers of the <code>Pervasives</code> module, hiding previous
+definitions. For example, <code>Pervasives.stdin</code> is different from 
+<code>Unix.stdin</code>. The previous definitions can always be obtained
+through a prefix.</p><p>To compile an OCaml program that uses the 
+Unix library, do this:
+</p><div class="mylisting">ocamlc -o prog unix.cma mod1.ml mod2.ml mod3.ml</div><p>where the program <code>prog</code> is assumed to comprise of the three modules <code>mod1</code>,
+<code>mod2</code> and <code>mod3</code>. The modules can also be compiled separately:
+</p><div class="mylisting">ocamlc -c mod1.ml
+ocamlc -c mod2.ml
+ocamlc -c mod3.ml</div><p>and linked with:
+</p><div class="mylisting">ocamlc -o prog unix.cma mod1.cmo mod2.cmo mod3.cmo</div><p>In both cases, the argument <code>unix.cma</code> is the <code>Unix</code> library
+written in OCaml. To use the native-code compiler rather than the
+bytecode compiler, replace <code>ocamlc</code> with <code>ocamlopt</code> and
+<code>unix.cma</code> with <code>unix.cmxa</code>.</p><p>If the compilation tool <code>ocamlbuild</code> is used, simply add the
+following line to the 
+<code>_tags</code> file:
+</p><div class="mylisting">&lt;prog.{native,byte}&gt; : use_unix</div><p>The Unix system can also be accessed from the interactive system,
+also known as the “toplevel”. If your platform supports dynamic
+linking of C libraries, start an <code>ocaml</code> toplevel and type in the
+directive:
+</p><div class="mylisting"><span class="c006">#</span>load "unix.cma";;</div><p>Otherwise, you will need to create an interactive system containing
+the pre-loaded system functions:
+</p><div class="mylisting">ocamlmktop -o ocamlunix unix.cma</div><p>This toplevel can be started by:
+</p><div class="mylisting">./ocamlunix</div>
+<h2 class="section" id="sec5">1.2  Interface with the calling program</h2>
+<p>When running a program from a shell (command interpreter), the shell
+passes <em>arguments</em> and an <em>environment</em> to the program. The
+arguments are words on the command line that follow the name of the
+command. The environment is a set of strings of the form
+<span class="c001">variable=value</span>, representing the global bindings of environment
+variables: bindings set with <span class="c001">setenv var=val</span> for the
+<span class="c001">csh</span> shell, or with <span class="c001">var=val; export var</span> for
+the <span class="c001">sh</span> shell.</p><p>The arguments passed to the program are in the string array
+<code>Sys.argv</code>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html#VALargv">argv</a><a id="hevea_default0"></a> : string array</div><p>The environment of the program is obtained by the function
+<code>Unix.environment</code>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALenvironment">environment</a><a id="hevea_default1"></a> : unit -&gt; string array</div><p>A more convenient way of looking up the environment is to use the
+function <code>Sys.getenv</code>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html#VALgetenv">getenv</a><a id="hevea_default2"></a> : string -&gt; string</div><p><code>Sys.getenv v</code> returns the value associated with the variable name
+<code>v</code> in 
+the environment, raising the exception <code>Not_found</code> if this 
+variable is not bound.
+</p><div class="example">
+<h5 class="paragraph" id="sec6">Example</h5>
+<p>
+As a first example, here is the <code>echo</code> program, which prints a
+list of its arguments, as does the Unix command of the same name.
+</p><div class="mylisting"><span class="c006">let</span> echo () =
+  <span class="c006">let</span> len = Array.length Sys.argv <span class="c006">in
+  if</span> len &gt; 1 <span class="c006">then
+    begin</span>
+      print_string Sys.argv.(1);
+      <span class="c006">for</span> i = 2 <span class="c006">to</span> len - 1 <span class="c006">do</span>
+        print_char ' ';
+        print_string Sys.argv.(i);
+      <span class="c006">done</span>;
+      print_newline ();
+    <span class="c006">end</span>;;
+echo ();;</div><div class="fancybreak">* * *</div></div><p>A program can be terminated at any point with a call to <code>exit</code>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALexit">exit</a><a id="hevea_default3"></a> : int -&gt; 'a</div><p>The argument is the return code to send back to the calling program. The
+convention is to return 0 if all has gone well, and to return a
+non-zero code to signal an error. In conditional constructions, the
+<code>sh</code> shell interprets the return code 0 as the boolean
+“true”, and all non-zero codes as the boolean “false”.
+When a program terminates normally after executing all of the
+expressions of which it is composed, it makes an implicit call to
+<code>exit 0</code>. When a program terminates prematurely because an
+exception was raised but not caught, it makes an implicit call to
+<code>exit 2</code>.
+The function <code>exit</code> always flushes the buffers of all channels open for
+writing. The function <code>at_exit</code> lets one register other actions
+to be carried out when the program terminates.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALat_exit">at_exit</a><a id="hevea_default4"></a> : (unit -&gt; unit) -&gt; unit</div><p>The last function to be registered is called first. A function registered with
+<code>at_exit</code> cannot be unregistered. However, this is not a
+real restriction: we can easily get the same effect with a function
+whose execution depends on a global variable.</p>
+<h2 class="section" id="sec7">1.3  Error handling</h2>
+<p>Unless otherwise indicated, all functions in the <code>Unix</code> module
+raise the exception <code>Unix_error</code> in case of error.
+
+</p><div class="mylisting"><span class="c006">exception</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#EXCEPTIONUnix_error">Unix_error</a> <span class="c006">of</span> error * string * string</div><p>The second argument of the <code>Unix_error</code> exception is the name of
+the system call that raised the error. The third argument identifies,
+if possible, the object on which the error occurred; for example, in
+the case of a system call taking a file name as an argument, this file name will be
+in the third position in <code>Unix_error</code>. Finally, the first argument
+of the exception is an error code indicating the nature of the
+error. It belongs to the variant type <code>error</code>:
+</p><div class="mylisting"><span class="c006">type</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEerror">error</a> = E2BIG | EACCES | EAGAIN | ...  | EUNKNOWNERR <span class="c006">of</span> int</div><p>Constructors of this type have the same names and meanings as those
+used in the <span class="c005">posix</span> convention and certain errors from
+<span class="c005">unix98</span> and <span class="c005">bsd</span>. All other errors use the constructor <code>EUNKOWNERR</code>.</p><p>Given the semantics of exceptions, an error that is not specifically
+foreseen and intercepted by a <code><span class="c006">try</span></code> propagates up to the top of a
+program and causes it to terminate prematurely. In small
+applications, treating unforeseen errors as fatal is a good practice.
+However, it is appropriate to display the error clearly. To do this,
+the <code>Unix</code> module supplies the <code>handle_unix_error</code> function:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALhandle_unix_error">handle_unix_error</a><a id="hevea_default5"></a> : ('a -&gt; 'b) -&gt; 'a -&gt; 'b</div><p>The call <code>handle_unix_error f x</code> applies function <code>f</code> to the
+argument <code>x</code>. If this raises the exception <code>Unix_error</code>, a
+message is displayed describing the error, and the program is
+terminated with <code>exit 2</code>. A typical use is
+</p><div class="mylisting">handle_unix_error prog ();;</div><p>where the function <code>prog : unit -&gt; unit</code> executes the body of the
+program. For reference, here is how <code>handle_unix_error</code> is
+implemented.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Unix;;
+<span class="c003">   2</span> <span class="c006">let</span> handle_unix_error f arg =
+<span class="c003">   3</span>   <span class="c006">try</span>
+<span class="c003">   4</span>     f arg
+<span class="c003">   5</span>   <span class="c006">with</span> Unix_error(err, fun_name, arg) -&gt;
+<span class="c003">   6</span>     prerr_string Sys.argv.(0); <a id="prog:argv"></a>
+<span class="c003">   7</span>     prerr_string ": \"";
+<span class="c003">   8</span>     prerr_string fun_name;
+<span class="c003">   9</span>     prerr_string "\" failed";
+<span class="c003">  10</span>     <span class="c006">if</span> String.length arg &gt; 0 <span class="c006">then begin</span>
+<span class="c003">  11</span>       prerr_string " on \"";
+<span class="c003">  12</span>       prerr_string arg;
+<span class="c003">  13</span>       prerr_string "\""
+<span class="c003">  14</span>     <span class="c006">end</span>;
+<span class="c003">  15</span>     prerr_string ": ";
+<span class="c003">  16</span>     prerr_endline (error_message err); <a id="prog:errmsg"></a>
+<span class="c003">  17</span>     exit 2;;</div><p>Functions of the form <code>prerr_xxx</code> are like the functions
+<code>print_xxx</code>, except that they write on the error channel
+<code>stderr</code> rather than on the standard output channel <code>stdout</code>.</p><p>The primitive <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALerror_message"><span class="c001">error_message</span></a><a id="hevea_default6"></a>, of type 
+<code>error -&gt; string</code>, returns a message describing the error given as an
+argument (line <a href="#prog%3Aerrmsg">16</a>). The argument number zero of the
+program, namely <code>Sys.argv.(0)</code>, contains the name of the command
+that was used to invoke the program (line <a href="#prog%3Aargv">6</a>).</p><p>The function <code>handle_unix_error</code> handles fatal errors, i.e. errors
+that stop the program. An advantage of OCaml is that it requires
+all errors to be handled, if only at the highest level by
+halting the program. Indeed, any error in a system call raises an
+exception, and the execution thread in progress is interrupted up to
+the level where the exception is explicitly caught and handled. This avoids
+continuing the program in an inconsistent state.</p><p>Errors of type <code>Unix_error</code> can, of course, be
+selectively matched. We will often see the following
+function later on:
+</p><div class="mylisting"><span class="c006">let rec</span> restart_on_EINTR f x =
+  <span class="c006">try</span> f x <span class="c006">with</span> Unix_error (EINTR, _, _) -&gt; restart_on_EINTR f x</div><p>which is used to execute a function and to restart it automatically
+when it executes a system call that is interrupted (see section <a href="signals.html#sec88">4.5</a>).</p>
+<h2 class="section" id="sec8">1.4  Library functions</h2>
+<p>As we will see throughout the examples, system programming often
+repeats the same patterns. To reduce the code of each application to
+its essentials, we will want to define library functions that
+factor out the common parts.</p><p>Whereas in a complete program one knows precisely which errors can be
+raised (and these are often fatal, resulting in the program being stopped),
+we generally do not know the execution context in the case of library functions. We
+cannot suppose that all errors are fatal. It is therefore necessary to
+let the error return to the caller, which will decide on a suitable
+course of action (e.g. stop the program, or handle or ignore the error). However,
+the library function in general will not allow the error to simply pass
+through, since it must maintain the system in a consistent state. For
+example, a library function that opens a file and then applies an
+operation to its file descriptor must take care to close the
+descriptor in all cases, including those where the processing of the
+file causes an error. This is in order to avoid a file descriptor
+leak, leading to the exhaustion of file descriptors.</p><p>Furthermore, the operation applied to a file may be defined by a
+function that was received as an argument, and we don’t know precisely
+when or how it can fail (but the caller in general will know). We are
+thus often led to protect the body of the processing with
+“finalization” code, which must be executed just before the
+function returns, whether normally or exceptionally.</p><p>There is no built-in finalize construct <code><span class="c006">try</span></code> …<code>finalize</code> in
+the OCaml language, but it can be easily defined<sup><a id="text1" href="#note1">1</a></sup>:
+
+</p><div class="mylisting"><span class="c006">let</span> try_finalize f x finally y =
+  <span class="c006">let</span> res = <span class="c006">try</span> f x <span class="c006">with</span> exn -&gt; finally y; raise exn <span class="c006">in</span>
+  finally y;
+  res</div><p>This function takes the main body <code>f</code> and the finalizer
+<code>finally</code>, each in the form of a function, and two parameters <code>x</code>
+and <code>y</code>, which are passed to their respective functions. The body
+of the program <code>f x</code> is executed first, and its result is kept
+aside to be returned after the execution of the finalizer 
+<code>finally</code>. In case the program fails, i.e. raises an exception <code>exn</code>,
+the finalizer is run and the exception <code>exn</code> is raised
+again. If both the main function and the finalizer fail, the
+finalizer’s exception is raised (one could choose to have the main
+function’s exception raised instead).</p>
+<h5 class="paragraph" id="sec9">Note</h5>
+<p>In the rest of this course, we use an auxiliary library <code>Misc</code>
+which contains several useful functions like <code>try_finalize</code> that are often
+used in the examples. We will introduce them as they are needed. To
+compile the examples of the course, the definitions of the <code>Misc</code>
+module need to be collected and compiled.</p><p>The <code>Misc</code> module also contains certain functions, added for
+illustration purposes, that will not be used in the course. These
+simply enrich the <code>Unix</code> library, sometimes by redefining the
+behavior of certain functions. The <code>Misc</code> module must thus take
+precedence over the <code>Unix</code> module.</p>
+<h5 class="paragraph" id="sec10">Examples</h5>
+<p>The course provides numerous examples. They can be compiled with
+OCaml, version <span class="c001">4.01.0</span>. Some programs will have to be slightly modified in order to work with 
+older versions.</p><p>There are two kinds of examples: “library functions” (very
+general functions that can be reused) and small applications. It is
+important to distinguish between the two. In the case of library functions, we
+want their context of use to be as general as possible. We will thus
+carefully specify their interface and attentively treat all
+particular cases. In the case of small applications, an error is often
+fatal and causes the program to stop executing. It is sufficient to report
+the cause of an error, without needing to return to a consistent state, since
+the program is stopped immediately thereafter.
+
+</p>
+<hr class="footnoterule"><dl class="thefootnotes"><dt class="dt-thefootnotes">
+<a id="note1" href="#text1">1</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">A
+built-in construct would not be less useful.</div>
+</dd></dl>
+<hr>
+<a href="intro.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="files.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

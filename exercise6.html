@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 6</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec53">Answer of <a href="files.html#ex6">exercise 6</a></h5>
+<p>
+<a id="exans6"></a>
+For the files that have already been copied we keep a map from their
+identity <code>(st_dev, st_ino)</code> to their destination file name. Before
+each copy we consult the map to see if a file with the same identity
+was already copied. If that’s the case we do a hard link on the
+destination file name instead of redoing the copy. To minimize the
+size of the map we remember only the files which have more than one
+name, i.e. those for which <code>st_nlink &gt; 1</code>.
+
+</p><div class="mylisting"><span class="c006">let</span> copied_files = (Hashtbl.create 53 : ((int * int), string) Hashtbl.t)
+
+<span class="c006">let rec</span> copy source dest =
+  <span class="c006">let</span> infos = lstat source <span class="c006">in
+  match</span> infos.st_kind <span class="c006">with</span>
+    S_REG -&gt;
+      <span class="c006">if</span> infos.st_nlink &gt; 1 <span class="c006">then begin
+        try
+          let</span> dest' =
+            Hashtbl.find copied_files (infos.st_dev, infos.st_ino)
+          <span class="c006">in</span> link dest' dest
+        <span class="c006">with</span> Not_found -&gt;
+          Hashtbl.add copied_files (infos.st_dev, infos.st_ino) dest;
+          file_copy source dest;
+          set_infos dest infos
+      <span class="c006">end else begin</span>
+        file_copy source dest;
+        set_infos dest infos
+      <span class="c006">end</span></div><div class="mylisting">  | S_LNK -&gt; ...</div><div class="fancybreak">* * *</div></div></body>
+</html>

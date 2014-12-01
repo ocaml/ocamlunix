@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 21</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec166">Answer of <a href="threads.html#ex21">exercise 21</a></h5>
+<p>
+<a id="exans21"></a>
+We must introduce an additional <code>non_full</code> condition.
+We also add a <code>size</code> field to allow queues of different sizes.
+</p><div class="mylisting"><span class="c006">type</span> 'a t =
+    { queue : 'a Queue.t; size : int; lock : Mutex.t;
+      non_empty : Condition.t; non_full : Condition.t; }
+
+<span class="c006">let</span> create k =
+  <span class="c006">if</span>  k &gt; 0 <span class="c006">then</span>
+    { queue = Queue.create (); size = k; lock = Mutex.create ();
+      non_empty = Condition.create (); non_full = Condition.create () }
+  <span class="c006">else</span> failwith "Tqueue.create: empty size";;</div><p>Addition is a combination of the preceding versions of the
+<code>add</code> and <code>take</code> functions above.
+</p><div class="mylisting"><span class="c006">let</span> add x q =
+  Mutex.lock q.lock;
+  <span class="c006">while</span> Queue.length q.queue = q.size
+  <span class="c006">do</span> Condition.wait q.non_full q.lock <span class="c006">done</span>;
+  <span class="c006">if</span> Queue.is_empty q.queue <span class="c006">then</span> Condition.broadcast q.non_empty;
+  Queue.add q x;
+  Mutex.unlock q.lock;;</div><p>Removal is symmetric to addition (and must now signal <code>non_full</code>
+when the queue is full beforehand), and is left to the reader.
+
+We get the behavior of unbounded queues by choosing <code>max_int</code> for
+<code>size</code>.
+</p><div class="fancybreak">* * *</div></div></body>
+</html>

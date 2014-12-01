@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Signals</title>
+</head>
+<body>
+<a href="processes.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="pipes.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec78"> 4  Signals</h1>
+<p>Signals, or software interrupts, are external, asynchronous events
+used to alter the course of a program. These may occur at any
+time during the execution of a program. Because of this,
+they differ from other methods of inter-process communication, where
+two processes must be explicitly directed to wait for external messages;
+for example, by calling <span class="c001">read</span><a id="hevea_default78"></a> on a pipe (see 
+chapter <a href="pipes.html#sec99">5</a>).</p><p>The amount of information transmitted via a signal is minimal, just
+the type of signal, and although they were not originally
+intended for communication between processes, they do make it
+possible to transmit atomic information about the state of an
+external entity (e.g. the state of the system or another process). </p>
+<h2 class="section" id="sec79">4.1  Default behavior</h2>
+<p>When a process receives a signal, there are four possible outcomes:
+</p><ul class="itemize"><li class="li-itemize">
+The signal terminates the process. Additionally, the system may write
+an image of the process state in a core file (a <em>core dump</em>, which
+may be later examined with a debugger).
+</li><li class="li-itemize">The signal suspends process execution, but retains it in memory. The
+parent process (usually the shell) is not terminated, and so may
+choose to continue the process or restart it in the background by
+sending the process additional signals.
+</li><li class="li-itemize">Nothing occurs: the signal is completely ignored.
+</li><li class="li-itemize">The signal triggers the execution of an associated function in the
+receiving process. Normal execution of the process resumes after the
+function returns.
+</li></ul><p>There are several types of signals, each associated with a particular event. 
+Table <a href="#tab%2Fsignals">4</a> lists some of them with their default behaviors.
+</p><div class="table">
+<table class="c000 cellpading0"><tr><td class="c010">Name</td><td class="c010">Event</td><td class="c010">Default Behavior </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><code>sighup</code></td><td class="c010">Hang-up (end of connection)</td><td class="c010">Termination </td></tr>
+<tr><td class="c010"><code>sigint</code></td><td class="c010">Interruption (<code>ctrl-C</code>)</td><td class="c010">Termination </td></tr>
+<tr><td class="c010"><code>sigquit</code></td><td class="c010">Strong interruption (<code>ctrl-\</code>)</td><td class="c010">Term. &amp; core dump </td></tr>
+<tr><td class="c010"><code>sigfpe</code></td><td class="c010">Arithmetic error (division by zero)</td><td class="c010">Term. &amp; core dump </td></tr>
+<tr><td class="c010"><code>sigkill</code></td><td class="c010">Very strong interruption (cannot be ignored)</td><td class="c010">Termination </td></tr>
+<tr><td class="c010"><code>sigsegv</code></td><td class="c010">Memory protection violation</td><td class="c010">Term. &amp; core dump </td></tr>
+<tr><td class="c010"><code>sigpipe</code></td><td class="c010">Writing to a pipe without readers</td><td class="c010">Termination </td></tr>
+<tr><td class="c010"><code>sigalrm</code></td><td class="c010">Timer interrupt</td><td class="c010">Ignored </td></tr>
+<tr><td class="c010"><code>sigtstp</code></td><td class="c010">Temporary halt (<code>ctrl-Z</code>)</td><td class="c010">Suspension </td></tr>
+<tr><td class="c010"><code>sigcont</code></td><td class="c010">Resuming a stopped process</td><td class="c010">Ignored </td></tr>
+<tr><td class="c010"><code>sigchld</code></td><td class="c010">A child process died or was stopped</td><td class="c010">Ignored <br>
+</td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+</table>
+
+<a id="tab/signals"></a>
+<div class="caption">Table 4 — Some signals and their default behaviors</div></div><p>The signals received by a process come from several possible sources:
+</p><ul class="itemize"><li class="li-itemize">The user may send signals via the keyboard. By typing <code>ctrl-C</code>,
+the console operator sends the <code>sigint</code> signal to the processes
+controlled by her terminal (that were not already put in the background).
+In the same way, the <code>sigquit</code> signal is sent by typing <code>ctrl-\</code><sup><a id="text6" href="#note6">1</a></sup>. 
+When the terminal is closed (either through voluntary disconnection or owing to a disconnected network link), the <code>sighup</code> signal is sent.</li><li class="li-itemize">The user may issue the shell command <code>kill</code>. This makes it possible 
+to send a specific signal to a specific process. For example, 
+<code>kill -KILL 194</code> sends the <code>sigkill</code> signal to the process with id 194, which 
+causes the process to be killed.</li><li class="li-itemize">Another program may invoke the system call 
+<code>kill</code> (the preceding example being a specific case).</li><li class="li-itemize">The system, for misbehaving processes. For example, a process 
+attempting to divide by zero will receive a <code>sigfpe</code> signal.</li><li class="li-itemize">The system, to notify a process that its execution environment has 
+been changed. For example, when a child process terminates, its parent 
+will receive a <code>sigchld</code> signal.</li></ul>
+<h2 class="section" id="sec80">4.2  Using signals</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/kill.html"><span class="c001">kill</span></a><a id="hevea_default79"></a> makes it possible to send a
+signal to a process.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALkill">kill</a> : int -&gt; int -&gt; unit</div><p>The first parameter is the process id of the destination process and
+the second the signal number to send. An error occurs if we attempt to
+send a signal to a process not owned by the user. A process may send
+signals to itself. When the <code>kill</code> system call returns, it is
+guaranteed that the signal was delivered to the destination
+process. If a process receives the same signal in rapid succession it
+will execute the code associated with the signal only once. Therefore
+a program cannot count the number of times it receives a signal,
+rather only the number of times it responds to it.</p><p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/alarm.html"><span class="c001">alarm</span></a><a id="hevea_default80"></a> makes it possible to schedule
+interruptions based on the system clock.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALalarm">alarm</a> : int -&gt; int</div><p>The call <code>alarm s</code> returns immediately but causes the <code>sigalrm</code> 
+signal to be sent to the calling process at least <code>s</code> seconds later 
+(note that there is no guarantee on the maximum wait time). The call returns 
+the number of seconds remaining to an alarm scheduled by a previous call.
+If <code>s</code> is <code>0</code>, the effect is simply to cancel an earlier alarm.</p>
+<h2 class="section" id="sec81">4.3  Changing the effect of a signal</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/signal.html"><span class="c001">signal</span></a><a id="hevea_default81"></a> makes it possible to modify the behavior
+of a process when it receives a signal of a certain type.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html#VALsignal">signal</a> : int -&gt; signal_behavior -&gt; signal_behavior</div><p>The first argument is the signal number and the second argument, a
+value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html#TYPEsignal_behavior"><span class="c001">signal_behavior</span></a>, indicates the desired
+behavior for the signal. With:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>Signal_ignore</code></td><td class="c010">The signal is ignored. </td></tr>
+<tr><td class="c010"><code>Signal_default</code></td><td class="c010">The default behavior occurs.</td></tr>
+<tr><td class="c010"><code>Signal_handle f</code></td><td class="c010">The function <code>f</code> is
+invoked each time the signal is received. 
+</td></tr>
+</table>
+</div><p>Forking a process with the system call <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALfork"><span class="c001">fork</span></a><a id="hevea_default82"></a>
+preserves signal behavior: the initial definitions for the child are
+those of the parent at the time when <code>fork</code> was executed. The
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALexecve"><span class="c001">execve</span></a><a id="hevea_default83"></a> system call sets all the behaviors to
+<code>Signal_default</code> except that signals ignored before are still
+ignored afterward.</p><div class="example">
+<h5 class="paragraph" id="sec82">Example</h5>
+<p>
+Occasionally we want to log-off or end a session while allowing 
+background tasks (large calculations, “spyware” programs, etc.) 
+to continue to run. If this is desired, processes which normally
+exit on receiving <code>sighup</code> (sent at the time the user disconnects)
+should be prevented from doing so. The Unix command <code>nohup</code> does
+exactly this:
+</p><div class="mylisting">nohup cmd arg1 ... argn</div><p>executes the command <code>cmd arg1 ... argn</code> in a way unaffected by
+the signal <code>sighup</code> (certain shells execute <code>nohup</code>
+automatically for all processes launched as background tasks). Here’s how
+to implement this in three lines:
+</p><div class="mylisting"><span class="c006">open</span> Sys;;
+signal sighup Signal_ignore;;
+Unix.execvp argv.(1) (Array.sub argv 1 (Array.length argv - 1));;</div><p>The system call <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALexecvp"><span class="c001">execvp</span></a><a id="hevea_default84"></a> preserves the fact that
+<code>sighup</code> is ignored.
+</p><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec83">Example</h5>
+<p> 
+Carefully exiting when a program is misbehaving. For example,
+a program like <code>tar</code> can try to save important information
+in a file or destroy the corrupted file before terminating. For this 
+it is possible to include the following lines at the beginning of the program:
+</p><div class="mylisting">signal sigquit (Signal_handle quit);
+signal sigsegv (Signal_handle quit);
+signal sigfpe  (Signal_handle quit);</div><p>where the function <code>quit</code> is of the form:
+</p><div class="mylisting"><span class="c006">let</span> quit _ =
+  <em>(* Try to save important information in a file *)</em>;
+  exit 100;;</div><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec84">Example</h5>
+<p> 
+Capturing user-initiated interruptions. Some interactive programs
+need to return to a main control loop when a user
+presses <code>ctrl-C</code>. For this we just need to raise an exception when the
+<code>sigint</code> signal is received.
+</p><div class="mylisting"><span class="c006">exception</span> Break;;
+<span class="c006">let</span> break _ = raise Break;;
+...
+<span class="c006">let</span> main_loop () =
+  signal sigint (Signal_handle break);
+  <span class="c006">while true do
+    try</span> <em>(* Read and evaluate user commands  *)</em>
+    <span class="c006">with</span> Break -&gt; <em>(* Display "stopped" *)</em>
+  <span class="c006">done</span>;;</div><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec85">Example</h5>
+<p> 
+<a id="ex/beep"></a>
+To carry out periodic tasks (animations, etc.) interleaved with
+the execution of the main program. For example, here is how
+to create “beep” sounds every 30 seconds, regardless of
+the activity of the main program (calculations or input/output).</p><div class="mylisting"><span class="c006">let</span> beep _ =
+  output_char stdout '\007'; flush stdout;
+  ignore (alarm 30);;
+...
+signal sigalrm (Signal_handle beep); ignore (alarm 30);;</div><div class="fancybreak">* * *</div></div><h3 class="subsection" id="sec86">Checkpoints</h3>
+<p>Signals are useful for asynchronous communication — indeed, it is
+their raison d’être — but this asynchronous nature also makes them
+one of the major difficulties of system programming.</p><p>The signal handling function is executed asynchronously and thus
+pseudo-concurrently with the main program of the process. As signal
+handling functions cannot return a value, they usually modify global
+variables. This can result in race conditions between the signal
+handler and the main program if they try to modify the same variable.
+As explained in the next section one solution is to temporarily block
+signals when this variable is accessed by the main program.</p><p>In fact, OCaml does not treat signals in a strictly asynchronous
+fashion. On receiving a signal, OCaml records the receipt of the
+signal but the signal handling function will only be executed at
+certain <em>checkpoints</em>. These are frequent enough to provide the
+illusion of asynchronous execution. The checkpoints typically occur
+during allocations, loop controls, or interactions with the system
+(particularly system calls). OCaml guarantees that a program that
+does not loop, does not allocate, and does not interact with the
+system will not have its execution interleaved with that of a
+signal handler. In particular, storing an unallocated value (integer,
+boolean, etc. — but not a float!) in a reference cell cannot
+result in the race condition described above.</p>
+<h2 class="section" id="sec87">4.4  How to mask signals</h2>
+<p>Signals may be blocked. Blocked signals are not ignored, but put on 
+standby, generally to be delivered later. The 
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/sigprocmask.html"><span class="c001">sigprocmask</span></a><a id="hevea_default85"></a> system call makes it possible to change the mask
+for incoming signals:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsigprocmask">sigprocmask</a> : sigprocmask_command -&gt; int list -&gt; int list</div><p><code>sigprocmask cmd sigs</code> changes the list of blocked signals and
+returns the list of signals that were blocked before the execution of
+the function. This makes it possible to later reset the mask to its
+previous state. The argument <code>sigs</code> is a list of signals and <code>cmd</code>
+a value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEsigprocmask_command"><span class="c001">sigprocmask_command</span></a> which determines the
+effect of the call:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>SIG_BLOCK</code></td><td class="c010">The signals <code>sigs</code> are added
+to the list of blocked signals. </td></tr>
+<tr><td class="c010"><code>SIG_UNBLOCK</code></td><td class="c010">The signals <code>sigs</code> are removed
+from the set of blocked signals. </td></tr>
+<tr><td class="c010"><code>SIG_SETMASK</code></td><td class="c010">The signals <code>sigs</code> are exactly the 
+signals to be blocked.
+</td></tr>
+</table>
+</div><p>
+A typical usage of <code>sigprocmask</code> is to mask certain
+signals temporarily.
+</p><div class="mylisting"><span class="c006">let</span> old_mask = sigprocmask cmd sigs <span class="c006">in</span>
+<em>(* do something *)</em>
+<span class="c006">let</span> _ = sigprocmask SIG_SETMASK old_mask</div><p>Often, one has to guard against possible errors by using
+the following pattern:
+
+</p><div class="mylisting"><span class="c006">let</span> old_mask = sigprocmask cmd sigs <span class="c006">in
+let</span> treat () = (<em>(* do something *)</em>) <span class="c006">in
+let</span> reset () = ignore (sigprocmask SIG_SETMASK old_mask) <span class="c006">in</span>
+Misc.try_finalize treat () reset ()</div>
+<h2 class="section" id="sec88">4.5  Signals and system calls</h2>
+<p>Certain system calls can be interrupted by unignored signals. These
+system calls are known as <em>slow</em> calls, which can take an
+arbitrary amount of time (for example terminal <span class="c005">i/o</span>,
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALselect"><span class="c001">select</span></a><a id="hevea_default86"></a>, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsystem"><span class="c001">system</span></a><a id="hevea_default87"></a>, etc.). If
+an interruption occurs, the system call is not completed and raises
+the exception <code>EINTR</code>. However file <span class="c005">i/o</span> is not interruptible:
+although these operations can suspend the running process to execute
+another process for disk <span class="c005">i/o</span>, when this occurs the interruption will
+always be brief if the disk functions correctly. In particular, the
+throughput of data depends only on the system, and not another user’s
+process.</p><p>Ignored signals are never delivered and a masked signal is not
+delivered until unmasked. But in all other cases we must protect our
+system calls against unwanted interruptions. A typical example is a
+parent waiting for the termination of a child. In this case, the
+parent executes <span class="c001">waitpid</span><a id="hevea_default88"></a> <code>[] pid</code> where <code>pid</code> is the
+process id of the child. This is a blocking system call, it is thus
+<em>slow</em> and could be interrupted by the arrival of a signal,
+especially since the <code>sigchld</code> signal is sent to the parent when a
+child process dies.</p><p>The module <code>Misc</code> define the function <code>restart_on_EINTR</code> which
+makes it possible to repeat a system call when it is interrupted by a
+signal, i.e. when the <code>EINTR</code> exception is raised.
+
+</p><div class="mylisting"><span class="c006">let rec</span> restart_on_EINTR f x =
+  <span class="c006">try</span> f x <span class="c006">with</span> Unix_error (EINTR, _, _) -&gt; restart_on_EINTR f x</div><p>To wait on a child correctly, call
+<code>restart_on_EINTR (waitpid flags) pid</code>.</p><div class="example">
+<h5 class="paragraph" id="sec89">Example</h5>
+<p><a id="ex/childs"></a>
+Children can also be recovered asynchronously in the signal handler of
+<code>sigchld</code>, especially when their return value does not matter to
+the parent. But when the process receives the <code>sigchld</code> signal, it
+is not possible to know the exact number of terminated processes, since if
+the signal is received several times within a short period of time the
+handler is invoked only once. This leads to the library function
+<code>Misc.free_children</code> function to handle the <code>sigchld</code> signal.
+
+</p><div class="mylisting"><span class="c006">let</span> free_children _ =
+  <span class="c006">try while</span> fst (waitpid [ WNOHANG ] (-1)) &gt; 0 <span class="c006">do</span> () <span class="c006">done
+  with</span> Unix_error (ECHILD, _, _) -&gt; ()</div><p><code>free_children</code> executes <code>waitpid</code> in
+non-blocking mode (option <code>WNOHANG</code>) to recover any dead children
+and repeats until either there are only live children (zero is
+returned instead of a child id) or there are no children (<code>ECHILD</code>
+exception).</p><p>Note that it is not important to guard against the <code>EINTR</code>
+exception because <code>waitpid</code> is non-blocking when called with the
+<code>WNOHANG</code> option.
+</p><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec90">Example</h5>
+<p>
+The function <code>system</code> in the <code>Unix</code> module is simply defined as: 
+</p><div class="mylisting"><span class="c006">let</span> system cmd = <span class="c006">match</span> fork () <span class="c006">with</span>
+  | 0 -&gt; <span class="c006">begin try</span>
+          execv "/bin/sh" [| "/bin/sh"; "-c"; cmd |]
+         <span class="c006">with</span> _ -&gt; exit 127
+         <span class="c006">end</span>
+  | id -&gt; snd (waitpid [] id);;</div><p>The specification of the <code>system</code> function in the C standard
+library states that the parent ignores <code>sigint</code> and
+<code>sigquit</code> signals and masks the <code>sigchld</code> signal during the
+command’s execution. This makes it possible to stop or kill the child
+process without affecting the main program’s execution.</p><p>We prefer to define the function <code>system</code> as a specialization of the
+more general function <code>exec_as_system</code> which does not necessarily 
+go through the shell.
+
+
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">let</span> exec_as_system exec args =
+<span class="c003">   2</span>   <span class="c006">let</span> old_mask = sigprocmask SIG_BLOCK [ sigchld ] <span class="c006">in</span>
+<span class="c003">   3</span>   <span class="c006">let</span> old_int = signal sigint Signal_ignore <span class="c006">in</span>
+<span class="c003">   4</span>   <span class="c006">let</span> old_quit = signal sigquit Signal_ignore <span class="c006">in</span>
+<span class="c003">   5</span>   <span class="c006">let</span> reset () =
+<span class="c003">   6</span>     ignore (signal sigint old_int);
+<span class="c003">   7</span>     ignore (signal sigquit old_quit);
+<span class="c003">   8</span>     ignore (sigprocmask SIG_SETMASK old_mask) <span class="c006">in</span>
+<span class="c003">   9</span>   <span class="c006">let</span> system_call () = <span class="c006">match</span> fork () <span class="c006">with</span>
+<span class="c003">  10</span>     | 0 -&gt;
+<span class="c003">  11</span>         reset (); <a id="prog:sreset"></a>
+<span class="c003">  12</span>         (<span class="c006">try</span> exec args <span class="c006">with</span> _ -&gt; exit 127)
+<span class="c003">  13</span>     | k -&gt;
+<span class="c003">  14</span>         snd (restart_on_EINTR (waitpid []) k) <span class="c006">in</span>
+<span class="c003">  15</span>   try_finalize system_call () reset ();; <a id="prog:stry"></a>
+<span class="c003">  16</span> 
+<span class="c003">  17</span> <span class="c006">let</span> system cmd =
+<span class="c003">  18</span>   exec_as_system (execv "/bin/sh") [| "/bin/sh"; "-c"; cmd |];;</div><p>Note that the signal changes must be made before the call
+to <code>fork</code> is executed because the parent could receive signals
+(e.g. <code>sigchld</code> if the child were to finish immediately) before it
+proceeds. These changes are reset for the child on line <a href="#prog%3Asreset">11</a>
+before executing the command. Indeed, all ignored signals
+are preserved by <code>fork</code> and <code>exec</code> and their behavior is
+preserved by <code>fork</code>. The <code>exec</code> system call uses the
+default behavior of signals except if the calling process ignores a
+signal in which case it also does. </p><p>Finally, the parent must also reset the changes immediately after the
+call, even if an error occurs. This is why
+<code>try_finalize</code> is used on line <a href="#prog%3Astry">15</a>.
+</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec91">4.6  The passage of time</h2>
+<h3 class="subsection" id="sec92">Legacy approach to time</h3>
+<p>Since the earliest versions of Unix, time has been counted in seconds.
+For compatibility reasons, therefore, one can always measure time in seconds.
+The current time is defined as the number of seconds since January 1st, 1970
+at <code>00:00:00</code> <span class="c005">gmt</span>. It is returned by the function:</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtime">time</a><a id="hevea_default89"></a> : unit -&gt; float</div><p>The <a href="http://www.opengroup.org/onlinepubs/009696799/functions/sleep.html"><span class="c001">sleep</span></a><a id="hevea_default90"></a> system call can pause the execution of a program
+for the number of seconds specified in its argument:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsleep">sleep</a> : int -&gt; unit</div><p>However, this function is not primitive. It is programmable with 
+more elementary system calls using the function <code>alarm</code> (see 
+above) and <code>sigsuspend</code>: </p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsigsuspend">sigsuspend</a> : int list -&gt; unit</div><p>The <code>sigsuspend l</code> system call temporarily suspends the signals in the 
+list <code>l</code> and then halts the execution of the program until the reception 
+of a signal which is not ignored or suspended (on return, the 
+signal mask is reset to its old value).</p><div class="example">
+<h5 class="paragraph" id="sec93">Example</h5>
+<p> Now we may program the <code>sleep</code> function:
+
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">let</span> sleep s =
+<span class="c003">   2</span>   <span class="c006">let</span> old_alarm = signal sigalrm (Signal_handle (<span class="c006">fun</span> s -&gt; ())) <span class="c006">in</span> <a id="prog:sold"></a>
+<span class="c003">   3</span>   <span class="c006">let</span> old_mask = sigprocmask SIG_UNBLOCK [ sigalrm ] <span class="c006">in</span>
+<span class="c003">   4</span>   <span class="c006">let</span> _ = alarm s <span class="c006">in</span>
+<span class="c003">   5</span>   <span class="c006">let</span> new_mask = List.filter (<span class="c006">fun</span> x -&gt; x &lt;&gt; sigalrm) old_mask <span class="c006">in</span>
+<span class="c003">   6</span>   sigsuspend new_mask;
+<span class="c003">   7</span>   <span class="c006">let</span> _ = alarm 0 <span class="c006">in</span>
+<span class="c003">   8</span>   ignore (signal sigalrm old_alarm);
+<span class="c003">   9</span>   ignore (sigprocmask SIG_SETMASK old_mask)<a id="prog:ssigproc"></a>;;</div><p>Initially, the behavior of the <code>sigalrm</code> signal does nothing. Note
+that “doing nothing” is the same as ignoring the signal. To
+ensure that the process will be awakened by the reception
+of the signal, the <code>sigalrm</code> signal is put in an unblocked
+state. Then the process is put on standby by suspending all other
+signals which were not already suspended (<code>old_mask</code>). After the alarm
+is signaled, the preceding modifications are erased. (Note that
+line <a href="#prog%3Assigproc">9</a> could be placed immediately after
+line <a href="#prog%3Asold">2</a> because the call to <code>sigsuspend</code> preserves
+the signal mask.)</p><div class="fancybreak">* * *</div></div><h3 class="subsection" id="sec94">Modern times</h3>
+<p>In more modern versions of Unix, time can also be measured in microseconds.
+In OCaml, time measured in microseconds is represented by a float. 
+The <a href="http://www.opengroup.org/onlinepubs/009696799/functions/gettimeofday.html"><span class="c001">gettimeofday</span></a><a id="hevea_default91"></a> function is the equivalent of the <code>time</code> 
+function for modern systems.</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgettimeofday">gettimeofday</a> : unit -&gt; float</div><h3 class="subsection" id="sec95">Timers</h3>
+<p>
+In present-day Unix each process is equipped with three timers, each
+measuring time from a different perspective. The timers are
+identified by a value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEinterval_timer"><span class="c001">interval_timer</span></a> :
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>ITIMER_REAL</code></td><td class="c010">Real time (<code>sigalrm</code>). </td></tr>
+<tr><td class="c010"><code>ITIMER_VIRTUAL</code></td><td class="c010">User time (<code>sigvtalrm</code>). </td></tr>
+<tr><td class="c010"><code>ITIMER_PROF</code></td><td class="c010">User time and system time (<code>sigprof</code>).
+</td></tr>
+</table>
+</div><p>
+The state of a timer is described by the <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEinterval_timer_status"><span class="c001">interval_timer_status</span></a>
+type which is a record with two fields (each a <code>float</code>)
+representing time:
+</p><ul class="itemize"><li class="li-itemize">
+The field <code>it_interval</code> is the period of the timer.
+</li><li class="li-itemize">The field <code>it_value</code> is the current value of the timer; 
+when it turns <code>0</code> the signal <code>sigvtalrm</code> is sent and 
+the timer is reset to the value in <code>it_interval</code>.
+</li></ul><p>
+A timer is therefore inactive when its two fields are <code>0</code>. 
+The timers can be queried or modified with the following functions:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetitimer">getitimer</a><a id="hevea_default92"></a> : interval_timer -&gt; interval_timer_status
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsetitimer">setitimer</a><a id="hevea_default93"></a> :
+    interval_timer -&gt; interval_timer_status -&gt; interval_timer_status</div><p>The value returned by <code>setitimer</code> is the old value of 
+the timer at the time of the modification.</p><div class="exercise">
+<h5 class="paragraph" id="sec96">Exercise 11</h5>
+<p><a id="ex11"></a>
+To manage several timers, write a module with the following interface:
+</p><div class="mylisting"><span class="c006">module type</span> Timer = <span class="c006">sig
+  open</span> Unix
+  <span class="c006">type</span> t
+  <span class="c006">val</span> new_timer : interval_timer -&gt; (unit -&gt; unit) -&gt; t
+  <span class="c006">val</span> get_timer : t -&gt; interval_timer_status
+  <span class="c006">val</span> set_timer : t -&gt; interval_timer_status -&gt; interval_timer_status
+<span class="c006">end</span></div><p>The function <code>new_timer k f</code> should create a new timer of the 
+timer-type <code>k</code> starting the action <code>f</code>, and inactive on creation; 
+the function <code>set_timer t</code> should set the value of the timer <code>t</code> 
+(and return the old value). </p><div class="fancybreak">* * *</div></div><h3 class="subsection" id="sec97">Date calculations</h3>
+<p>Modern versions of Unix also provide functions to handle dates, see
+the structure <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEtm"><span class="c001">tm</span></a> which allows dates and times to be
+expressed according to a calendar (year, month, etc.) and the
+conversion functions: <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgmtime"><span class="c001">gmtime</span></a><a id="hevea_default94"></a>,
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlocaltime"><span class="c001">localtime</span></a><a id="hevea_default95"></a>, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALmktime"><span class="c001">mktime</span></a><a id="hevea_default96"></a>, etc.</p>
+<h2 class="section" id="sec98">4.7  Problems with signals</h2>
+<p>Owing to their asynchronous nature, the use of signals for inter-process communication 
+presents some limitations and difficulties:
+</p><ul class="itemize"><li class="li-itemize">Very little information is transmitted — the signal’s
+type and nothing else.</li><li class="li-itemize">A signal may occur at any point during the execution of the
+program. Therefore, a signal handling function that accesses global
+variables must cooperate with the main program to avoid race
+conditions. </li><li class="li-itemize">The use of signals by the main program entails that long system
+calls made by the program may be interrupted, even if the signals
+keep their default behavior.</li><li class="li-itemize">Library functions must always consider the possibility of
+signal use and guard against system call interruption.</li></ul><p>Signals offer only a limited form of asynchronous communication but
+carry all the difficulties and problems associated with it. If possible,
+it is therefore better not to use them. For example, to wait for a small
+amount of time, <span class="c001">select</span><a id="hevea_default97"></a> can be used instead of alarms. But
+in certain situations signals must be taken into account (for example in
+command line interpreters).</p><p>Signals are possibly the least useful concept in the Unix system. On
+certain older versions of Unix (System V, in particular) the behavior
+of a signal is automatically reset to <code>Signal_default</code> when it is
+received. The signal handling function can of course register itself
+again. For example in the “beep” example on
+page <a href="#ex%2Fbeep">??</a>, it would be necessary to write:
+</p><div class="mylisting"><span class="c006">let rec</span> beep _ =
+  set_signal sigalrm (Signal_handle beep);
+  output_char stdout '\007'; flush stdout;
+  ignore (alarm 30);;</div><p>However the problem is that the signals that are received between the
+instant were the behavior is automatically reset to
+<code>Signal_default</code> and the moment were <code>set_signal</code> is invoked are
+not treated correctly and depending on the type of the signal they may
+be ignored or cause the process to die instead of invoking the signal
+handling function. </p><p>Other flavors of Unix (<span class="c005">bsd</span> or Linux) provide better support:
+the behavior associated with a signal is not altered when it is
+received, and during the handling of a signal other signals of the
+same type are put on hold.</p>
+<hr class="footnoterule"><dl class="thefootnotes"><dt class="dt-thefootnotes">
+<a id="note6" href="#text6">1</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">These 
+are the default keystrokes, but it is possible to change them by 
+modifying the properties of the terminal, see section <a href="files.html#sec48">2.13</a>.</div>
+</dd></dl>
+<hr>
+<a href="processes.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="pipes.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

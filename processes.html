@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Processes</title>
+</head>
+<body>
+<a href="files.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="signals.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec66"> 3  Processes</h1>
+<p>A process is a program executing on the operating system. It
+consists of a program (machine code) and a state of the program
+(current control point, variable values, call stack, open file
+descriptors, etc.).</p><p>This section presents the Unix system calls to create new processes
+and make them run other programs.</p>
+<h2 class="section" id="sec67">3.1  Creation of processes</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/fork.html"><span class="c001">fork</span></a><a id="hevea_default69"></a> creates a process.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALfork">fork</a> : unit -&gt; int</div><p>The new <em>child process</em> is a nearly perfect clone of the
+<em>parent process</em> which called <code>fork</code>. Both processes execute
+the same code, are initially at the same control point (the return
+from <code>fork</code>), attribute the same values to all variables, have
+identical call stacks, and hold open the same file descriptors to
+the same files. The only thing which distinguishes the two processes
+is the return value from <code>fork</code>: zero in the child process,
+and a non-zero integer in the parent. By checking the return value
+from <code>fork</code>, a program can thus determine if it is in the parent
+process or the child and behave accordingly: 
+</p><div class="mylisting"><span class="c006">match</span> fork () <span class="c006">with</span>
+| 0 -&gt;   <em>(* code run only in the child  *)</em>
+| pid -&gt; <em>(* code run only in the parent *)</em></div><p>The non-zero integer returned by <code>fork</code> in the parent process
+is the <em>process id</em> of the child. The process id is used by
+the kernel to uniquely identify each process. A process can obtain
+its process id by calling <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetpid"><span class="c001">getpid</span></a><a id="hevea_default70"></a>.</p><p>The child process is initially in the same state as the parent process
+(same variable values, same open file descriptors). This state is not
+shared between the parent and the child, but merely duplicated at the
+moment of the <code>fork</code>. For example, if one variable is bound to a
+reference before the <code>fork</code>, a copy of that reference and its
+current contents is made at the moment of the <code>fork</code>; after the
+<code>fork</code>, each process independently modifies its “own”
+reference without affecting the other process.</p><p>Similarly, the open file descriptors are copied at the moment of the
+<code>fork</code>: one may be closed and the other kept open. On the other
+hand, the two descriptors designate the same entry in the file table
+(residing in system memory) and share their current position: if one
+reads and then the other, each will read a different part of the file;
+likewise, changes in the read/write position by one process with <code>lseek</code> are
+immediately visible to the other. </p>
+<h2 class="section" id="sec68">3.2  Complete Example: the command <span class="c001">leave</span></h2>
+<p>The command <code>leave hhmm</code> exits immediately, but
+forks a background process which, at the time <code>hhmm</code>, reports that
+it is time to leave.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Unix;;
+<span class="c003">   2</span> 
+<span class="c003">   3</span> <span class="c006">let</span> leave () =
+<span class="c003">   4</span>  <span class="c006">let</span> hh = int_of_string (String.sub Sys.argv.(1) 0 2)
+<span class="c003">   5</span>  <span class="c006">and</span> mm = int_of_string (String.sub Sys.argv.(1) 2 2) <span class="c006">in</span>
+<span class="c003">   6</span>  <span class="c006">let</span> now = localtime(time ()) <span class="c006">in</span>
+<span class="c003">   7</span>  <span class="c006">let</span> delay = (hh - now.tm_hour) * 3600 + (mm - now.tm_min) * 60 <span class="c006">in</span>
+<span class="c003">   8</span> <a id="prog:delay"></a>
+<span class="c003">   9</span>  <span class="c006">if</span> delay &lt;= 0 <span class="c006">then begin</span>
+<span class="c003">  10</span>    print_endline "Hey! That time has already passed!";
+<span class="c003">  11</span>    exit 0
+<span class="c003">  12</span>  <span class="c006">end</span>;
+<span class="c003">  13</span>  <span class="c006">if</span> fork () &lt;&gt; 0 <span class="c006">then</span> exit 0;
+<span class="c003">  14</span>  sleep delay;
+<span class="c003">  15</span>  print_endline "\007\007\007Time to leave!";
+<span class="c003">  16</span>  exit 0;;
+<span class="c003">  17</span> 
+<span class="c003">  18</span> handle_unix_error leave ();;</div><p>The program begins with a rudimentary parsing of the command line,
+in order to extract the time provided. It then calculates the delay
+in seconds (line <a href="#prog%3Adelay">8</a>). The <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALtime"><span class="c001">time</span></a><a id="hevea_default71"></a>
+call returns the current date, in seconds from the epoch (January 1st
+1970, midnight). The function <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlocaltime"><span class="c001">localtime</span></a><a id="hevea_default72"></a> splits
+this duration into years, months, days, hours, minutes and seconds.
+It then creates a new process using <code>fork</code>. The parent process
+(whose return value from <code>fork</code> is a non-zero integer) terminates
+immediately. The shell which launched <code>leave</code> thereby returns
+control to the user. The child process (whose return value from
+<code>fork</code> is zero) continues executing. It does nothing during the
+indicated time (the call to <code>sleep</code>), then displays its message and
+terminates.</p>
+<h2 class="section" id="sec69">3.3  Awaiting the termination of a process</h2>
+<p>The system call <code>wait</code> waits for one of the child processes created
+by <code>fork</code> to terminate and returns information about how it did.
+It provides a parent-child synchronization mechanism and a very
+rudimentary form of communication from the child to the parent.
+<a id="wait"></a>
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALwait">wait</a><a id="hevea_default73"></a> : unit -&gt; int * process_status
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALwaitpid">waitpid</a> : wait_flag list -&gt; int -&gt; int * process_status</div><p>The primitive system call is <a href="http://www.opengroup.org/onlinepubs/009696799/functions/waitpid.html"><span class="c001">waitpid</span></a><a id="hevea_default74"></a> and the function
+<code>wait ()</code> is merely a shortcut for the expression <code>waitpid [] (-1)</code>.
+The behavior of <code>waitpid [] p</code> depends on the value of <code>p</code>:
+</p><ul class="itemize"><li class="li-itemize">
+If <code>p</code> &gt; 0, it awaits the termination of the child with id
+equal to <code>p</code>.
+</li><li class="li-itemize">If <code>p</code> = 0, it awaits any child with the same group id as the
+calling process. 
+</li><li class="li-itemize">If <code>p</code> = −1, it awaits any process.
+</li><li class="li-itemize">If <code>p</code> &lt;−1, it awaits a child process with group id equal
+to <code>-p</code>.
+</li></ul><p>
+The first component of the result is the process id of the child
+caught by <code>wait</code>. The second component of the result is a value of type 
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEprocess_status"><span class="c001">process_status</span></a>:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c013"><code>WEXITED r</code></td><td class="c012">The child process terminated normally via
+<code>exit</code> or by reaching the end of the program; <code>r</code> is the return
+code (the argument passed to <code>exit</code>).</td></tr>
+<tr><td class="c013"><code>WSIGNALED s</code></td><td class="c012">The child process was killed by a signal
+(ctrl-C, <code>kill</code>, etc., see chapter <a href="signals.html#sec78">4</a>
+for more information about signals); <code>s</code> identifies the signal.</td></tr>
+<tr><td class="c013"><code>WSTOPPED s</code></td><td class="c012">The child process was halted by the signal
+<code>s</code>; this occurs only in very special cases where a process
+(typically a debugger) is currently monitoring the execution of
+another (by calling <code>ptrace</code>).
+</td></tr>
+</table>
+</div><p>
+If one of the child processes has already terminated by the time the
+parent calls <code>wait</code>, the call returns immediately. Otherwise, the
+parent process blocks until some child process terminates (a behavior
+called “rendezvous”). To wait for <span class="c004">n</span> child processes, one must
+call <code>wait</code> <span class="c004">n</span> times.</p><p>The command <code>waitpid</code> accepts two optional flags for its first
+argument: the flag <code>WNOHANG</code> indicates not to wait if there is
+a child that responds to the request but has not yet terminated.
+In that case, the first result is <code>0</code> and the second undefined.
+The flag <code>WUNTRACED</code> returns the child processes that have been
+halted by the signal <code>sigstop</code>. The command raises the exception
+<code>ECHILD</code> if no child processes match <code>p</code> (in particular, if
+<code>p</code> is <code>-1</code> and the current process has no more children).</p><div class="example">
+<h5 class="paragraph" id="sec70">Example</h5>
+<p>
+<a id="ex/forksearch"></a>
+The function <code>fork_search</code> below performs a linear search in an 
+array with two processes. It relies on the function <code>simple_search</code>
+to perform the linear search.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Unix;;
+<span class="c003">   2</span> <span class="c006">exception</span> Found;;
+<span class="c003">   3</span> 
+<span class="c003">   4</span> <span class="c006">let</span> simple_search cond v =
+<span class="c003">   5</span>  <span class="c006">try</span>
+<span class="c003">   6</span>    <span class="c006">for</span> i = 0 <span class="c006">to</span> Array.length v - 1 <span class="c006">do</span>
+<span class="c003">   7</span>      <span class="c006">if</span> cond v.(i) <span class="c006">then</span> raise Found
+<span class="c003">   8</span>    <span class="c006">done</span>;
+<span class="c003">   9</span>    <span class="c006">false</span>
+<span class="c003">  10</span>  <span class="c006">with</span> Found -&gt; <span class="c006">true</span>;;
+<span class="c003">  11</span> 
+<span class="c003">  12</span> <span class="c006">let</span> fork_search cond v =
+<span class="c003">  13</span>  <span class="c006">let</span> n = Array.length v <span class="c006">in</span>
+<span class="c003">  14</span>  <span class="c006">match</span> fork () <span class="c006">with</span>
+<span class="c003">  15</span>  | 0 -&gt;
+<span class="c003">  16</span>      <span class="c006">let</span> found = simple_search cond (Array.sub v (n/2) (n-n/2)) <span class="c006">in</span> <a id="prog:found"></a>
+<span class="c003">  17</span>      exit (<span class="c006">if</span> found <span class="c006">then</span> 0 <span class="c006">else</span> 1) <a id="prog:searchexit"></a>
+<span class="c003">  18</span>  | _ -&gt;
+<span class="c003">  19</span>      <span class="c006">let</span> found = simple_search cond (Array.sub v 0 (n/2)) <span class="c006">in</span>
+<span class="c003">  20</span>      <span class="c006">match</span> wait () <span class="c006">with</span>
+<span class="c003">  21</span>      | (pid, WEXITED retcode) -&gt; found || (retcode = 0) <a id="prog:wexit"></a>
+<span class="c003">  22</span>      | (pid, _)               -&gt; failwith "fork_search";;<a id="prog:wwexit"></a></div><p>After the <code>fork</code>, the child process traverses the upper half of
+the table, and exits with the return code 1 if it found an element
+satisfying the predicate <code>cond</code>, or 0 otherwise
+(lines <a href="#prog%3Afound">16</a> and <a href="#prog%3Asearchexit">17</a>). The parent process
+traverses the lower half of the table, then calls <code>wait</code> to
+sync with the child process (lines <a href="#prog%3Awexit">21</a>
+and <a href="#prog%3Awwexit">22</a>). If the child terminated normally, it combines
+its return code with the boolean result of the search in the lower
+half of the table. Otherwise, something horrible happened, and the
+function <code>fork_search</code> fails.
+</p><div class="fancybreak">* * *</div></div><p>In addition to the synchronization between processes, the <code>wait</code>
+call also ensures recovery of all resources used by the child
+processes. When a process terminates, it moves into a “zombie”
+state, where most, but not all, of its resources (memory, etc.) have
+been freed. It continues to occupy a slot in the process table to
+transmit its return value to the parent via the <code>wait</code> call.
+Once the parent calls <code>wait</code>, the zombie process is removed from
+the process table. Since this table is of fixed size, it is important
+to call <code>wait</code> on each forked process to avoid leaks.</p><p><a id="double-fork"></a>
+If the parent process terminates before the child, the child is
+given the process number 1 (usually <code>init</code>) as parent. This
+process contains an infinite loop of <code>wait</code> calls, and will
+therefore make the child process disappear once it finishes. This
+leads to the useful “double fork” technique if you cannot
+easily call <code>wait</code> on each process you create (because you cannot
+afford to block on termination of the child process,
+for example).
+</p><div class="mylisting"><span class="c006">match</span> fork () <span class="c006">with</span>
+| 0 -&gt; <span class="c006">if</span> fork () &lt;&gt; 0 <span class="c006">then</span> exit 0;
+      <em>(* do whatever the child should do *)</em>
+| _ -&gt; wait ();
+      <em>(* do whatever the parent should do *)</em></div><p>The child terminates via <code>exit</code> just after the second <code>fork</code>.
+The grandson becomes an orphan, and is adopted by <code>init</code>. In this
+way, it leaves no zombie processes. The parent immediately calls
+<code>wait</code> to reap the child. This <code>wait</code> will not block for long
+since the child terminates very quickly.</p><p><br>
+</p>
+<h2 class="section" id="sec71">3.4  Launching a program</h2>
+<p>The system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/execve.html"><span class="c001">execve</span></a><a id="hevea_default75"></a>, <a href="http://www.opengroup.org/onlinepubs/009696799/functions/execv.html"><span class="c001">execv</span></a><a id="hevea_default76"></a>, and
+<a href="http://www.opengroup.org/onlinepubs/009696799/functions/execvp.html"><span class="c001">execvp</span></a><a id="hevea_default77"></a> launch a program within the current process.
+Except in case of error, these calls never return: they halt the progress
+of the current program and switch to the new program.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALexecve">execve</a> : string -&gt; string array -&gt; string array -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALexecv">execv</a>  : string -&gt; string array -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALexecvp">execvp</a> : string -&gt; string array -&gt; unit</div><p>The first argument is the name of the file containing the program to
+execute. In the case of <code>execvp</code>, this name is looked for in the
+directories of the search path (specified in the environment variable
+<code>PATH</code>).</p><p>The second argument is the array of command line arguments with which
+to execute the program; this array will be the <code>Sys.argv</code> array 
+of the executed program.</p><p>In the case of <code>execve</code>, the third argument is the environment
+given to the executed program; <code>execv</code> and <code>execvp</code>
+give the current environment unchanged.</p><p>The calls <code>execve</code>, <code>execv</code>, and <code>execvp</code> never return a
+result: either everything works without errors and the process starts
+the requested program or an error occurs (file not found, etc.), and
+the call raises the exception <code>Unix_error</code> in the calling program.</p><div class="example">
+<h5 class="paragraph" id="sec72">Example</h5>
+<p>
+The following three forms are equivalent:
+</p><div class="mylisting">execve "/bin/ls" [|"ls"; "-l"; "/tmp"|] (environment ())
+execv  "/bin/ls" [|"ls"; "-l"; "/tmp"|]
+execvp "ls"      [|"ls"; "-l"; "/tmp"|]</div><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec73">Example</h5>
+<p>
+Here is a “wrapper” around the command <code>grep</code> which
+adds the option <code>-i</code> (to ignore case) to the list of arguments:
+</p><div class="mylisting"><span class="c006">open</span> Sys;;
+<span class="c006">open</span> Unix;;
+<span class="c006">let</span> grep () =
+ execvp "grep"
+   (Array.concat
+      [ [|"grep"; "-i"|];
+        (Array.sub Sys.argv 1 (Array.length Sys.argv - 1)) ])
+;;
+handle_unix_error grep ();;</div><div class="fancybreak">* * *</div></div><div class="example">
+<h5 class="paragraph" id="sec74">Example</h5>
+<p>
+Here’s a “wrapper” around the command <code>emacs</code> which
+changes the terminal type:
+</p><div class="mylisting"><span class="c006">open</span> Sys;;
+<span class="c006">open</span> Unix;;
+<span class="c006">let</span> emacs () =
+ execve "/usr/bin/emacs" Sys.argv
+   (Array.concat [ [|"TERM=hacked-xterm"|]; (environment ()) ]);;
+handle_unix_error emacs ();;</div><div class="fancybreak">* * *</div></div><p>The process which calls <code>exec</code> is the same one that executes the
+new program. As a result, the new program inherits some features of
+the execution environment of the program which called <code>exec</code>:
+</p><ul class="itemize"><li class="li-itemize">
+the same process id and parent process
+</li><li class="li-itemize">same standard input, standard output and standard error
+</li><li class="li-itemize">same ignored signals (see chapter <a href="signals.html#sec78">4</a>)
+</li></ul>
+<h2 class="section" id="sec75">3.5  Complete example: a mini-shell</h2>
+<p>The following program is a simplified command interpreter: it reads
+lines from standard input, breaks them into words, launches the
+corresponding command, and repeats until the end of file on the
+standard input. We begin with the function which splits a string into
+a list of words. Please, no comments on this horror.</p><div class="mylisting"><span class="c006">open</span> Unix;;
+<span class="c006">open</span> Printf;;
+
+<span class="c006">let</span> split_words s =
+ <span class="c006">let rec</span> skip_blanks i =
+   <span class="c006">if</span> i &lt; String.length s &amp; s.[i] = ' '
+   <span class="c006">then</span> skip_blanks (i+1)
+   <span class="c006">else</span> i <span class="c006">in
+ let rec</span> split start i =
+   <span class="c006">if</span> i &gt;= String.length s <span class="c006">then</span>
+     [String.sub s start (i-start)]
+   <span class="c006">else if</span> s.[i] = ' ' <span class="c006">then
+     let</span> j = skip_blanks i <span class="c006">in</span>
+     String.sub s start (i-start) :: split j j
+   <span class="c006">else</span>
+     split start (i+1) <span class="c006">in</span>
+ Array.of_list (split 0 0);;</div><p>We now move on to the main loop of the interpreter.
+</p><div class="mylisting"><span class="c006">let</span> exec_command cmd =
+ <span class="c006">try</span> execvp cmd.(0) cmd
+ <span class="c006">with</span> Unix_error(err, _, _) -&gt;
+   printf "Cannot execute %s : %s\n%!"
+     cmd.(0) (error_message err);
+   exit 255
+
+<span class="c006">let</span> print_status program status =
+ <span class="c006">match</span> status <span class="c006">with</span>
+ | WEXITED 255 -&gt; ()
+ | WEXITED status -&gt;
+     printf "%s exited with code %d\n%!" program status;
+ | WSIGNALED signal -&gt;
+     printf "%s killed by signal %d\n%!" program signal;
+ | WSTOPPED signal -&gt;
+     printf "%s stopped (???)\n%!" program;;</div><p>The function <code>exec_command</code> executes a command and handles errors.
+The return code 255 indicates that the command could not be executed.
+(This is not a standard convention; we just hope that few commands
+terminate with a return code of 255.) The function
+<code>print_status</code> decodes and prints the status information returned
+by a process, ignoring the return code of 255.
+</p><div class="mylisting"><span class="c006">let</span> minishell () =
+ <span class="c006">try
+   while true do
+     let</span> cmd = input_line Pervasives.stdin <span class="c006">in
+     let</span> words = split_words cmd <span class="c006">in
+     match</span> fork () <span class="c006">with</span>
+     | 0 -&gt; exec_command words
+     | pid_son -&gt;
+         <span class="c006">let</span> pid, status = wait () <span class="c006">in</span>
+         print_status "Program" status
+   <span class="c006">done
+ with</span> End_of_file -&gt; ()
+;;
+
+handle_unix_error minishell ();;</div><p>Each time through the loop, we read a line from <code>stdin</code> with the
+function <code>input_line</code>. This function raises the <code>End_of_file</code>
+exception when the end of file is reached, causing the loop to
+exit. We split the line into words, and then call <code>fork</code>. The
+child process uses <code>exec_command</code> to execute the command. The
+parent process calls <code>wait</code> to wait for the command to finish and
+prints the status information returned by <code>wait</code>.</p><div class="exercise">
+<h5 class="paragraph" id="sec76">Exercise 10</h5>
+<p><a id="ex10"></a>
+<a id="shell"></a>
+Add the ability to execute commands in the background if they are
+followed by <code>&amp;</code>.
+<a href="exercise10.html#exans10">Answer</a>.</p><div class="fancybreak">* * *</div></div>
+<hr>
+<a href="files.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="signals.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

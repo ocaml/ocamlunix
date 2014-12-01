@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 1</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec22">Answer of <a href="files.html#ex1">exercise 1</a></h5>
+<p>
+<a id="exans1"></a>
+
+</p><div class="mylisting"><span class="c006">let</span> main () =
+  <span class="c006">let</span> action p infos =
+    <span class="c006">let</span> b = not (infos.st_kind = S_DIR || Filename.basename p = "CVS") <span class="c006">in
+    if</span> b <span class="c006">then</span> print_endline p; b <span class="c006">in
+  let</span> errors = <span class="c006">ref false in
+  let</span> error (e,c,b) =
+    errors:= <span class="c006">true</span>; prerr_endline (b ^ ": " ^ error_message e) <span class="c006">in</span>
+  Findlib.find error action <span class="c006">false</span> max_int [ "." ];;
+handle_unix_error main ()</div><div class="fancybreak">* * *</div></div></body>
+</html>

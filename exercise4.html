@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 4</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec39">Answer of <a href="files.html#ex4">exercise 4</a></h5>
+<p>
+<a id="exans4"></a>
+The idea is to copy the string to output into the buffer. We need to
+take into account the case where there is not enough space in the
+buffer (in that case the buffer needs to emptied), and also the case
+where the string is longer than the buffer (in that case it can 
+be written directly). Here is a possible solution.
+
+</p><div class="mylisting"><span class="c006">let</span> output_string chan s =
+  <span class="c006">let</span> avail = String.length chan.out_buffer - chan.out_pos <span class="c006">in
+  if</span> String.length s &lt;= avail <span class="c006">then begin</span>
+    String.blit s 0 chan.out_buffer chan.out_pos (String.length s);
+    chan.out_pos &lt;- chan.out_pos + String.length s
+  <span class="c006">end
+  else if</span> chan.out_pos = 0 <span class="c006">then begin</span>
+    ignore (write chan.out_fd s 0 (String.length s))
+  <span class="c006">end
+  else begin</span>
+    String.blit s 0 chan.out_buffer chan.out_pos avail;
+    <span class="c006">let</span> out_buffer_size = String.length chan.out_buffer <span class="c006">in</span>
+    ignore (write chan.out_fd chan.out_buffer 0 out_buffer_size);
+    <span class="c006">let</span> remaining = String.length s - avail <span class="c006">in
+    if</span> remaining &lt; out_buffer_size <span class="c006">then begin</span>
+      String.blit s avail chan.out_buffer 0 remaining;
+      chan.out_pos &lt;- remaining
+    <span class="c006">end else begin</span>
+      ignore (write chan.out_fd s avail remaining);
+      chan.out_pos &lt;- 0
+    <span class="c006">end
+  end</span>;;</div><div class="fancybreak">* * *</div></div></body>
+</html>

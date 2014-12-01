@@ -1,0 +1,121 @@
+.c000{border-spacing:6px;border-collapse:separate;}
+.c001{font-family:monospace}
+.c002{font-size:small}
+.c003{font-size:xx-small}
+.c004{font-style:italic}
+.c005{font-variant:small-caps}
+.c006{font-weight:bold}
+.c007{font-weight:bold;font-size:small}
+.c008{text-align:center;border:solid 1px;white-space:nowrap}
+.c009{text-align:center;white-space:nowrap}
+.c010{text-align:left;white-space:nowrap}
+.c011{text-align:right;white-space:nowrap}
+.c012{vertical-align:top;text-align:left;}
+.c013{vertical-align:top;text-align:left;white-space:nowrap}
+.li-itemize{margin:1ex 0ex;}
+.li-enumerate{margin:1ex 0ex;}
+.toc{list-style:none;}
+.footnotetext{margin:0ex; padding:0ex;}
+div.footnotetext P{margin:0px; text-indent:1em;}
+.thefootnotes{text-align:left;margin:0ex;}
+.dt-thefootnotes{margin:0em;}
+.dd-thefootnotes{margin:0em 0em 0em 2em;}
+.footnoterule{margin:1em auto 1em 0px;width:50%;}
+.caption{padding-left:2ex; padding-right:2ex; margin-left:auto; margin-right:auto}
+.title{margin:2ex auto;text-align:center}
+.titlemain{margin:1ex 2ex 2ex 1ex;}
+.titlerest{margin:0ex 2ex;}
+.center{text-align:center;margin-left:auto;margin-right:auto;}
+.flushleft{text-align:left;margin-left:0ex;margin-right:auto;}
+div table{margin-left:inherit;margin-right:inherit;margin-bottom:2px;margin-top:2px}
+td table{margin:auto;}
+table{border-collapse:collapse;}
+td{padding:0;}
+.cellpadding1 tr td{padding:1px;}
+pre{text-align:left;margin-left:0ex;margin-right:auto;}
+blockquote{margin-left:4ex;margin-right:4ex;text-align:left;}
+td p{margin:0px;}
+.hbar{border:none;height:2px;width:100%;background-color:black;}
+*{padding: 0em; border: 0em; margin: 0em;
+font-family: georgia, serif; font-weight: normal;
+font-size: 100%;}
+BODY{margin: 2em 10% 2em 10%;
+font-size: 10pt; line-height: 140%; text-align: justify;
+background: white; color: black;
+max-width: 75ex; min-width: 40ex;}
+TT{font-family:monospace;}
+TT A{font-family:monospace;}
+B{font-weight: bold }
+A{color: blue; text-decoration : none }
+.titlerest SUP{font-size: 70%; padding-right:0.5ex }
+.title{margin:0em; border: 0em; padding: 0em; border-spacing:0px;}
+.title *{margin-left:0em; padding-left: 0em; border-style:none}
+.titlemain{font-size: 180%;}
+.titlerest{text-align: left; margin-top: 1em}
+.copyrightnotice{margin-top: 2em; 
+			 margin-bottom: 1em;
+font-size: 80%;
+text-align: left}
+.ccimage{vertical-align: text-top;}
+.abstract{margin-top: 1em }
+UL{padding-top: 1ex; }
+LI{padding-top: 1ex; }
+.chapter{margin-top:2ex; font-size: 180%; 
+		 text-align:left; line-height:130%; }
+.chapter A{color: black }
+.section{font-size: 140%; margin-top: 1.5em; text-align:left}
+.section A{color: black }
+.subsection{font-weight: bold; margin-top: 1em; text-align:left}
+.paragraph{font-weight: bold; display:inline-block; 
+		 padding-top: 1em; padding-right: 1em}
+P{padding-top : 1em }
+.paragraph + P{padding-top : 0em; display: inline; }
+.li-toc A{color: black }
+.li-toc A:hover{color: blue }
+.toc .li-toc{padding-top: 1.5em}
+.toc .li-toc A{font-weight: bold }
+.toc .li-toc .toc .li-toc{padding-top: 0.5ex }
+.toc .li-toc .toc .li-toc A {margin-left:1.5em; 
+	 font-weight: normal }
+HR.footnoterule{border-width: 0pt }
+HR{margin: 1em 0em 1em 0em; 
+	 border-width: thin; 
+		border-bottom-style: solid;}
+.li-indexenv{list-style-type : none}
+.li-indexenv B A{font-weight : bold}
+DIV.fancybreak{text-align:center; padding-top:1em }
+CODE{font-family:monospace; white-space:pre;}
+DIV.mylisting{padding-top : 1em; font-family:monospace;
+		 white-space:pre; margin-right:auto;
+		 margin-left:0ex; text-align:left;}
+.mylisting b{font-family:monospace; font-weight : bold }
+.mylisting FONT{font-family:monospace; 
+		 font-size: 70% !important;
+		 margin-left: -3.1em }
+.mylisting A{font-family:monospace; color : #0000A0 }
+.mltypecases TD:first-child{padding-left:0em }
+.mltypecases TABLE{border-spacing:0px 6px !important; 
+		 margin-top: 0em; }
+DIV.figure{margin-top:1em;
+padding-bottom:1em;
+	 border-width: thin; 
+		 border-bottom-style: solid;
+border-top-style: solid;
+text-align: center; }
+DIV.table{text-align: center; margin-top: 1em; margin-bottom: 1em}
+TABLE{empty-cells:show }
+TR{margin-top: 4ex }
+TD{padding-left: 2ex; padding-top:1ex }
+.hbar{background-color:white;
+border-width:thin; 
+		 border-top-style: solid; 
+		 padding-top: 0em;
+		 height:0px;}
+.caption{margin-top: 1.5em; }
+.image{display: block; text-align: center; margin-top:1em; }
+.thebibliography DL{margin-top : 1em;}
+.thebibliography DT{margin-top : 1em;}
+.thebibliography DD{display : inline; }
+.thebibliography FONT{color: black; }
+.thebibliography B{font-weight : bold}
+.bibsection{font-weight : bold}

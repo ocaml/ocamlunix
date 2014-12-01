@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Going further</title>
+</head>
+<body>
+<a href="threads.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="references.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec175"><a id="htocmore">G</a>oing further</h1>
+<p>We have shown how OCaml’s <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Sys.html"><span class="c001">Sys</span></a>, <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html"><span class="c001">Unix</span></a>, and
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Threads.html"><span class="c001">Threads</span></a> modules can be used to program applications that
+interact with the operating system.</p><p>These modules allow the invocation of the most important Unix system calls
+directly from OCaml. Some of these calls were replaced by higher-level
+functions, either to facilitate programming or to maintain invariants
+needed by OCaml’s runtime system. In any case, this higher-level
+access to the Unix system streamlines the development of applications.</p><p>Not every feature of the Unix system is available through these
+modules, however it is still possible to access the missing ones by
+writing C bindings.</p><p>Another useful library is Cash [<a href="references.html#Cash">3</a>] which focuses on writing
+scripts directly in OCaml. This library completes the <code>Unix</code>
+module in two different ways. First, in addition to a few helper
+functions to write scripts, it provides, on top of the <code>Unix</code>
+module, a few system call variations to assist the programmer in
+process and pipe management. Second, it offers additional entry points
+to the Unix system.
+</p><hr>
+<a href="threads.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="references.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

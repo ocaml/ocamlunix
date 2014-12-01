@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 9</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec65">Answer of <a href="files.html#ex9">exercise 9</a></h5>
+<p>
+<a id="exans9"></a>
+We reuse the data structures already defined above and collect them in
+a <code>Tarlib</code> module. We define a warning function which does not stop
+the program or alter the return code of the program.
+</p><div class="mylisting"><span class="c006">open</span> Sys
+<span class="c006">open</span> Unix
+<span class="c006">open</span> Tarlib
+
+<span class="c006">let</span> warning path message =  prerr_endline (path ^ ": " ^ message)</div><p>We start with the function that writes a record header in a
+buffer. It’s a tedious function but it must be done with care as a
+single error in a header can corrupt the entire archive. In particular
+we must pay attention to the limits imposed by the file format. For
+example the size of paths is limited to 99 bytes (There are extensions
+to the format to handle longer path but it’s not the goal of this
+project). 
+</p><div class="mylisting"><span class="c006">let</span> write_header_to_buffer source infos kind =
+  <span class="c006">let</span> size = <span class="c006">if</span> kind = REG <span class="c006">then</span> infos.st_size <span class="c006">else</span> 0 <span class="c006">in</span>
+  String.fill buffer 0 block_size '\000';
+  <span class="c006">let</span> put len string offset =
+    String.blit string 0 buffer offset (min (String.length string) len) <span class="c006">in
+  let</span> put_int8 x = put 7 (Printf.sprintf "%07o" x) <span class="c006">in
+  let</span> put_int12 x = put 11 (Printf.sprintf "%011o" x) <span class="c006">in
+  let</span> put_char c offset = buffer.[offset] &lt;- c <span class="c006">in
+  let</span> put_path s offset =
+    <span class="c006">if</span> String.length s &lt;= 99 <span class="c006">then</span> put 99 s offset
+    <span class="c006">else</span> raise (Error ("path too long", s)) <span class="c006">in</span>
+  put_path (<span class="c006">if</span> kind = DIR <span class="c006">then</span> source ^ "/" <span class="c006">else</span> source) 0;
+  put_int8 infos.st_perm 100;
+  put_int8 infos.st_uid 108;
+  put_int8 infos.st_gid 116;
+  put_int12 size 124;
+  put_int12 (int_of_float infos.st_mtime) 136;
+  put 7 "ustar  " 257;
+  put 31 (getpwuid infos.st_uid).pw_name 265;
+  put 31 (getgrgid infos.st_gid).gr_name 297;
+  <em>(* Fields dev and rdev are only used for special files, which we omit *)</em>
+  put_char
+    <span class="c006">begin match</span> kind <span class="c006">with</span>
+    | REG -&gt; '0'
+    | LINK s -&gt; put_path s 157; '1'
+    | LNK s -&gt;  put_path s 157; '2'
+    | DIR -&gt; '5'
+    | _ -&gt; failwith "Special files not implemented"
+    <span class="c006">end</span> 156;
+  <span class="c006">let rec</span> sum s i =
+    <span class="c006">if</span> i &lt; 0 <span class="c006">then</span> s <span class="c006">else</span> sum (s + Char.code buffer.[i]) (pred i) <span class="c006">in
+  let</span> checksum = sum (Char.code ' ' * 8) (block_size - 1)  <span class="c006">in</span>
+  put 8 (Printf.sprintf "%06o\000 " checksum) 148;;</div><p>The following function creates a record header for a file. <code>source</code> is
+the file name, <code>infos</code> is the <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEstats"><span class="c001">stats</span></a> information of
+the file and <code>kind</code> is the type of file. 
+</p><div class="mylisting"><span class="c006">let</span> header source infos kind = {
+  name = source;
+  size = <span class="c006">if</span> kind = REG <span class="c006">then</span> infos.st_size <span class="c006">else</span> 0;
+  perm = infos.st_perm;
+  mtime = int_of_float infos.st_mtime;
+  uid = infos.st_uid;
+  gid = infos.st_gid;
+  user = (getpwuid infos.st_uid).pw_name;
+  group = (getgrgid infos.st_gid).gr_name;
+  kind = kind }</div><p>To write a file in the archive, we define a variant of <code>file_copy</code>
+which takes as an argument the number of bytes to copy and verifies
+that the end of file corresponds to that size. Otherwise, an error is
+raised: this handles the abnormal case where a file is modified during
+the archival process. To limit the archive’s corruption to a single
+file we do not write beyond that size. 
+</p><div class="mylisting"><span class="c006">let</span> write_file len source fdout =
+  <span class="c006">let</span> fdin = openfile source [O_RDONLY] 0 <span class="c006">in
+  let</span> error () = raise (Error ("File changed size", source)) <span class="c006">in
+  let rec</span> copy_loop len =
+    <span class="c006">match</span> read fdin buffer 0 buffer_size <span class="c006">with</span>
+      0 -&gt;
+        close fdin; <span class="c006">if</span> len &gt; 0 <span class="c006">then</span> error ()
+    | r -&gt;
+        <span class="c006">let</span> len = len - r  <span class="c006">in
+        if</span> len &lt; 0 <span class="c006">then</span> (close fdin; error ());
+        ignore (write fdout buffer 0 r); copy_loop len <span class="c006">in</span>
+  copy_loop len;;
+
+<span class="c006">let</span> padding fd len =
+  <span class="c006">if</span> len &gt; 0 <span class="c006">then</span> ignore (write fd (String.make len '\000') 0 len);;</div><p>We now tackle the creation of the archive. The files already written
+in the archive are stored in a hashtable with their path so that they
+are not copied more than once. We also store the directories that were
+already written so as not to copy them again: it can happen that the
+archival root is already contained in another and we don’t want to
+copy it again (even though that would be harmless). </p><p>The data needed to write an archive is a file descriptor pointing on
+the file to write, the file and directory cache (see above) and a size
+variable that remembers the current archive size (to pad it to a
+minimal size if needed). The <code>archive</code> type collects all this
+information in a record:
+</p><div class="mylisting"><span class="c006">type</span> archive =
+    { regfiles : (int * int, string) Hashtbl.t;
+      dirfiles : (int * int, bool) Hashtbl.t;
+      fd : file_descr; st : stats; <span class="c006">mutable</span> size : int }
+
+<span class="c006">let</span> try_new_dir archive dir =
+  <span class="c006">try</span> Hashtbl.find archive.dirfiles dir
+  <span class="c006">with</span> Not_found -&gt; Hashtbl.add archive.dirfiles dir <span class="c006">false</span>; <span class="c006">true</span></div><p>Here is the main function that writes an entire hierarchy starting
+from a <code>file</code> path given on the command line. This function is not
+difficult but needs some care with pathological cases. In particular
+we saw how to detect when a file is modified the archival. A sub case
+of this when the archive is being archived itself…</p><div class="mylisting"><span class="c006">let</span> verbose = <span class="c006">ref true</span>;;
+
+<span class="c006">let</span> write_from archive file =
+  <span class="c006">if</span> not (Filename.is_relative file) <span class="c006">then</span>
+    raise (Error ("absolute path", file));
+  <span class="c006">let rec</span> write_rec archive file =
+    <span class="c006">let</span> source =
+      <span class="c006">if</span> Filename.basename file = "" <span class="c006">then</span> Filename.dirname file <span class="c006">else</span> file <span class="c006">in
+    if</span> !verbose <span class="c006">then begin</span> prerr_endline source <span class="c006">end</span>;
+    <span class="c006">let</span> st = lstat source <span class="c006">in
+    if</span> st.st_ino = archive.st.st_ino &amp;&amp; st.st_dev = archive.st.st_dev
+    <span class="c006">then</span> warning source "Skipping archive itself!"
+    <span class="c006">else
+      let</span> write_header kind =
+        write_header_to_buffer source st kind;
+        ignore (write archive.fd buffer 0 block_size) <span class="c006">in
+      match</span> st.st_kind <span class="c006">with</span>
+        S_REG -&gt;
+          <span class="c006">begin try
+            if</span> st.st_nlink = 1 <span class="c006">then</span> raise Not_found;
+            <span class="c006">let</span> path =
+              Hashtbl.find archive.regfiles (st.st_ino, st.st_dev) <span class="c006">in</span>
+            write_header (LINK path);
+          <span class="c006">with</span> Not_found -&gt;
+            <span class="c006">if</span> st.st_nlink &gt; 1 <span class="c006">then</span>
+              Hashtbl.add archive.regfiles (st.st_ino, st.st_dev) source;
+            write_header REG;
+            write_file st.st_size source archive.fd;
+            <span class="c006">let</span> t =
+              (block_size-1 + st.st_size) / block_size * block_size <span class="c006">in</span>
+            padding archive.fd (t - st.st_size);
+            archive.size &lt;- archive.size + t + block_size;
+          <span class="c006">end</span>
+      | S_LNK -&gt;
+          write_header (LNK (readlink source));
+      | S_DIR <span class="c006">when</span> try_new_dir archive (st.st_ino, st.st_dev) -&gt;
+          write_header DIR;
+          Misc.iter_dir
+            <span class="c006">begin
+              fun</span> file -&gt;
+                <span class="c006">if</span> file = Filename.current_dir_name <span class="c006">then</span> ()
+                <span class="c006">else if</span> file = Filename.parent_dir_name <span class="c006">then</span> ()
+                <span class="c006">else</span> write_rec archive (source ^ "/" ^ file)
+            <span class="c006">end</span>
+            source
+      | S_DIR -&gt;
+          warning source "Ignoring directory already in archive."
+      | _ -&gt;
+          prerr_endline ("Can't cope with special file " ^ source) <span class="c006">in</span>
+  write_rec archive file;;</div><p>We keep track of regular files that may have hard links in the
+<code>regfiles</code> table. It’s not necessary for files that have a single
+link.</p><p>Here’s the main function. In case of error, it is better to remove the
+erroneous archive.
+</p><div class="mylisting"><span class="c006">let</span> min_archive_size = 20 * block_size;;
+
+<span class="c006">let</span> build tarfile files =
+  <span class="c006">let</span> fd, remove =
+    <span class="c006">if</span> tarfile = "-" <span class="c006">then</span> stdout, ignore
+    <span class="c006">else</span> openfile tarfile [ O_WRONLY; O_CREAT; O_TRUNC ] 0o666, unlink <span class="c006">in
+  try
+    let</span> arch =
+         { regfiles = Hashtbl.create 13; dirfiles = Hashtbl.create 13;
+           st = fstat fd; fd = fd; size =0 } <span class="c006">in</span>
+    Array.iter (write_from arch) files;
+    padding fd (min_archive_size - arch.size);
+    close fd
+  <span class="c006">with</span> z -&gt;
+    remove tarfile; close fd; raise z;;</div><p>We end by parsing the command line arguments. 
+</p><div class="mylisting"><span class="c006">let</span> usage () =
+  prerr_endline "Usage: tar -cvf tarfile file1 [ file2 ... ] ";
+  exit 2;;
+
+<span class="c006">let</span> tar () =
+  <span class="c006">let</span> argn = Array.length Sys.argv <span class="c006">in
+  if</span> argn &gt; 3 &amp;&amp; Sys.argv.(1) = "-cvf" <span class="c006">then</span>
+    build Sys.argv.(2) (Array.sub Sys.argv 3 (argn-3))
+  <span class="c006">else</span> usage ();;
+
+<span class="c006">let</span> _ =
+  <span class="c006">try</span> handle_unix_error tar ()
+  <span class="c006">with</span> Error (mes, s) -&gt;
+    prerr_endline ("Error: " ^ mes ^ ": " ^ s); exit 1;;</div><div class="fancybreak">* * *</div></div></body>
+</html>

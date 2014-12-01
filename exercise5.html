@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 5</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec43">Answer of <a href="files.html#ex5">exercise 5</a></h5>
+<p>
+<a id="exans5"></a>
+A naive implementation of <code>tail</code> is to read the file sequentially
+from the beginning, keeping the last <span class="c004">n</span> lines read in a circular
+buffer. When we reach the end of file, we display the buffer.
+When the data comes from a pipe or a special file which
+does not implement <code>lseek</code>, there is no better way.</p><p>However if the data is coming from a normal file, it is better to read
+the file from the end. With <code>lseek</code>, we read the last 4096
+characters. We scan them for the end of lines. If there are at least
+<span class="c004">n</span> of them, we output and display the corresponding lines.
+Otherwise, we start again by adding the next preceding 4096
+characters, etc.</p><p>To add the option <code>-f</code>, we first proceed as above and then we go
+back at the end of the file and try to <code>read</code> from there. If
+<code>read</code> returns data we display it immediately and start again. If it
+returns <code>0</code> we wait some time (<code>sleep 1</code>) and try again.
+</p><div class="fancybreak">* * *</div></div></body>
+</html>

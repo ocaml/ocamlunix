@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Modern communication: sockets</title>
+</head>
+<body>
+<a href="pipes.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="threads.html"><img src="next_motif.gif" alt="Next"></a>
+<hr>
+<h1 class="chapter" id="sec119"> 6  Modern communication: sockets</h1>
+<p>Communication with pipes has some limitations. First, it is local to a
+machine: with named pipes, communicating processes must run on the
+same machine and what’s more, with anonymous pipes, they must share a
+common ancestor. Furthermore, pipes are not very suitable for a
+particularly useful model of communication: the <em>client-server</em>
+model. In this model, only one program, the <em>server</em>, has direct
+access to a shared resource. The other programs, the <em>clients</em>,
+access the resource by connecting to the server. The server serializes
+and controls the access to the shared resource. (Example: the
+<span class="c005">x</span>-window windowing system — the shared resources are
+the screen, the keyboard and the mouse.)</p><p>The client-server model is difficult to implement with pipes. The
+major difficulty is to establish the connection between a client and
+the server. With anonymous pipes, it is impossible: the server and the
+client would need a common ancestor that allocated an arbitrarily
+large number of pipes in advance. With named pipes, the server could
+read connection requests on a particular pipe. These requests would
+contain the name of another named pipe created and used by the client
+to communicate with the server. The problem is to ensure the mutual
+exclusion of simultaneous connection requests performed by multiple
+clients.</p><p>Sockets are a generalization of pipes addressing these issues. The
+client-server model is shown in figure <a href="#fig%2Fclient-server">3</a>.</p><div class="figure">
+<div class="image"><img src="ocamlunix-image20.png" width="70%"></div>
+
+
+
+<a id="fig/client-server"></a>
+<div class="caption">Figure 3 — Client-Server model</div></div><ol class="enumerate" type=1><li class="li-enumerate">
+The server <span class="c004">U</span> creates a socket <span class="c004">s</span> on a port <span class="c004">p</span> known to the clients and
+waits for connections on it (1).
+</li><li class="li-enumerate">The client <span class="c004">A</span> creates a socket and connects to the server on the port
+<span class="c004">p</span> (2). On the server, the system allocates a new socket to
+communicate privately with
+the client <span class="c004">A</span> (3). In this example, the server forks off an auxiliary
+server <span class="c004">V</span> (4), closes its connection with the client <span class="c004">A</span> (represented by the
+dashed line) and lets its child <span class="c004">V</span> handle the connection with <span class="c004">A</span> (5).
+</li><li class="li-enumerate">The server can then accept a new client <span class="c004">B</span>, establish another
+connection handled in parallel by another clone <span class="c004">W</span> (6), and so on.
+</li><li class="li-enumerate">The server can close its service by closing the file descriptor
+associated with the socket <span class="c004">s</span>. After a while the system frees the
+port <span class="c004">p</span> which can then be reused, for example to install another
+service.</li></ol><p>In the model described above, the server <span class="c004">U</span> and the client <span class="c004">A</span>
+establish a private connection (3) to communicate without interference
+from other clients. For that reason, this mode of communication is
+referred to as the <em>connection-oriented</em> mode. If the transaction
+is short the server can handle the request directly (without forking)
+through the connection (3). In this case, the next client must wait
+for the server to be available, either because it is handling the
+connection (3), or because it explicitly manages several connections
+via multiplexing.</p><p>Sockets also allow a <em>connectionless</em> communication mode. In
+this mode, less frequently used, the server does not establish a
+private connection with the client, but responds directly to the
+client’s requests. We will briefly comment on this model in
+section <a href="#sec132">6.10</a> but in the remainder of this
+chapter, we mainly describe <em>connection-oriented</em> communication.</p>
+<h2 class="section" id="sec120">6.1  Sockets</h2>
+<p>Sockets, an extension of pipes, were introduced in <span class="c005">bsd</span>
+4.2. They are now found on all Unix machines connected to a
+network. Special system calls are provided to establish connections
+following the client-server model; they enable local and remote
+communication between processes in a (nearly) transparent way.</p><p>The <em>communication domain</em> of a socket limits the processes (and
+the format of their address) with which we can communicate on the
+socket. Different communication domains are available, for example:
+</p><ul class="itemize"><li class="li-itemize">
+the Unix domain: an address is a name in the file system
+of a machine. Communication is limited to processes
+running on that machine (like with pipes).
+</li><li class="li-itemize">the Internet domain: an address is an address of a
+machine on the Internet network (addresses of the form
+<code>129.199.129.1</code>, for example) and a port number on that
+machine. Communication is possible between processes running on any
+two machines connected to Internet.<sup><a id="text8" href="#note8">1</a></sup>
+</li></ul><p>The <em>communication type</em> of a socket indicates whether
+communication is reliable (no loss or duplication of data) and the way
+the data is sent and received (a stream of bytes, or a sequence of
+packets — small blocks of bytes). The communication type
+constrains the protocol used to transmit data. Different communication
+types are available, here are three of them with their properties:
+</p><div class="center">
+<table class="c000 cellpading0"><tr><td class="c010">Type</td><td class="c010">Reliable</td><td class="c010">Data representation </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010">Stream</td><td class="c010">yes</td><td class="c010">byte stream </td></tr>
+<tr><td class="c010">Datagram</td><td class="c010">no</td><td class="c010">packets </td></tr>
+<tr><td class="c010">Segmented packets</td><td class="c010">yes</td><td class="c010">packets </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+</table>
+</div><p>
+The “stream” type is very similar to communication with pipes.
+It is used most frequently, in particular to transmit unstructured
+byte sequences (e.g. <code>rsh</code>). The “segmented packets” type
+transmits data as packets: each write delimits a packet, each read
+returns at most a packet. It is well suited for message-oriented
+communication. The “datagram” type is the closest to the
+hardware properties of an Ethernet network: data is transmitted with
+packets and there is no guarantee that they reach their
+destination. It is the most economical type in terms of network
+resources. Some programs use it to transmit data that is not of
+crucial importance (e.g. <code>biff</code>); others, to get more network
+performance but with the burden of managing data losses manually. </p>
+<h2 class="section" id="sec121">6.2  Socket creation</h2>
+<p>The <a href="http://www.opengroup.org/onlinepubs/009696799/functions/socket.html"><span class="c001">socket</span></a><a id="hevea_default111"></a> system creates a new socket:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsocket">socket</a> : socket_domain -&gt; socket_type -&gt; int -&gt; file_descr</div><p>The result is a file descriptor that represents the new
+socket. Initially, this descriptor is “disconnected”, 
+it is not ready to accept any <code>read</code> or <code>write</code>. </p><p>The first argument is a value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEsocket_domain"><span class="c001">socket_domain</span></a>, it
+specifies the socket’s communication domain:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>PF_UNIX</code></td><td class="c010">The Unix domain. </td></tr>
+<tr><td class="c010"><code>PF_INET</code></td><td class="c010">The Internet domain.
+</td></tr>
+</table>
+</div><p>
+The second argument, a value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEsocket_type"><span class="c001">socket_type</span></a>,
+specifies the desired communication type:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>SOCK_STREAM</code></td><td class="c010">Byte streams, reliable. </td></tr>
+<tr><td class="c010"><code>SOCK_DGRAM</code></td><td class="c010">Packets, unreliable. </td></tr>
+<tr><td class="c010"><code>SOCK_RAW</code></td><td class="c010">Direct access to the lower layers of the network. </td></tr>
+<tr><td class="c010"><code>SOCK_SEQPACKET</code></td><td class="c010">Packets, reliable.
+</td></tr>
+</table>
+</div><p>
+The third argument is the communication protocol to use. It is usually
+<code>0</code> which selects the default protocol for the given communication
+domain and type (e.g. <span class="c005">udp</span> for <code>SOCK_DGRAM</code> or
+<span class="c005">tcp</span> for <code>SOCK_STREAM</code>). Other values allow to use special
+protocols, for example <span class="c005">icmp</span> (<em>Internet Control Message
+Protocol</em>) used by the <code>ping</code> command to send packets which
+return automatically to the sender. The numbers for these special protocols
+are in the <code>/etc/protocols</code> file or in the <code>protocols</code> table of
+the <span class="c005">nis</span> (<em>Network Information Service</em>) database, if
+any. The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getprotobyname.html"><span class="c001">getprotobyname</span></a><a id="hevea_default112"></a> returns information about a
+protocol in a portable manner: 
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetprotobyname">getprotobyname</a> : string -&gt; protocol_entry</div><p>Given the name of a protocol the result is a record 
+of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEprotocol_entry"><span class="c001">protocol_entry</span></a>. The <code>p_proto</code> field of
+this record has the protocol number.</p>
+<h2 class="section" id="sec122">6.3  Addresses</h2>
+<p>Several socket operations use socket addresses, represented by the variant
+type <code>sockaddr</code>:
+</p><div class="mylisting"><span class="c006">type</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEsockaddr">sockaddr</a> =
+  | ADDR_UNIX <span class="c006">of</span> string
+  | ADDR_INET <span class="c006">of</span> inet_addr * int</div><p><code>ADDR_UNIX f</code> is an address in the Unix domain, <code>f</code> is
+the name of the corresponding file in the machine’s file
+system. <code>ADDR_INET (a,p)</code> is an address in the Internet domain,
+<code>a</code> is the Internet address of a machine and <code>p</code> a port
+number on this machine.</p><p>Internet addresses are represented by the abstract type
+<code>inet_addr</code>. The following functions convert strings of the form
+<code>128.93.8.2</code> to values of type <code>inet_addr</code>, and vice versa:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALinet_addr_of_string">inet_addr_of_string</a><a id="hevea_default113"></a> : string -&gt; inet_addr
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALstring_of_inet_addr">string_of_inet_addr</a><a id="hevea_default114"></a> : inet_addr -&gt; string</div><p>Another way to obtain internet addresses is to look them up by host name in
+the <code>/etc/hosts</code> table, the <span class="c005">nis</span> database or in domain name
+servers. The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/gethostbyname.html"><span class="c001">gethostbyname</span></a><a id="hevea_default115"></a> does that. On
+modern machines, the domain name servers are consulted first and
+<code>/etc/hosts</code> is only used as a fallback but in general that may
+depend on the machine’s configuration.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgethostbyname">gethostbyname</a> : string -&gt; host_entry</div><p>The argument is the host name to look for and the result a record of
+type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEhost_entry"><span class="c001">host_entry</span></a>. The <code>h_addr_list</code> field of this
+record is an array of Internet addresses corresponding to the machine
+(the same machine can be connected to multiple networks under
+different addresses).</p><p>Regarding port numbers, the most common services are listed in the
+table <code>/etc/services</code> which can be read in a portable manner using
+the <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getservbyname.html"><span class="c001">getservbyname</span></a><a id="hevea_default116"></a> function:
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetservbyname">getservbyname</a> : string -&gt; string -&gt; service_entry</div><p>The first argument is the service name (<code>"ftp"</code> for <span class="c005">ftp</span>
+servers, <code>"smtp"</code> for email, <code>"nntp"</code> for news servers,
+<code>"talk"</code> and <code>"ntalk"</code> for commands of that name, etc.) and the
+second argument is the name of the protocol: usually <code>"tcp"</code> if the
+service is using the stream connection type or <code>"udp"</code> for the
+datagram type. The result of <code>getservbyname</code> is a record of type
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEservice_entry"><span class="c001">service_entry</span></a> whose <code>s_port</code> field contains the
+desired number.</p><div class="example">
+<h5 class="paragraph" id="sec123">Example</h5>
+<p> To obtain the address of the <span class="c005">ftp</span> server
+<code>pauillac.inria.fr</code>:
+</p><div class="mylisting">ADDR_INET((gethostbyname "pauillac.inria.fr").h_addr_list.(0),
+          (getservbyname "ftp" "tcp").s_port)</div><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec124">6.4  Connection to a server</h2>
+<p>The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/connect.html"><span class="c001">connect</span></a><a id="hevea_default117"></a> establishes a connection with a
+server on a socket. 
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALconnect">connect</a> : file_descr -&gt; sockaddr -&gt; unit</div><p>The first argument is a socket descriptor and the second argument is
+the server’s address.</p><p>Once the connection is established, calls to <span class="c001">write</span><a id="hevea_default118"></a> on the
+socket descriptor send data to the server and calls to <span class="c001">read</span><a id="hevea_default119"></a>
+receive data from the server. Sockets behave like pipes for read and
+write operations. First, <code>read</code> blocks if no data is available and
+can return fewer bytes than requested. Second, whenever the server
+closes the connection <code>read</code> returns <code>0</code> and <code>write</code> sends a
+<code>sigpipe</code> signal to the calling process.</p><p><code>connect</code> binds the socket to a local address chosen by the
+system. Sometimes, it is preferable to manually choose this address.
+This can be done by calling the function <code>bind</code> (see
+section <a href="#sec127">6.7</a>) before <code>connect</code>.</p><p>The <code>netstat</code> Unix command lists the current connections on the
+machine and their status.</p>
+<h2 class="section" id="sec125">6.5  Disconnecting sockets</h2>
+<p>There are two ways to disconnect a socket. The first is to
+call <span class="c001">close</span><a id="hevea_default120"></a> on the socket. This closes the read and write
+sides of the connection, and deallocates the socket. But sometimes
+this is too brutal, for example we may want to close the connection
+from the client to the server to indicate an end of file but keep the
+connection open in the other direction to get remaining data from the
+server. The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/shutdown.html"><span class="c001">shutdown</span></a><a id="hevea_default121"></a> allows to close the
+connection gradually.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALshutdown">shutdown</a> : file_descr -&gt; shutdown_command -&gt; unit</div><p>The first argument is the descriptor of the socket to close and the
+second a value of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEshutdown_command"><span class="c001">shutdown_command</span></a> indicating
+which direction to close:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c013"><code>SHUTDOWN_RECEIVE</code></td><td class="c012">Closes the socket for reading; <code>write</code>
+on the other end of the connection will send a <code>sigpipe</code> signal to
+the caller. </td></tr>
+<tr><td class="c013"><code>SHUTDOWN_SEND</code></td><td class="c012">Closes the socket for writing; <code>read</code> on the
+other end of the connection returns an end of file. </td></tr>
+<tr><td class="c013"><code>SHUTDOWN_ALL</code></td><td class="c012">Closes the socket for reading and writing;
+unlike <code>close</code>, the socket descriptor is not deallocated.
+</td></tr>
+</table>
+</div><p>
+Note that disconnecting a socket can take some time whether done with
+<code>close</code> or <code>shutdown</code>.</p>
+<h2 class="section" id="sec126">6.6  Complete example: the universal client</h2>
+<p>We program a <code>client</code> command such that <code>client host port</code>
+establishes a connection on the port <code>port</code> of the machine named
+<code>host</code>, sends on the resulting socket the data it reads on its
+standard input and writes the data it receives on its standard output.
+For instance, the command
+</p><div class="mylisting">echo -e 'GET /~remy/ HTTP/1.0\r\n\r\n' | ./client pauillac.inria.fr 80</div><p>connects to the port <code>80</code> of <code>pauillac.inria.fr</code> and sends an
+<span class="c005">http</span> request for the web page <code>/~remy/</code>.</p><p>This command is a “universal” client application in the sense
+that it factors out the code to establish a connection common to many
+clients and delegates the implementation of the specific protocol to
+the program that calls <code>client</code>.</p><p>The library function <code>Misc.retransmit fdin fdout</code> reads data on the
+descriptor <code>fdin</code> and writes it on <code>fdout</code>. It terminates,
+without closing the descriptors, when the end of file is reached on
+the input descriptor. Note that <code>retransmit</code> may be interrupted by
+a signal.
+
+</p><div class="mylisting"><span class="c006">let</span> retransmit fdin fdout =
+  <span class="c006">let</span> buffer_size = 4096 <span class="c006">in
+  let</span> buffer = String.create buffer_size <span class="c006">in
+  let rec</span> copy () = <span class="c006">match</span> read fdin buffer 0 buffer_size <span class="c006">with</span>
+    | 0 -&gt; ()
+    | n -&gt; ignore (write fdout buffer 0 n); copy ()
+  <span class="c006">in</span>
+  copy ();;</div><p>The serious matter starts here.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Sys;;
+<span class="c003">   2</span> <span class="c006">open</span> Unix;;
+<span class="c003">   3</span> 
+<span class="c003">   4</span> <span class="c006">let</span> client () =
+<span class="c003">   5</span>   <span class="c006">if</span> Array.length Sys.argv &lt; 3 <span class="c006">then begin</span>
+<span class="c003">   6</span>     prerr_endline "Usage: client &lt;host&gt; &lt;port&gt;";
+<span class="c003">   7</span>     exit 2;
+<span class="c003">   8</span>   <span class="c006">end</span>;
+<span class="c003">   9</span>   <span class="c006">let</span> server_name = Sys.argv.(1)
+<span class="c003">  10</span>   <span class="c006">and</span> port_number = int_of_string Sys.argv.(2) <span class="c006">in</span>
+<span class="c003">  11</span>   <span class="c006">let</span> server_addr =
+<span class="c003">  12</span>     <span class="c006">try</span> (gethostbyname server_name).h_addr_list.(0)
+<span class="c003">  13</span>     <span class="c006">with</span> Not_found -&gt;
+<span class="c003">  14</span>       prerr_endline (server_name ^ ": Host not found");
+<span class="c003">  15</span>       exit 2 <span class="c006">in</span>
+<span class="c003">  16</span>   <span class="c006">let</span> sock = socket PF_INET SOCK_STREAM 0 <span class="c006">in</span>
+<span class="c003">  17</span>   connect sock (ADDR_INET(server_addr, port_number));
+<span class="c003">  18</span>   <span class="c006">match</span> fork () <span class="c006">with</span>
+<span class="c003">  19</span>   | 0 -&gt; <a id="prog:add_signal_ignore"></a>
+<span class="c003">  20</span>       Misc.retransmit stdin sock;
+<span class="c003">  21</span>       shutdown sock SHUTDOWN_SEND;
+<span class="c003">  22</span>       exit 0
+<span class="c003">  23</span>   | _ -&gt;
+<span class="c003">  24</span>       Misc.retransmit sock stdout;
+<span class="c003">  25</span>       close stdout;
+<span class="c003">  26</span>       wait ();;
+<span class="c003">  27</span> 
+<span class="c003">  28</span> handle_unix_error client ();;</div><p>We start by determining the Internet address of the machine to which
+we want to connect. It can be specified by a host name or in numerical
+form, <code>gethostbyname</code> correctly handles both cases. Then, we create
+a socket of type stream in the Internet domain with the default protocol
+and connect it to the address of the machine.</p><p>The process is then cloned with <code>fork</code>. The child process copies
+the data from its standard input to the socket. Once the end of
+standard input is reached it closes the connection in the sending
+direction and terminates. The parent process copies the data it reads
+on the socket to its standard output. Once the end of file is reached
+on the socket, it closes the standard output, synchronizes with the
+child process and terminates.</p><p>The connection is closed either by the client or by the server:
+</p><ul class="itemize"><li class="li-itemize">
+If the child client receives an end of file on its standard
+input, it closes the connection in the client to server direction
+and terminates. The server upon receiving the end of file on its
+socket should, possibly after some further processing, close the
+connection in the other direction. Thus the parent client eventually
+receives an end of file on the socket and terminates normally.
+</li><li class="li-itemize">If the server closes the connection. The parent client receives
+an end of file on the socket and waits on the child. The
+child client is killed by a <code>sigpipe</code> signal the next time it
+tries to write on the socket. This does not however report that the
+connection was lost. If that is needed we can ignore
+the <code>sigpipe</code> signal by inserting the following line after
+line <a href="#prog%3Aadd_signal_ignore">19</a>:
+<div class="mylisting">ignore (signal sigpipe Signal_ignore)</div><p>and the write will raise an <code>EPIPE</code> error instead.
+</p></li><li class="li-itemize">If the parent or child client exits prematurely the socket will
+be closed for reading or writing. 
+Whenever the server detects this information, it closes its
+side of the connection, which is eventually detected by the other part of the
+client. 
+</li></ul>
+<h2 class="section" id="sec127">6.7  Establishing a service</h2>
+<p>Having seen how a client connects to a server, we now show how a
+server can provide a service for clients. First we need to associate a
+particular address to a socket to make it reachable from the network.
+The system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/bind.html"><span class="c001">bind</span></a><a id="hevea_default122"></a> does this:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALbind">bind</a> : file_descr -&gt; sockaddr -&gt; unit</div><p>The first argument is the socket descriptor and the second the address
+to bind. The constant Internet address <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALinet_addr_any"><span class="c001">inet_addr_any</span></a> can be
+used to bind all the Internet addresses that the machine has (it may
+be on multiple sub-networks).</p><p>We then indicate that the socket can accept connections with the
+system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/listen.html"><span class="c001">listen</span></a><a id="hevea_default123"></a>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALlisten">listen</a> : file_descr -&gt; int -&gt; unit</div><p>The first argument is the socket descriptor and the second is the
+number of request that can be be put on hold while the server is busy
+(ranges from a few dozen to several hundreds for large servers). When
+the number of waiting clients exceeds this number, additional client 
+connection requests fail.</p><p>Finally, connection requests on a socket descriptor are received via the 
+system call <a href="http://www.opengroup.org/onlinepubs/009696799/functions/accept.html"><span class="c001">accept</span></a><a id="hevea_default124"></a>:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALaccept">accept</a> : file_descr -&gt; file_descr * sockaddr</div><p>When the call returns the socket given in argument is still free and
+can accept more connection request. The first component of the result
+is a new descriptor connected to the client, everything written
+(resp. read) on that socket can be read (resp. is written) on the
+socket the client gave to <code>connect</code>. The second component of the
+result is the address of the client. It can be used to check that the
+client is authorized to connect (for example this is what the
+<span class="c005">x</span> server does, <code>xhost</code> can be used to add new
+authorizations), or to establish a second connection from the server
+to the client (as <span class="c005">ftp</span> does for each file transfer request).</p><p>The general structure of a <span class="c005">tcp</span> server is as follows.
+
+</p><div class="mylisting"><span class="c006">let</span> install_tcp_server_socket addr =
+  <span class="c006">let</span> s = socket PF_INET SOCK_STREAM 0 <span class="c006">in
+  try</span>
+    bind s addr;
+    listen s 10;
+    s
+  <span class="c006">with</span> z -&gt; close s; raise z;;</div><p>The library function <code>Misc.install_tcp_server addr</code> creates a
+socket of type stream in the Internet domain with the default protocol 
+and prepares it to accept new connection requests on the address <code>addr</code>
+with <code>bind</code> and <code>listen</code>. Given that this is a library
+function, we close the socket in case of an error.</p><div class="mylisting"><span class="c006">let</span> tcp_server treat_connection addr =
+  ignore (signal sigpipe Signal_ignore);
+  <span class="c006">let</span> server_sock = install_tcp_server_socket addr <span class="c006">in
+  while true do
+      let</span> client = restart_on_EINTR accept server_sock <span class="c006">in</span>
+      treat_connection server_sock client
+  <span class="c006">done</span>;;</div><p>The library function <code>Misc.tcp_server</code> creates a socket with
+<code>install_tcp_server</code> and enters an infinite loop. At each iteration
+of the loop it waits for a connection request with <code>accept</code> and
+treats it with the function <code>treat_connection</code>. Since this is a
+library function we restart the <code>accept</code> call if it is
+interrupted. We also ignore the signal <code>sigpipe</code> so that unexpected
+disconnection raise an <code>EPIPE</code> exception that can be caught by
+<code>treat_connection</code> rather than killing the server. Note that it in
+any case it is <code>treat_connection</code>’s duty to close the <code>client</code>
+descriptor at the end of the connection.</p><p>The function <code>treat_connection</code> is also given the descriptor of the
+server so that if it <code>fork</code>s or or <code>double_fork</code>s it can be
+closed by the child.</p><p>Now suppose we have the following, application specific, <code>service</code>
+function that talks to the client end ends by closing the connection:
+</p><div class="mylisting"><span class="c006">let</span> service (client_sock, client_addr) =
+  <em>(* Handle the client on the descriptor client_sock *)
+  (* And when we are done: *)</em>
+  close client_sock;;</div><p>The server itself can treat each connection sequentially. The
+following library function, in <code>Misc</code>, captures this pattern:
+
+</p><div class="mylisting"><span class="c006">let</span> sequential_treatment server service client = service client</div><p>However as the server cannot handle any other requests while serving a client,
+this scheme is only appropriate for quick services, where the
+<code>service</code> function always runs in a short, bounded, amount of time (for
+instance, a date server).
+</p><p>Most servers delegate the service to a child process: <code>fork</code> is called
+immediately after <code>accept</code> returns. The child process handles the
+connection and the parent process immediately retries to <code>accept</code>. We
+obtain the following library function in <code>Misc</code>:
+
+</p><div class="mylisting"><span class="c006">let</span> fork_treatment server service (client_sock, _ <span class="c006">as</span> client) =
+  <span class="c006">let</span> treat () = <span class="c006">match</span> fork () <span class="c006">with</span>
+    | 0 -&gt; close server; service client; exit 0
+    | k -&gt; ()
+  <span class="c006">in</span>
+  try_finalize treat () close client_sock;;</div><p>Note that it is essential that the parent closes <code>client_sock</code>
+otherwise the close made by the child will not terminate the
+connection (besides the parent would also quickly run out of
+descriptors). The descriptor is also closed if the fork fails, for the
+server may eventually decide the error is not fatal and continue to
+operate.</p><p>Similarly, the child immediately closes the <code>server</code> descriptor on
+which the connection request was received. First, it does not need
+it. Second, the server may stop accepting new connections before
+the child has terminated. The call to <code>exit 0</code> is important since
+it ensures that the child terminates after the execution of the
+service and that it does not start to execute the server loop.</p><p>So far we ignored the fact that children will become zombie processes
+and that we need to recover them. There are two ways to to so. The
+simple approach is to have a grandchild process handle the connection
+using a double fork (see page <a href="processes.html#double-fork">??</a>). This gives the
+following library function, also in <code>Misc</code>:
+
+</p><div class="mylisting"><span class="c006">let</span> double_fork_treatment server service (client_descr, _ <span class="c006">as</span> client) =
+  <span class="c006">let</span> treat () = <span class="c006">match</span> fork () <span class="c006">with</span>
+    | 0 -&gt;
+        <span class="c006">if</span> fork () &lt;&gt; 0 <span class="c006">then</span> exit 0;
+        close server; service client; exit 0
+    | k -&gt;
+        ignore (restart_on_EINTR (waitpid []) k)
+  <span class="c006">in</span>
+  try_finalize treat () close client_descr;;</div><p>However with this approach the server loses all control on the
+grandchild process. It is better to have the processes handling
+services and the server in the same process group so that the whole
+group can be killed at once to terminate the service. For this reason servers
+usually keep the fork treatment but add children recovering code, for
+example in the handler of the <code>sigchld</code> signal (see the function
+<code>Misc.free_children</code> on page <a href="signals.html#ex%2Fchilds">??</a>).</p>
+<h2 class="section" id="sec128">6.8  Tuning sockets</h2>
+<p>Sockets have numerous internal parameters that can be tuned: the size
+of the transfer buffer, the size of the minimum transfer, the behavior
+on closing, etc.</p><p>These parameters have different types, for this reason there are as
+many <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetsockopt"><span class="c001">getsockopt</span></a> and <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsetsockopt"><span class="c001">setsockopt</span></a>
+OCaml functions as there are types. Consult the OCaml
+documentation of the function <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgetsockopt"><span class="c001">getsockopt</span></a> and its variants
+to get a detailed list of those options and the <span class="c005">posix</span>
+reference for <a href="http://www.opengroup.org/onlinepubs/009696799/functions/getsockopt.html"><span class="c001">getsockopt</span></a><a id="hevea_default125"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/setsockopt.html"><span class="c001">setsockopt</span></a><a id="hevea_default126"></a> for their
+exact meaning.</p><div class="example">
+<h5 class="paragraph" id="sec129">Example</h5>
+<p> 
+The following two parameters apply only to sockets of type stream in the
+Internet domain.</p><p>In the <span class="c005">tcp</span> protocol, the disconnection of a socket is
+negotiated and hence takes some time. Normally a call to
+<span class="c001">close</span><a id="hevea_default127"></a> returns immediately, and lets the system
+negotiates the disconnection. The code below turns <code>close</code> on the
+socket <code>sock</code> into a blocking operation. It blocks either
+until all the sent data has been transmitted or until 5 seconds have
+passed.
+</p><div class="mylisting">setsockopt_optint sock SO_LINGER (Some 5);;</div><p>The <code>SO_REUSEADDR</code> option allows the <span class="c001">bind</span><a id="hevea_default128"></a> system call
+to allocate a new socket on a local address immediately after the
+socket <code>sock</code> bound on that address is closed (there is however the
+risk to get packets intended for the old connection). This option
+allows to stop a server and restart it immediately, very useful for
+testing purposes.
+</p><div class="mylisting">setsockopt sock SO_REUSEADDR;;</div><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec130">6.9  Complete example: the universal server</h2>
+<p>We program a <code>server</code> command such that:
+</p><div class="mylisting">./server port cmd arg1 ... argn</div><p>receives connection requests on the port <code>port</code> and, for each
+connection, executes <code>cmd</code> with the arguments <code>arg1 ... argn</code>
+and the socket connection as its standard input and output. For
+example, if we execute:
+</p><div class="mylisting">./server 8500 grep foo</div><p>on the <code>pomerol</code> machine and the universal client (see
+section <a href="#sec126">6.6</a>) on an other machine as follows:
+</p><div class="mylisting">./client pomerol 8500 &lt; /etc/passwd</div><p>the client displays the same result as if we had typed:
+</p><div class="mylisting">grep foo &lt; /etc/passwd</div><p>except that <code>grep</code> is executed on <code>pomerol</code>, and not on the local machine.</p><p>This command is a “universal” server in the sense that it factors
+out the code common to many server and delegates the implementation of
+the specific service and communication protocol to the <code>cmd</code> program it
+launches.
+</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">open</span> Sys;;
+<span class="c003">   2</span> <span class="c006">open</span> Unix;;
+<span class="c003">   3</span> 
+<span class="c003">   4</span> <span class="c006">let</span> server () =
+<span class="c003">   5</span>   <span class="c006">if</span> Array.length Sys.argv &lt; 2 <span class="c006">then begin</span>
+<span class="c003">   6</span>     prerr_endline "Usage: client &lt;port&gt; &lt;command&gt; [arg1 ... argn]";
+<span class="c003">   7</span>     exit 2;
+<span class="c003">   8</span>   <span class="c006">end</span>;
+<span class="c003">   9</span>   <span class="c006">let</span> port = int_of_string Sys.argv.(1) <span class="c006">in</span>
+<span class="c003">  10</span>   <span class="c006">let</span> args = Array.sub Sys.argv 2 (Array.length Sys.argv - 2) <span class="c006">in</span>
+<span class="c003">  11</span>   <span class="c006">let</span> host = (gethostbyname(gethostname ())).h_addr_list.(0) <span class="c006">in</span> <a id="prog:gethost"></a>
+<span class="c003">  12</span>   <span class="c006">let</span> addr = ADDR_INET (host, port) <span class="c006">in</span>
+<span class="c003">  13</span>   <span class="c006">let</span> treat sock (client_sock, client_addr <span class="c006">as</span> client) =
+<span class="c003">  14</span>     <em>(* log information *)</em>
+<span class="c003">  15</span>     <span class="c006">begin match</span> client_addr <span class="c006">with</span>
+<span class="c003">  16</span>     | ADDR_INET(caller, _) -&gt;
+<span class="c003">  17</span>         prerr_endline ("Connection from " ^ string_of_inet_addr caller);
+<span class="c003">  18</span>     | ADDR_UNIX _ -&gt;
+<span class="c003">  19</span>         prerr_endline "Connection from the Unix domain (???)";
+<span class="c003">  20</span>     <span class="c006">end</span>;
+<span class="c003">  21</span>     <em>(* connection treatment *)</em>
+<span class="c003">  22</span>     <span class="c006">let</span> service (s, _) =
+<span class="c003">  23</span>       dup2 s stdin; dup2 s stdout; dup2 s stderr; close s;
+<span class="c003">  24</span>       execvp args.(0) args
+<span class="c003">  25</span>     <span class="c006">in</span>
+<span class="c003">  26</span>     Misc.double_fork_treatment sock service client <span class="c006">in</span>
+<span class="c003">  27</span>   Misc.tcp_server treat addr;;
+<span class="c003">  28</span> 
+<span class="c003">  29</span> handle_unix_error server ();;</div><p>The address given to <code>tcp_server</code> contains the Internet address
+of the machine running the program; the usual way to get it
+(line <a href="#prog%3Agethost">11</a>) is by calling
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALgethostname"><span class="c001">gethostname</span></a><a id="hevea_default129"></a>. But in general many addresses are
+referencing the same machine. For instance, the address of the
+<code>pauillac</code> machine is <code>128.93.11.35</code>, it can also be accessed
+locally (provided we are already on the <code>pauillac</code> machine) with
+the address <code>127.0.0.1</code>. To provide a service on all the addresses
+pointing to this machine, we can use the constant Internet address
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALinet_addr_any"><span class="c001">inet_addr_any</span></a>.</p><p>The service is handled by a “double fork”. The <code>service</code>
+function, executed by the child, redirects standard input and the two
+standard output on the connection socket and executes the requested
+command (note that the handling of the service cannot be done
+sequentially).</p><p>The connection is closed without any intervention of the <code>server</code>
+program. One of the following cases occurs:
+</p><ul class="itemize"><li class="li-itemize">
+The client closes the connection in the client to server
+direction. The command launched by the server receives an end of
+file on its standard input. It finishes what it has to do, and calls
+<code>exit</code> when it is done. This closes the standard outputs which
+are the last descriptors open for writing on the connection and the
+client receives an end of file on its socket.</li><li class="li-itemize">The client ends prematurely and closes the connection in the
+server to client direction. The command launched by the server may
+then receive a <code>sigpipe</code> signal the next time it tries to write
+data on the connection. This may kill the process but is perfectly
+acceptable since nothing is now reading the output of this command.</li><li class="li-itemize">The command launched by the server exits before having read the
+end of file on its input. The client receives a <code>sigpipe</code> signal
+(or an <code>EPIPE</code> exception) when it tries to write on the
+connection.
+</li></ul><h3 class="subsection" id="sec131">Precautions</h3>
+<p>Writing a server requires more care than writing a client. While the
+client usually knows the server to which it connects, the server knows
+nothing about its clients and particularly if the service is public,
+the client can be “hostile”. The server must therefore guard
+itself against all pathological cases.</p><p>A typical attack is to open connections and leave them open without
+transmitting requests. After accepting the connection the server is
+blocked on the socket as long as the client stays connected. An
+attacker can saturate the service by opening a lot of unused
+connections. The server must be robust against these attacks: it must
+only accept a limited number of simultaneous connections to avoid
+system resources exhaustion and it must terminate connections that
+remain inactive for too long. </p><p>A sequential server handling connections without forking is
+immediately exposed to this blocking issue. It will be unresponsive for
+further request even though it does nothing. A solution for a
+sequential server is to multiplex the connections, but it can be
+tricky to implement. The solution with a parallel server is more
+elegant, but it still needs a timeout, for example by programming an alarm
+(see section <a href="signals.html#sec80">4.2</a>).</p>
+<h2 class="section" id="sec132">6.10  Communication in connectionless mode</h2>
+<p>The <span class="c005">tcp</span> protocol used by most connections of type
+<code>SOCK_STREAM</code> works only in connection-oriented mode. Conversely,
+the <span class="c005">udp</span> protocol used by most connections of type
+<code>SOCK_DGRAM</code> always works in connectionless mode, there is
+no established connection between the two machines. For this type of
+sockets, data is transmitted with the system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/recvfrom.html"><span class="c001">recvfrom</span></a><a id="hevea_default130"></a> 
+and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/sendto.html"><span class="c001">sendto</span></a><a id="hevea_default131"></a>.
+
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALrecvfrom">recvfrom</a> :
+  file_descr -&gt; string -&gt; int -&gt; int -&gt; msg_flag list -&gt; int * sockaddr
+
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsendto">sendto</a> :
+  file_descr -&gt; string -&gt; int -&gt; int -&gt; msg_flag list -&gt; sockaddr -&gt; int</div><p>Their interface is similar to <code>read</code> and <code>write</code>, they
+return the size of the transferred data. The
+call <code>recvfrom</code> also returns the address of the sending machine.</p><p>We can call <span class="c001">connect</span><a id="hevea_default132"></a> on a socket of type <code>SOCK_DGRAM</code>
+to obtain a pseudo-connection. This pseudo-connection is just an
+illusion, the only effect is that the address passed in argument is
+memorized by the socket and becomes the address used for sending and
+receiving data (messages coming from other addresses are ignored). It
+is possible to call <code>connect</code> more than once to change the address
+or disconnect the pseudo-connection by connecting to an invalid
+address like <code>0</code>. In contrast, doing this with a socket of type stream
+would generally issue an error.</p>
+<h2 class="section" id="sec133">6.11  Low level reads and writes</h2>
+<p>The system calls <a href="http://www.opengroup.org/onlinepubs/009696799/functions/recv.html"><span class="c001">recv</span></a><a id="hevea_default133"></a> and <a href="http://www.opengroup.org/onlinepubs/009696799/functions/send.html"><span class="c001">send</span></a><a id="hevea_default134"></a> respectively
+generalize <span class="c001">read</span><a id="hevea_default135"></a> and <span class="c001">write</span><a id="hevea_default136"></a> but they work only 
+on socket descriptors.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALrecv">recv</a> : file_descr -&gt; string -&gt; int -&gt; int -&gt; msg_flag list -&gt; int
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALsend">send</a> : file_descr -&gt; string -&gt; int -&gt; int -&gt; msg_flag list -&gt; int</div><p>Their interface is similar to <code>read</code> and <code>write</code> but they add 
+a list of flags of type <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#TYPEmsg_flag"><span class="c001">msg_flag</span></a> whose semantics is:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c010"><code>MSG_OOB</code></td><td class="c010">Process out-of-band data. </td></tr>
+<tr><td class="c010"><code>MSG_DONTROUTE</code></td><td class="c010">Short-circuit the default routing table. </td></tr>
+<tr><td class="c010"><code>MSG_PEEK</code></td><td class="c010">Examines the data without reading it.
+</td></tr>
+</table>
+</div><p>
+These primitives can be used in connection-oriented mode instead of
+<code>read</code> and <code>write</code> or in pseudo-connected mode instead of
+<code>recvfrom</code> and <code>sendto</code>.</p>
+<h2 class="section" id="sec134">6.12  High-level primitives</h2>
+<p>Examples like the universal client-server are so frequent that the
+<code>Unix</code> module provides higher-level functions to establish 
+or use network services.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALopen_connection">open_connection</a><a id="hevea_default137"></a> : sockaddr -&gt; in_channel * out_channel
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALshutdown_connection">shutdown_connection</a><a id="hevea_default138"></a> : Pervasives.in_channel -&gt; unit</div><p>The <code>open_connection</code> function opens a connection to the given address
+and creates a pair of <code>Pervasives</code> input/output channels on the resulting
+socket. Reads and writes on these channels communicate with the server
+but since the output channel is buffered we must flush it to ensure
+that a request has been really sent. The client can shutdown the
+connection abruptly by closing either of the channels (this will close
+the socket) or more “cleanly” by calling
+<code>shutdown_connection</code>. If the server closes the connection, the
+client receives an end of file on the input channel.</p><p>A service can be established with the <code>establish_server</code> function.
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Unix.html#VALestablish_server">establish_server</a><a id="hevea_default139"></a> :
+  (in_channel -&gt; out_channel -&gt; unit) -&gt; sockaddr -&gt; unit</div><p>The function <code>establish_server f addr</code> establishes a service on the
+address <code>addr</code> and handles requests with the function <code>f</code>. Each
+connection to the server creates a new socket and forks. The child
+creates a pair of <code>Pervasives</code> input/output channels on the socket
+to communicate with the client and gives them to <code>f</code> to provide the
+service. Once <code>f</code> returns the child closes the socket and exits. If
+the client closes the connection cleanly, the child gets and end of
+file on the input channel and if it doesn’t it may receive a
+<code>sigpipe</code> signal when <code>f</code> writes on the output channel. As for the
+parent, it has probably already handled another request! The
+<code>establish_server</code> function never terminates, except in
+case of error (e.g. of the OCaml runtime or the system during
+the establishment of the service).</p>
+<h2 class="section" id="sec135">6.13  Examples of protocols</h2>
+<p>In simple cases (<code>rsh</code>, <code>rlogin</code>, …), the data transmitted
+between a client and a server is naturally represented by two streams
+of bytes, one from the client to the server and the other in the
+reverse direction. In other cases, the data to transmit is more
+complex, and requires to be encoded and decoded to/from the streams of
+bytes. The client and the server must then agree on a precise
+transmission protocol, which specifies the format of requests and
+responses exchanged on the connection. Most protocols used by Unix
+commands are specified in documents called “<span class="c005">rfc</span>”
+(request for comments): these documents start as proposals open
+for discussion, and gradually become standards over time, as users
+adopt the described protocol.<sup><a id="text9" href="#note9">2</a></sup></p><h3 class="subsection" id="sec136">“Binary” protocols</h3>
+<p>Most binary protocols transmit data in a compact format, as close as
+possible to the in-memory representation, in order to minimize the
+encoding/decoding work needed for transmission and save network
+bandwidth. Typical examples of protocols of this type are the
+<span class="c005">x</span>-window protocol, which governs exchanges between the
+<span class="c005">x</span> server and <span class="c005">x</span> applications, and the
+<span class="c005">nfs</span> protocol (<a href="http://www.faqs.org/rfcs/rfc1094.html"><span class="c005">rfc</span> 1094</a>).</p><p>Binary protocols usually encode data as follows. An integer or
+floating point number is represented by its 1, 2, 4, or 8 bytes binary
+representation. A string by its length as an integer followed by its
+contents as bytes. A structured object (tuple, record) by the
+representation of its fields in order. A variable size structure
+(array, list) by its length as an integer followed by the
+representation of its elements. If the exact type of data being
+transmitted in known to a process it can easily recreate it in its
+memory. When different type of data is exchanged on a socket the data
+encoding can be preceded by an integer to identify the data that
+follows.</p><div class="example">
+<h5 class="paragraph" id="sec137">Example</h5>
+<p>
+The <code>XFillPolygon</code> call of the <span class="c005">x</span> library, which draws and
+fills a polygon, sends a message with the following structure to the 
+<span class="c005">x</span> server:
+</p><ul class="itemize"><li class="li-itemize">
+the byte 69 (the code of the <code>FillPoly</code> command)
+</li><li class="li-itemize">a padding byte
+</li><li class="li-itemize">a 16 bit integer specifying the number <span class="c004">n</span> of vertices of the polygon
+</li><li class="li-itemize">a 32 bit integer identifying the window on which to draw
+</li><li class="li-itemize">a 32 bit integer identifying the “graphic context”
+</li><li class="li-itemize">a “form” byte, indicating whether the polygon is convex, etc.</li><li class="li-itemize">a byte indicating whether the coordinates of the vertices are absolute or
+relative
+</li><li class="li-itemize">4<span class="c004">n</span> bytes encoding the coordinates of the polygon’s vertices
+by two 16 bit integers
+</li></ul><div class="fancybreak">* * *</div></div><p>With binary protocols we must pay attention to the computer
+architecture of the communicating machines. In particular for
+multi-byte integers, <em>big-endian</em> machines store the most
+significant byte first (that is, in memory, at the lower-address) and
+<em>little-endian</em> machines store the least significant byte
+first. For instance, the 16 bit integer 12345 = 48 × 256 + 57
+is represented by the byte 48 at the address <span class="c004">n</span> and the byte 57
+at the address <span class="c004">n</span>+1 on a big-endian machine, and by the byte
+57 at the address <span class="c004">n</span> and the byte 48 at the address <span class="c004">n</span>+1 on a
+little-endian machine. Hence protocols must precisely specify which
+convention they use when multi-bytes integers are transmitted. Another
+option is to allow both and have it specified in the header of the
+transmitted message. </p><p>The OCaml system helps to encode and decode data structures (a
+procedure called
+<em>marshalling</em>, <em>serialization</em> or <em>pickling</em> in the
+literature) by providing two functions to convert an OCaml value
+into a sequence of bytes and vice versa:
+</p><div class="mylisting"><span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALoutput_value">output_value</a><a id="hevea_default140"></a> : out_channel -&gt; 'a -&gt; unit
+<span class="c006">val</span> <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Pervasives.html#VALinput_value">input_value</a><a id="hevea_default141"></a> : in_channel -&gt; 'a</div><p>These function are defined to save values to a disk file and get
+them back but they can also be used to transmit any value on a pipe or
+a socket. They handle any OCaml values except functions, preserve
+sharing and circularities inside values and work correctly between
+machines of different endianness. More information can be found in the
+<a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Marshal.html"><span class="c001">Marshal</span></a> module.</p><p>Note that semantically, the type of <code>input_value</code> is incorrect. It
+is too general, it is not true that the result of <code>input_value</code> is
+of type <code>'a</code> for any type <code>'a</code>. The value returned by
+<code>input_value</code> belongs to a precise type, and not to all possible
+types. But this type cannot be determined at compile time, it depends
+on the content of the channel read at runtime. Type-checking
+<code>input_value</code> correctly requires an extension to the ML language
+known as dynamic objects: values are paired with a representation of
+their type allowing to perform runtime type checks. Consult
+[<a href="references.html#Dynamiques">15</a>] for a detailed presentation.</p><div class="example">
+<h5 class="paragraph" id="sec138">Example</h5>
+<p>
+If the <span class="c005">x</span>-window protocol was written in OCaml, we would
+define a variant type <code>request</code> for requests sent to the
+server and a <code>reply</code> type for server responses:
+</p><div class="mylisting"><span class="c006">type</span> request =
+  | FillPolyReq <span class="c006">of</span> (int * int) array * drawable * graphic_context
+                                    * poly_shape * coord_mode
+  | GetAtomNameReq <span class="c006">of</span> atom
+  | ...
+<span class="c006">and</span> reply =
+  | GetAtomNameReply <span class="c006">of</span> string
+  | ...</div><p>The core of the server would be a loop that reads and decodes a
+request and responds by writing a reply:
+</p><div class="mylisting"><em>(* Get a connection request on the descriptor s *)</em>
+<span class="c006">let</span> requests = in_channel_of_descr s
+<span class="c006">and</span> replies  = out_channel_of_descr s <span class="c006">in
+try
+  while true do
+    match</span> input_value requests <span class="c006">with</span>
+        ...
+      | FillPoly(vertices, drawable, gc, shape, mode) -&gt;
+          fill_poly vertices drawable gc shape mode
+      | GetAtomNameReq atom -&gt;
+          output_value replies (GetAtomNameReply(get_atom_name atom))
+      | ...
+  <span class="c006">done
+with</span> End_of_file -&gt; <em>(* end of the connection *)</em></div><p>The functions of the <span class="c005">x</span> library, 
+linked with each application would have the following structure:
+</p><div class="mylisting"><em>(* First establish a connection with the server on the descriptor s *)</em>
+...
+<span class="c006">let</span> requests = out_channel_of_descr s
+<span class="c006">and</span> replies  = in_channel_of_descr s;;
+
+<span class="c006">let</span> fill_poly vertices drawable gc shape mode =
+  output_value requests
+               (FillPolyReq(vertices, drawable, gc, shape, mode));;
+<span class="c006">let</span> get_atom_name atom =
+  output_value requests (GetAtomNameReq atom);
+  <span class="c006">match</span> input_value replies <span class="c006">with</span>
+  | GetAtomNameReply name -&gt; name
+  | _ -&gt; fatal_protocol_error "get_atom_name";;</div><div class="fancybreak">* * *</div></div>
+<h5 class="paragraph" id="sec139">Remote procedure call</h5>
+<p>Another typical incarnation of binary protocols is remote procedure
+calls (<span class="c005">rpc</span>). A user on machine A wants to call a function
+<code>f</code> on a machine B. This is obviously not directly possible. It can
+be programmed on a case by case basis using the system to open
+a connection to the machine B, execute the call and send the
+result back to the machine A.</p><div class="figure">
+<div class="image"><img src="ocamlunix-image21.png" width="80%"></div>
+
+
+
+<a id="fig/rpc"></a>
+<div class="caption">Figure 4 — Remote procedure call</div></div><p>But since this is a common situation, an <span class="c005">rpc</span> service can
+handle that (see figure <a href="#fig%2Frpc">4</a>). An <span class="c005">rpc</span> server runs on
+both machine A and B. A user on machine A requests the <span class="c005">rpc</span>
+server on the machine to execute a function on the distant machine
+B. The server on A relays the request to the <span class="c005">rpc</span> server on
+machine B which executes the call to <code>f</code>, sends the result back to
+the server on A which gives the result to the user. The point is that
+another user can call another function on B by going through the same
+server on A. The connection work is shared by the <span class="c005">rpc</span> service
+installed on the machines A and B and from the perspective of the
+users, everything happens as if these calls were simple function calls
+(dashed arrows).</p><h3 class="subsection" id="sec140">“Text” protocols</h3>
+<p>Network services where the efficiency of the protocol is not crucial
+are often “text” protocols. A “text” protocol is in fact a
+small command language. Requests are command lines, the first word
+identifies the request type and the possible remaining words the
+command’s arguments. Responses are also made of one or more lines of
+text, often starting with a numerical code to identify the kind of
+response. Here are some “text” protocols:
+</p><div class="center">
+<table class="c000 cellpading0"><tr><td class="c010">Name</td><td class="c010">Descr.</td><td class="c010">Purpose </td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+<tr><td class="c010"><span class="c005">smtp</span> (Simple Mail Transfer Protocol)</td><td class="c010"><a href="http://www.faqs.org/rfcs/rfc821.html"><span class="c005">rfc</span> 821</a></td><td class="c010">Electronic mail
+</td></tr>
+<tr><td class="c010"><span class="c005">ftp</span>
+(File Transfer Protocol)</td><td class="c010"><a href="http://www.faqs.org/rfcs/rfc959.html"><span class="c005">rfc</span> 959</a></td><td class="c010">File transfer
+</td></tr>
+<tr><td class="c010"><span class="c005">nttp</span>
+(Network News Transfer Protocol)</td><td class="c010"><a href="http://www.faqs.org/rfcs/rfc977.html"><span class="c005">rfc</span> 977</a></td><td class="c010">News reading
+</td></tr>
+<tr><td class="c010"><span class="c005">http</span>/1.0 (HyperText Transfer Protocol)</td><td class="c010"><a href="http://www.faqs.org/rfcs/rfc1945.html"><span class="c005">rfc</span> 1945</a></td><td class="c010">Web navigation
+</td></tr>
+<tr><td class="c010"><span class="c005">http</span>/1.1 (HyperText Transfer Protocol)</td><td class="c010"><a href="http://www.faqs.org/rfcs/rfc2068.html"><span class="c005">rfc</span> 2068</a></td><td class="c010">Web navigation<br>
+</td></tr>
+<tr><td class="hbar" colspan=3></td></tr>
+</table>
+</div><p>
+The great advantage of these protocols is that the exchanges between
+the server and the client are human readable. For example we can just
+use the <code>telnet</code> command to talk directly to the server. Invoke
+<code>telnet host service</code> where <code>host</code> is the host name on which the
+server is running the service <code>service</code> (e.g. <code>http</code>, <code>smtp</code>,
+<code>nntp</code>, etc.) and then type in the requests as a client would, the
+server’s responses will be printed on standard output. This makes it easier to
+understand the protocol. However coding and decoding requests and
+responses is more involved than for binary protocols and the message
+size also tends to be larger which is less efficient.</p><div class="example">
+<h5 class="paragraph" id="sec141">Example</h5>
+<p>
+Here is an example of an interactive dialog, in the shell, to send an
+email on an <span class="c005">smtp</span> server. The
+lines preceded by &gt;&gt; go from the client to the
+server, and are typed in by the user. The lines preceded
+by &lt;&lt; go from the server to the client.
+
+</p><div class="mylisting">    telnet margaux smtp
+    Trying 128.93.8.2 ...
+    Connected <span class="c006">to</span> margaux.inria.fr.
+    Escape character is '^]'.
+&lt;&lt;  220 margaux.inria.fr Sendmail 5.64+/AFUU-3 ready at Wed, 15 Apr 92 17:40:59
+&gt;&gt;  HELO pomerol.inria.fr
+&lt;&lt;  250 Hello pomerol.inria.fr, pleased <span class="c006">to</span> meet you
+&gt;&gt;  MAIL From:&lt;god@heavens.sky.com&gt;
+&lt;&lt;  250 &lt;god@heavens.sky.com&gt;... Sender ok
+&gt;&gt;  RCPT To:&lt;xleroy@margaux.inria.fr&gt;
+&lt;&lt;  250 &lt;xleroy@margaux.inria.fr&gt;... Recipient ok
+&gt;&gt;  DATA
+&lt;&lt;  354 Enter mail, <span class="c006">end with</span> "." on a line by itself
+&gt;&gt;  From: god@heavens.sky.com (Himself)
+&gt;&gt;  To: xleroy@margaux.inria.fr
+&gt;&gt;  Subject: Hello!
+&gt;&gt;
+&gt;&gt;  Is everything ok down there?
+&gt;&gt;  .
+&lt;&lt;  250 Ok
+&gt;&gt;  QUIT
+&lt;&lt;  221 margaux.inria.fr closing connection
+    Connection <span class="c006">closed</span> by foreign host.</div><p>
+The commands <code>HELO</code>, <code>MAIL</code> and <code>RCPT</code> respectively send to
+the server: the name of the client machine, the address of the sender
+and the address of the recipient. The <code>DATA</code> command asks to send
+the body of the email. The body of the message is then entered and
+ended by a line containing the single character <code>'.'</code> (would the body
+of the email contain such a line, we just double the initial <code>'.'</code> on
+that line, this additional period is then suppressed by the server). </p><p>The responses from the server are all made of a 3 digit numerical code
+followed by a comment. Responses of the form <code>5xx</code> indicate an
+error and those with <code>2xx</code>, that everything is fine. When the
+client is a real program it only interprets the response code, the comment is
+only to help the person who develops the mail system.
+</p><div class="fancybreak">* * *</div></div>
+<h2 class="section" id="sec142">6.14  Complete example: <span class="c005">http</span> requests</h2>
+<p>The <span class="c005">http</span> protocol (HyperText Transfer Protocol) is primarily used
+to read documents over the famous “world wide web”. This domain
+is a niche area of client-server examples: between the client that
+reads a page and the server that writes it there is a myriad of
+intermediary relays that act as virtual servers for the real client or
+delegated clients for the real server. These relay often provide
+additional service like caching, filtering, etc..</p><p>There are several versions of the <span class="c005">http</span> protocol. To allow us to
+focus on the essentials, namely the architecture of clients or relays,
+we use the simple protocol inherited from the very first versions of
+the protocol. Even if dust-covered it is still understood by most
+servers. At the end of the section we describe a more modern, but also
+more complex, version which is needed to make real tools to explore
+the web. We do however leave the translation of the examples to this
+new version as an exercise. </p><p>Version 1.0 of the <span class="c005">http</span> protocol specified in <a href="http://www.faqs.org/rfcs/rfc1945.html"><span class="c005">rfc</span> 1945</a> defines
+simple requests of the form:
+</p><div class="mylisting">GET <span class="c004">sp uri crlf</span></div><p>where <code><span class="c004">sp</span></code> represents a space and <code><span class="c004">crlf</span></code> the
+string <code>"\r\n"</code> (“return” followed by
+“linefeed”). The response to a simple request is also
+simple: the content of the <span class="c005">url</span> is sent directly, without any
+headers and the end of the request is signaled by the end of file,
+which closes the connection. This form of request, inherited from
+version 0.9 of the protocol, limits the connection to a single 
+request.</p><h3 class="subsection" id="sec143">Fetching a <span class="c005">url</span></h3>
+<p>We write a <code>geturl</code> program that takes a single argument, a <span class="c005">url</span>,
+retrieves the resource it denotes on the web and displays it. </p><p>The first task is to parse the <span class="c005">url</span> to extract the name of the
+protocol (here, necessarily <code>"http"</code>), the address of the server,
+the optional port and the absolute path of the document on the
+server. This is done with <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Str.html"><span class="c001">Str</span></a>, OCaml’s regular
+expression library.
+</p><div class="mylisting"><span class="c006">open</span> Unix;;
+
+<span class="c006">exception</span> Error <span class="c006">of</span> string
+<span class="c006">let</span> error err mes = raise (Error (err ^ ": " ^ mes));;
+<span class="c006">let</span> handle_error f x = <span class="c006">try</span> f x <span class="c006">with</span> Error err -&gt; prerr_endline err; exit 2
+
+<span class="c006">let</span> default_port = "80";;
+
+<span class="c006">type</span> regexp = { regexp : Str.regexp; fields : (int * string option) list; }
+
+<span class="c006">let</span> regexp_match r string =
+  <span class="c006">let</span> get (pos, default) =
+    <span class="c006">try</span> Str.matched_group pos string
+    <span class="c006">with</span> Not_found -&gt;
+      <span class="c006">match</span> default <span class="c006">with</span> Some s -&gt; s | _ -&gt; raise Not_found <span class="c006">in
+  try
+    if</span> Str.string_match r.regexp string 0 <span class="c006">then</span>
+      Some (List.map get r.fields)
+    <span class="c006">else</span> None
+  <span class="c006">with</span> Not_found -&gt; None;;
+
+<span class="c006">let</span> host_regexp =
+  { regexp = Str.regexp "\\([^/:]*\\)\\(:\\([0-9]+\\)\\)?";
+    fields = [ 1, None; 3, Some default_port; ] };;
+
+<span class="c006">let</span> url_regexp =
+  { regexp = Str.regexp "http://\\([^/:]*\\(:[0-9]+\\)?\\)\\(/.*\\)";
+    fields = [ 1, None; 3, None ] };;
+
+<span class="c006">let</span> parse_host host = <span class="c006">match</span> regexp_match host_regexp host <span class="c006">with</span>
+  | Some (host :: port :: _) -&gt; host, int_of_string port
+  | _ -&gt; error host "Ill formed host";;
+
+<span class="c006">let</span> parse_url url = <span class="c006">match</span> regexp_match url_regexp url <span class="c006">with</span>
+  | Some (host :: path :: _) -&gt; parse_host host, path
+  | _ -&gt; error url "Ill formed url";;</div><p>Sending a simple request is a trivial task, as the following function
+shows.
+</p><div class="mylisting"><span class="c006">let</span> send_get url sock =
+  <span class="c006">let</span> s = Printf.sprintf "GET %s\r\n" url <span class="c006">in</span>
+  ignore (write sock s 0 (String.length s));;</div><p>Note that the <span class="c005">url</span> can be complete, with the address and port of the
+server, or just contain the requested path on the server.</p><p>Reading the response is even easier, since only the document is
+returned, without any additional information. If there’s an error in
+the request, the error message returned by the server as an
+<span class="c005">html</span> document. Thus we just print the response with the
+function <code>Misc.retransmit</code> without indicating whether this is an
+error or the desired document. The rest of the program establishes the
+connection with the server.
+</p><div class="mylisting"><span class="c006">let</span> get_url proxy url fdout =
+  <span class="c006">let</span> (hostname, port), path = <span class="c006">match</span> proxy <span class="c006">with</span>
+    | None -&gt; parse_url url
+    | Some host -&gt; parse_host host, url
+  <span class="c006">in
+  let</span> hostaddr =
+    <span class="c006">try</span> inet_addr_of_string hostname
+    <span class="c006">with</span> Failure _ -&gt;
+      <span class="c006">try</span> (gethostbyname hostname).h_addr_list.(0)
+      <span class="c006">with</span> Not_found -&gt; error hostname "Host not found"
+  <span class="c006">in
+  let</span> sock = socket PF_INET SOCK_STREAM 0 <span class="c006">in</span>
+  Misc.try_finalize
+    <span class="c006">begin function</span> () -&gt;
+      connect sock (ADDR_INET (hostaddr, port));
+      send_get path sock;
+      Misc.retransmit sock fdout
+    <span class="c006">end</span> ()
+    close sock;;</div><p>We conclude, as usual, by parsing the command line.
+
+</p><div class="mylisting"><span class="c006">let</span> geturl () =
+  <span class="c006">let</span> len =  Array.length Sys.argv <span class="c006">in
+  if</span> len &lt; 2 <span class="c006">then</span>
+    error "Usage:" (Sys.argv.(0) ^ " [ proxy [:&lt;port&gt;] ] &lt;url&gt;")
+  <span class="c006">else
+    let</span> proxy, url =
+      <span class="c006">if</span> len &gt; 2 <span class="c006">then</span> Some Sys.argv.(1), Sys.argv.(2) <span class="c006">else</span>
+      None, Sys.argv.(1)
+    <span class="c006">in</span>
+    get_url proxy url stdout;;
+
+handle_unix_error (handle_error geturl) ();;</div><h3 class="subsection" id="sec144"><span class="c005">http</span> relay</h3>
+<p>We program an <span class="c005">http</span> relay (or <em>proxy</em>), which is a server 
+that redirects <span class="c005">http</span> requests from a client to another server
+(or relay…) and forwards responses from that server back to the 
+client. </p><p>The role of a relay is shown in in figure <a href="#sec144">5</a>. When a
+client uses a relay, it addresses its requests to the relay rather
+than to the individual <span class="c005">http</span> servers located
+around the world. A relay has multiple advantages. It can store the
+responses to the most recent or frequent requests and serve them without
+querying the remote server (e.g. to avoid network overload or if
+the server is down). It can filter the responses (e.g. to remove
+advertisements or image, etc.). It can also simplify the development
+of a program by making it see the whole world wide web through a
+single server.</p><div class="figure">
+<div class="image"><img src="ocamlunix-image22.png" width="70%"></div>
+
+
+
+
+<div class="caption">Figure 5 — <span class="c005">http</span> relay</div></div><p>The <code>proxy port</code> command launches the server on the port <code>port</code>
+(or if omitted, on the default port for <span class="c005">http</span>). We reuse the code of
+the <code>get_url</code> function (we assume that the functions above are
+available in a <code>Url</code> module). It only remains to write the code to
+analyze the requests and set up the server.
+</p><div class="mylisting"><span class="c006">open</span> Unix
+<span class="c006">open</span> Url
+
+<span class="c006">let</span> get_regexp =
+  { regexp = Str.regexp "^[Gg][Ee][Tt][ \t]+\\(.*[^ \t]\\)[ \t]*\r";
+    fields = [ 1, None ] }
+
+<span class="c006">let</span> parse_request line = <span class="c006">match</span> regexp_match get_regexp line <span class="c006">with</span>
+  | Some (url :: _) -&gt; url
+  | _ -&gt; error line "Ill formed request"</div><p>We establish the service with the <code>establish_server</code>
+function, thus we just need to define the function to handle a 
+connection:
+</p><div class="mylisting"><span class="c006">let</span> proxy_service (client_sock, _) =
+  <span class="c006">let</span> service () =
+    <span class="c006">try
+      let</span> in_chan = in_channel_of_descr client_sock <span class="c006">in
+      let</span> line = input_line in_chan <span class="c006">in
+      let</span> url = parse_request line <span class="c006">in</span>
+      get_url None url client_sock
+    <span class="c006">with</span> End_of_file -&gt;
+      error "Ill formed request" "End_of_file encountered"
+  <span class="c006">in</span>
+  Misc.try_finalize
+    (handle_error service) ()
+    close client_sock</div><p>
+and the rest of the program just establishes the service:
+</p><div class="mylisting"><span class="c006">let</span> proxy () =
+  <span class="c006">let</span> http_port =
+    <span class="c006">if</span> Array.length Sys.argv &gt; 1 <span class="c006">then
+      try</span> int_of_string Sys.argv.(1)
+      <span class="c006">with</span> Failure _ -&gt; error Sys.argv.(1) "Incorrect port"
+    <span class="c006">else
+      try</span> (getservbyname "http" "tcp").s_port
+      <span class="c006">with</span> Not_found -&gt; error "http" "Unknown service"
+  <span class="c006">in
+  let</span> treat_connection s = Misc.double_fork_treatment s proxy_service <span class="c006">in
+  let</span> addr = ADDR_INET(inet_addr_any, http_port) <span class="c006">in</span>
+  Misc.tcp_server treat_connection addr;;
+
+handle_unix_error (handle_error proxy) ();;</div><h3 class="subsection" id="sec145">The <span class="c005">http</span>/1.1 protocol</h3>
+<p>Simple <span class="c005">http</span> requests need one connection per request. This is
+inefficient because most requests on a server are followed by others
+(e.g. if a client gets a web page with images, it will
+subsequently request the images) and the time to establish a
+connection can easily exceed the time spent in handling the request
+itself (chapter <a href="threads.html#sec149">7</a> show how we can reduce this by
+handling the requests with threads rather than processes). Version 1.1
+of the <span class="c005">http</span> described in <a href="http://www.faqs.org/rfcs/rfc2068.html"><span class="c005">rfc</span> 2068</a> uses complex requests that
+allow to make multiple requests on a single connection<sup><a id="text10" href="#note10">3</a></sup>. </p><p>In complex requests, the server precedes every response with a header
+describing the format of the response and possibly the size of the
+document transmitted. The end of the document is no longer indicated
+by an end of file, since we know its size. The connection can
+therefore stay
+open to handle more requests. Complex requests have the following form:
+</p><div class="mylisting">GET <span class="c004">sp uri sp</span> HTTP/1.1 <span class="c004">crlf
+header crlf</span></div><p>The <code><span class="c004">header</span></code> part defines a list of key-value fields with
+the following syntax:
+</p><div class="mylisting"><span class="c004">field</span> : <span class="c004">value crlf</span></div><p>Superfluous spaces are allowed around the <code>':'</code> separator and any
+space can always be replaced by a tab or a sequence of spaces. The
+header fields can also span several lines: in this case, and in this
+case only, the <code><span class="c004">crlf</span></code> end of line lexeme is immediately
+followed by a space <code><span class="c004">sp</span></code>. Finally, uppercase and lowercase
+letters are equivalent in the keyword of fields and in the values of
+certain fields.</p><p>Mandatory and optional fields depend on the type of request. For
+instance, a <code>GET</code> request must have a field indicating the
+destination machine:
+</p><div class="mylisting">Host : <span class="c004">hostname crlf</span></div><p>For this type of request, we may also request, using the optional field
+<span class="c001">If-Modified</span>, that the document be returned only if it has been
+modified since a given date.
+</p><div class="mylisting">If-Modified : <span class="c004">date crlf</span></div><p>The number of fields in the <code><span class="c004">header</span></code> is not fixed in
+advance but indicated by the end of the header: a line
+containing only the characters <code><span class="c004">crlf</span></code>.</p><p>Here is a complete request (on each line an implicit <code>\n</code> follows
+the <code>\r</code>):
+</p><div class="mylisting">GET /~remy/ HTTP/1.1\r
+Host:pauillac.inria.fr\r
+\r</div><p>A response to a complex request is also a complex response. It contains
+a status line, a header, and the body of the response, if any.
+</p><div class="mylisting">HTTP/1.1 <span class="c004">sp status sp message crlf
+header crlf
+body</span></div><p>The fields of a response header have a syntax similar to that of a
+request but the required and optional fields are different (they
+depend on type of request and the status of the response — see the
+full documentation of the protocol).</p><p>The <code><span class="c004">body</span></code> of the response can be transmitted in a
+single block, in chunks or be empty: </p><ul class="itemize"><li class="li-itemize">
+If the body is a single block the header
+contains a <code>Content-Length</code> field specifying in decimal
+<span class="c005">ascii</span> notation the number of bytes in the body. </li><li class="li-itemize">If the body is transmitted in chunks, 
+the header contains a <code>Transfer-Encoding</code>
+field with the value “<code>chunked</code>”. The body is then a set of chunks
+and ends with an empty chunk. A chunk is of the form:
+<div class="mylisting"><span class="c004">size [ ; arg ] crlf
+chunk crlf</span></div>where <code><span class="c004">size</span></code> is the size of the chunk in hexadecimal
+notation and <code><span class="c004">chunk</span></code> is a chunk of the response body of
+the given size (the part between <code><span class="c004">[</span></code> and <code><span class="c004">]</span></code>
+is optional and can safely be ignored). The last, empty, chunk is
+always of the following form:
+<div class="mylisting">0 <span class="c004">crlf
+header crlf crlf</span></div></li><li class="li-itemize">If the response does not contain a <code>Content-Length</code> field and
+that it is not chunked, the body is empty (for instance, a
+response to a request of type <code>HEAD</code> contains only a header). 
+</li></ul><p>
+Here is an example of a single block response:
+</p><div class="mylisting">HTTP/1.1 200 OK\r
+Date: Sun, 10 Nov 2002 09:14:09 GMT\r
+Server: Apache/1.2.6\r
+Last-Modified: Mon, 21 Oct 2002 13:06:21 GMT\r
+ETag: "359-e0d-3db3fbcd"\r
+Content-Length: 3597\r
+Accept-Ranges: bytes\r
+Content-Type: text/html\r
+\r
+&lt;html&gt;
+...
+&lt;/html&gt;</div><p>The status <code>200</code> indicates that the request was successful. A
+<code>301</code> means the <span class="c005">url</span> was redirected to another <span class="c005">url</span> defined in
+the <code>Location</code> field of the response. The <code>4XX</code> statuses
+indicate errors on the client side while <code>5XX</code> errors on the server
+side.</p><div class="exercise">
+<h5 class="paragraph" id="sec146">Exercise 15</h5>
+<p><a id="ex15"></a>
+<a id="ex/proxy-1.1"></a>
+Write a relay that works with the <span class="c005">http</span>/1.1 protocol.
+</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec147">Exercise 16</h5>
+<p><a id="ex16"></a>
+Add a cache to the relay. Pages are saved on the hard drive and when a
+requested page is available in the cache, it is served unless too old.
+In that case the server is queried again and the cache updated.
+</p><div class="fancybreak">* * *</div></div><div class="exercise">
+<h5 class="paragraph" id="sec148">Exercise 17</h5>
+<p><a id="ex17"></a>
+<a id="ex/wget"></a>
+Write a program <code>wget</code> such that <code>wget u1 u2 ... un</code> makes the
+requests <code>u1</code>, <code>u2</code>, …, <code>un</code> and saves the responses in
+the files <code>./m1/p1</code>, <code>./m2/p2</code>, …, <code>./mn/pn</code> where
+<code>mi</code> and <code>pi</code> are respectively the name of the server and the
+absolute path of the request <code>ui</code>. The program should take
+advantage of the protocol to establish a single connection to a
+machine <code>m</code> when it is the same for consecutive requests. 
+Permanent <span class="c005">url</span> redirections
+should be followed. The following options can also be added:
+</p><div class="mltypecases">
+<table class="c000 cellpading0"><tr><td class="c013"><code>-N</code></td><td class="c012">Do not download the <span class="c005">url</span> if the file <code>./mi/ui</code>
+does not exist or is older than the <span class="c005">url</span>. </td></tr>
+<tr><td class="c013"><code>-r</code></td><td class="c012">Download recursively all the <span class="c005">url</span>s embedded in the
+responses which are documents in <span class="c005">html</span> format.
+</td></tr>
+</table>
+</div><div class="fancybreak">* * *</div></div>
+<hr class="footnoterule"><dl class="thefootnotes"><dt class="dt-thefootnotes">
+<a id="note8" href="#text8">1</a></dt><dd class="dd-thefootnotes"><div class="footnotetext"> The Internet network
+is made of local networks, usually Ethernet networks, connected by
+specialized links. It connects millions of machines world-wide. In
+the Internet domain, there is no difference between programs that
+communicate with a neighboring machine, connected to the same
+Ethernet cable, and those that communicate with a machine on the other
+side of the planet, through a dozen routers and a satellite link.</div>
+</dd><dt class="dt-thefootnotes"><a id="note9" href="#text9">2</a></dt><dd class="dd-thefootnotes"><div class="footnotetext"><span class="c005">rfc</span>s are available
+via anonymous <span class="c005">ftp</span> on numerous sites. In France:
+<a href="ftp://ftp.inria.fr"><span class="c001">ftp.inria.fr</span></a>, in the directory
+<a href="ftp://ftp.inria.fr/pub/rfc/"><span class="c001">rfc</span></a>. The reference site
+is <a href="http://www.faqs.org/rfcs/"><span class="c001">http://www.faqs.org/rfcs/</span></a>. </div>
+</dd><dt class="dt-thefootnotes"><a id="note10" href="#text10">3</a></dt><dd class="dd-thefootnotes"><div class="footnotetext">The <span class="c005">http</span>/1.0
+protocol already allows complex requests but we prefer to describe the 
+<span class="c005">http</span>/1.1 protocol which deals exclusively with these.</div>
+</dd></dl>
+<hr>
+<a href="pipes.html"><img src="previous_motif.gif" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.gif" alt="Up"></a>
+<a href="threads.html"><img src="next_motif.gif" alt="Next"></a>
+</body>
+</html>

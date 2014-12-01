@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 18</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec156">Answer of <a href="threads.html#ex18">exercise 18</a></h5>
+<p>
+<a id="exans18"></a>
+Quicksort lends itself well to parallelization, because the sorting is
+done recursively on independent sub-arrays. This can be delegated to
+threads whose only synchronization is to wait for all the threads to
+finish their sorting, in order for the sub-array to be sorted.</p><div class="mylisting"><span class="c003">   1</span> <span class="c006">let</span> qsort cmp arr =
+<span class="c003">   2</span>   <span class="c006">let rec</span> qsort lo hi =
+<span class="c003">   3</span>   <span class="c006">if</span> hi - lo &gt; 0 <span class="c006">then</span>
+<span class="c003">   4</span>     <span class="c006">begin</span>
+<span class="c003">   5</span>       <span class="c006">let</span> mid = (lo + hi) <span class="c006">lsr</span> 1 <span class="c006">in</span>
+<span class="c003">   6</span>       <span class="c006">if</span> cmp arr.(mid) arr.(lo) <span class="c006">then</span> swap arr mid lo;
+<span class="c003">   7</span>       <span class="c006">if</span> cmp arr.(hi) arr.(mid) <span class="c006">then</span>
+<span class="c003">   8</span>         <span class="c006">begin</span>
+<span class="c003">   9</span>           swap arr mid hi;
+<span class="c003">  10</span>           <span class="c006">if</span> cmp arr.(mid) arr.(lo) <span class="c006">then</span> swap arr mid lo
+<span class="c003">  11</span>         <span class="c006">end</span>;
+<span class="c003">  12</span>       <span class="c006">let</span> pivot = arr.(mid) <span class="c006">in</span>
+<span class="c003">  13</span>       <span class="c006">let</span> i = <span class="c006">ref</span> (lo + 1) <span class="c006">and</span> j = <span class="c006">ref</span> (hi - 1) <span class="c006">in</span>
+<span class="c003">  14</span>       <span class="c006">while</span> !i &lt; !j <span class="c006">do</span>
+<span class="c003">  15</span>         <span class="c006">while</span> not (cmp pivot arr.(!i)) <span class="c006">do</span> incr i <span class="c006">done</span>;
+<span class="c003">  16</span>         <span class="c006">while</span> not (cmp arr.(!j) pivot) <span class="c006">do</span> decr j <span class="c006">done</span>;
+<span class="c003">  17</span>         <span class="c006">if</span> !i &lt; !j <span class="c006">then</span> swap arr !i !j;
+<span class="c003">  18</span>       <span class="c006">done</span>;
+<span class="c003">  19</span>       <span class="c006">let</span> u = Thread.create (qsort lo) (!i-1) <span class="c006">in</span>
+<span class="c003">  20</span>       <span class="c006">let</span> v = Thread.create (qsort (!i+1)) hi <span class="c006">in</span> <a id="prog:tcreate"></a>
+<span class="c003">  21</span>       Thread.join u; <a id="prog:tjoin"></a>
+<span class="c003">  22</span>       Thread.join v
+<span class="c003">  23</span>     <span class="c006">end in</span>
+<span class="c003">  24</span>   qsort 0 (Array.length arr - 1);;</div><p>
+It would be correct, but uninteresting, to exchange
+lines <a href="#prog%3Atcreate">20</a> and <a href="#prog%3Atjoin">21</a>.
+In effect, that would wait for the lower portion of the array to be
+sorted before starting the sort of the upper portion. We would thus
+obtain the behavior of a sequential program, with the additional cost
+of threads but without obtaining any benefit.</p><p>In practice, we should limit parallelization to a reasonable factor
+and continue sequentially after that.
+</p><div class="fancybreak">* * *</div></div></body>
+</html>

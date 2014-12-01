@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 14</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec113">Answer of <a href="pipes.html#ex14">exercise 14</a></h5>
+<p>
+<a id="exans14"></a>
+</p><ul class="itemize"><li class="li-itemize">
+For <code>&gt;&gt;</code>, the answer is similar to the <code>&gt;</code> redirection, except that the
+file is opened with the flags <code>[O_WRONLY; O_APPEND; O_CREAT]</code>.
+</li><li class="li-itemize">For <code>2&gt;</code>, the answer is similar to the <code>&gt;</code> redirection, except that
+<code>dup2 fd stderr</code> is executed instead of <code>dup2 fd stdout</code>
+</li><li class="li-itemize">For <code>2&gt;1</code>, we must call <code>dup2 stderr stdout</code> before executing
+the command.
+</li><li class="li-itemize">For <code>&lt;&lt;</code>, the shell <code>sh</code> must create a temporary file in
+<code>/tmp</code> containing the lines that follow <code>&lt;&lt;</code> and execute the 
+command with its standard input redirected from this file. Another 
+solution is to connect the command’s standard input to the output of a 
+pipe and let a child process write the lines following <code>&lt;&lt;</code> on the
+input of that pipe.
+</li></ul><div class="fancybreak">* * *</div></div></body>
+</html>

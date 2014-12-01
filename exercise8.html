@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 8</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec63">Answer of <a href="files.html#ex8">exercise 8</a></h5>
+<p>
+<a id="exans8"></a>
+This exercise combines the previous exercise (exercise <a href="files.html#ex%2Freadtar">2.16</a>)
+and the recursive file copy (exercise <a href="files.html#ex%2Fcopyrec">2.15</a>).</p><p>One small difficulty is the management of permissions: we must create
+the archive’s directories with write permission and set them to their
+actual value only after all the files were extracted.</p><p>Let us first write an auxiliary function for <code>mkpath p m</code> that
+creates the missing directories along the path <code>p</code> with permissions
+<code>m</code> (and such that <code>p</code> may be terminated by a
+superfluous “<code>/</code>”).
+
+</p><div class="mylisting"><span class="c006">let</span> warning mes = prerr_string mes;prerr_newline ();;
+<span class="c006">open</span> Filename
+<span class="c006">let</span> mkpath p perm =
+  <span class="c006">let</span> normal_path =
+    <span class="c006">if</span> basename p = "" <span class="c006">then</span> dirname p <span class="c006">else</span> p <span class="c006">in
+  let</span> path_to_dir = dirname normal_path <span class="c006">in
+  let rec</span> make p =
+    <span class="c006">try</span> ignore (stat p)
+    <span class="c006">with</span> Unix_error (ENOENT, _, _) -&gt;
+      <span class="c006">if</span> p = current_dir_name <span class="c006">then</span> ()
+      <span class="c006">else if</span> p = parent_dir_name <span class="c006">then</span>
+        warning "Ill formed archive: path contains \"..\""
+      <span class="c006">else begin</span>
+        make (dirname p);
+        mkdir p perm
+      <span class="c006">end in</span>
+  make path_to_dir;;</div><p>We also define a function <code>set_infos</code> similar to the one
+used to copy files (section <a href="files.html#sec51">2.15</a>):
+</p><div class="mylisting"><span class="c006">let</span> set_infos header =
+  chmod header.name header.perm;
+  <span class="c006">let</span> mtime = float header.mtime <span class="c006">in</span>
+  utimes header.name mtime mtime;
+  <span class="c006">begin match</span> header.kind <span class="c006">with</span>
+  | LNK f -&gt; ()
+  | _ -&gt;  chmod header.name header.perm
+  <span class="c006">end</span>;
+  <span class="c006">try</span> chown header.name  header.uid header.gid
+  <span class="c006">with</span> Unix_error(EPERM,_,_) -&gt; ();;</div><p>The main function of the program is <code>untar_file_collect_dirs</code> which 
+processes a single record and accumulates directories explicitly
+created by the archive:
+</p><div class="mylisting"><span class="c006">let</span> verbose = <span class="c006">ref true</span>;;
+<span class="c006">let</span> default_dir_perm = 0o777;;
+<span class="c006">let</span> default_file_perm = 0o666;;
+
+<span class="c006">let</span> protect f x g y = <span class="c006">try</span> f x; g y <span class="c006">with</span> z -&gt; g y; raise z
+<span class="c006">let</span> file_exists f = <span class="c006">try</span> ignore (stat f); <span class="c006">true with</span> _ -&gt; <span class="c006">false</span>;;
+
+<span class="c006">let</span> untar_file_collect_dirs file dirs =
+  <span class="c006">let</span> fh = file.header <span class="c006">in
+  if</span> !verbose <span class="c006">then begin</span> print_string fh.name; print_newline () <span class="c006">end</span>;
+  <span class="c006">match</span> fh.kind <span class="c006">with</span>
+  | CHR (_,_) | BLK(_,_) | FIFO -&gt;
+      warning (fh.name ^ "Ignoring special files");
+      dirs
+  | DIR -&gt;
+      mkpath fh.name default_dir_perm;
+      <span class="c006">if</span> file_exists fh.name <span class="c006">then</span> dirs
+      <span class="c006">else begin</span> mkdir fh.name default_dir_perm; fh :: dirs <span class="c006">end</span>
+  | x -&gt;
+      mkpath fh.name default_dir_perm;
+      <span class="c006">begin match</span> x <span class="c006">with</span>
+      | REG | CONT -&gt;
+          <span class="c006">let</span> flags = [ O_WRONLY; O_TRUNC; O_CREAT; ] <span class="c006">in
+          let</span> out = openfile fh.name flags default_file_perm <span class="c006">in</span>
+          protect (copy_file file) out close out
+      | LNK f -&gt;
+          symlink f fh.name
+      | LINK f -&gt;
+          <span class="c006">begin
+            try if</span> (stat fh.name).st_kind = S_REG <span class="c006">then</span> unlink fh.name
+            <span class="c006">with</span> Unix_error(_,_,_) -&gt; ();
+          <span class="c006">end</span>;
+          Unix.link f fh.name;
+      | _ -&gt; <span class="c006">assert false
+      end</span>;
+      set_infos fh;
+      dirs;;</div><p>The body of the program just iterates <code>untar_file_collect_dirs</code> on
+the records and finally updates the directories with the correct access
+rights. 
+</p><div class="mylisting"><span class="c006">let</span> extract tarfile =
+  <span class="c006">let</span> fd = openfile tarfile [ O_RDONLY ] 0 <span class="c006">in
+  let</span> new_directories =
+    fold untar_file_collect_dirs [] fd <span class="c006">in</span>
+  List.iter set_infos new_directories;
+  close fd;;</div><div class="mylisting"><span class="c006">let</span> untar () =
+  <span class="c006">let</span> nargs = Array.length Sys.argv <span class="c006">in
+  if</span> nargs = 2 <span class="c006">then</span> extract Sys.argv.(1)
+  <span class="c006">else</span> prerr_endline ("Usage: " ^ Sys.argv.(0) ^ " &lt;tarfile&gt;");;
+handle_unix_error untar ();;</div><div class="fancybreak">* * *</div></div></body>
+</html>

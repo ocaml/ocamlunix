@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="hevea 2.01">
+<link rel="stylesheet" type="text/css" href="ocamlunix.css">
+<title>Answer of exercise 10</title>
+</head>
+<body>
+<div class="answer">
+<h5 class="paragraph" id="sec77">Answer of <a href="processes.html#ex10">exercise 10</a></h5>
+<p>
+<a id="exans10"></a>
+If the command line ends with <code>&amp;</code>, we do not call <code>wait</code> in
+the parent process and immediately continue with the next iteration
+of the loop. But there is one difficulty: the parent may now have
+multiple children executing at the same time (the commands in the
+background which haven’t terminated yet, plus the last synchronous
+command), and <code>wait</code> could synchronize with any of these children.
+Thus, for synchronous command, <code>wait</code> must be repeated until the
+recovered child is the one actually executing that command.
+
+</p><div class="mylisting">   <span class="c006">while true do
+     let</span> cmd = input_line Pervasives.stdin <span class="c006">in
+     let</span> words, ampersand = parse_command_line cmd <span class="c006">in
+     match</span> fork () <span class="c006">with</span>
+     | 0 -&gt; exec_command words
+     | pid_son -&gt;
+         <span class="c006">if</span> ampersand <span class="c006">then</span> ()
+         <span class="c006">else
+           let rec</span> wait_for_son () =
+             <span class="c006">let</span> pid, status = wait () <span class="c006">in
+             if</span> pid = pid_son <span class="c006">then</span>
+               print_status "Program" status
+             <span class="c006">else
+               let</span> p = "Background program " ^ (string_of_int pid) <span class="c006">in</span>
+               print_status p status;
+               wait_for_son () <span class="c006">in</span>
+           wait_for_son ()
+   <span class="c006">done</span></div><div class="fancybreak">* * *</div></div></body>
+</html>
