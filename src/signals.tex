@@ -338,7 +338,7 @@ signals temporarily.
 \begin{lstlisting}
 let old_mask = sigprocmask cmd sigs in 
 (* do something *)
-let _ = sigprocmask SIG_SETMASK old_mark
+let _ = sigprocmask SIG_SETMASK old_mask
 \end{lstlisting}
 %
 Often, one has to guard against possible errors by using
