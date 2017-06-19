@@ -10,7 +10,7 @@ license. For the details see the file [`LICENSE`](LICENSE).
 
 [1]: http://gallium.inria.fr/~remy/camlunix/ 
 
-Project home page : http://ocaml.github.io/ocamlunix  
+Project home page : https://ocaml.github.io/ocamlunix
 Contact & typos : `Daniel Bünzli daniel.buenzl i@erratique.ch`
 
 
